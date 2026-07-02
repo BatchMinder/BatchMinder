@@ -16,6 +16,15 @@ import {
   Calendar,
   AlertCircle
 } from 'lucide-react';
+import { 
+  Dialog, 
+  DialogTitle, 
+  DialogContent, 
+  DialogContentText, 
+  DialogActions, 
+  Button as MuiButton,
+  CircularProgress
+} from '@mui/material';
 
 function App() {
   const { user, loading, logout } = useAuth();
@@ -84,19 +93,19 @@ function App() {
     }
   }, [user]);
 
-  // Loading Screen
+  // Loading Screen using Material UI CircularProgress
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-center items-center relative overflow-hidden">
+      <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-center items-center relative overflow-hidden font-sans">
         <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-blue-100 blur-[120px] pointer-events-none" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-indigo-100 blur-[120px] pointer-events-none" />
         <div className="relative flex flex-col items-center">
-          <div className="h-16 w-16 rounded-2xl bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 mb-6 animate-pulse">
+          <div className="h-16 w-16 rounded-2xl bg-gradient-to-tr from-brandNavy to-brandAccent flex items-center justify-center shadow-lg shadow-brandNavy/20 mb-6 animate-pulse">
             <Layers className="h-8 w-8 text-white" />
           </div>
-          <div className="flex items-center gap-2">
-            <RefreshCw className="h-4 w-4 text-blue-600 animate-spin" />
-            <span className="text-slate-500 text-sm font-semibold tracking-wider uppercase">Loading BatchMinder...</span>
+          <div className="flex items-center gap-2.5">
+            <CircularProgress size={16} className="text-brandNavy" />
+            <span className="text-slate-600 text-sm font-semibold tracking-wider uppercase">Loading BatchMinder...</span>
           </div>
         </div>
       </div>
@@ -105,10 +114,11 @@ function App() {
 
   // Dashboard (Authenticated View)
   if (user) {
+    // Role styling matching palette
     const roleColors = {
-      admin: 'text-indigo-600 bg-indigo-50 border-indigo-200',
-      advisor: 'text-blue-600 bg-blue-50 border-blue-200',
-      academic_admin: 'text-emerald-600 bg-emerald-50 border-emerald-200'
+      admin: 'text-brandNavy bg-brandNavy/5 border-brandNavy/20',
+      advisor: 'text-brandAccent bg-brandAccent/5 border-brandAccent/20',
+      academic_admin: 'text-alertGood bg-alertGood/5 border-alertGood/20'
     };
 
     const roleLabels = {
@@ -118,7 +128,7 @@ function App() {
     };
 
     return (
-      <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col justify-between selection:bg-blue-500 selection:text-white relative overflow-hidden font-sans">
+      <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col justify-between selection:bg-brandNavy selection:text-white relative overflow-hidden font-sans">
         {/* Background blobs */}
         <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-blue-100/40 blur-[120px] pointer-events-none" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-indigo-100/40 blur-[120px] pointer-events-none" />
@@ -127,7 +137,7 @@ function App() {
         <header className="border-b border-slate-200/80 bg-white/80 backdrop-blur-md sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
             <div className="flex items-center gap-3 pr-2">
-              <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center shadow-md">
+              <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-brandNavy to-brandAccent flex items-center justify-center shadow-md">
                 <Layers className="h-5 w-5 text-white" />
               </div>
               <span className="text-xl font-bold tracking-tight text-slate-900 font-display">
@@ -138,19 +148,19 @@ function App() {
             <div className="flex items-center gap-4">
               <div className="hidden sm:flex items-center gap-3 pr-4 border-r border-slate-200">
                 <div className="text-right">
-                  <h4 className="text-sm font-semibold text-slate-800 font-sans">{user.name}</h4>
-                  <p className="text-xs text-slate-500">{user.email}</p>
+                  <h4 className="text-sm font-semibold text-slate-800">{user.name}</h4>
+                  <p className="text-sm text-slate-500">{user.email}</p>
                 </div>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase ${roleColors[user.role]}`}>
+                <span className={`text-sm font-bold px-2 py-0.5 rounded-full border uppercase ${roleColors[user.role]}`}>
                   {roleLabels[user.role]}
                 </span>
               </div>
               <button 
                 onClick={() => setShowLogoutModal(true)}
-                className="flex items-center gap-2 text-slate-500 hover:text-red-600 text-sm font-medium transition-colors focus:outline-none"
+                className="flex items-center gap-2 text-slate-500 hover:text-alertCritical text-sm font-medium transition-colors focus:outline-none"
                 title="Log Out"
               >
-                <LogOut className="h-4 w-4" />
+                <LogOut className="h-5 w-5" />
                 <span className="hidden sm:inline">Log Out</span>
               </button>
             </div>
@@ -172,20 +182,20 @@ function App() {
               <p className="text-slate-500 text-sm leading-relaxed mb-4">
                 Your role provides full access to the Advisory Portal. Use the navigation panel below to view timetables, request approvals, and configure batch actions.
               </p>
-              <div className="flex items-center gap-2 text-xs text-slate-400">
-                <Clock className="h-4 w-4" /> Logged in session active
+              <div className="flex items-center gap-2 text-sm text-slate-400">
+                <Clock className="h-5 w-5" /> Logged in session active
               </div>
             </div>
 
             {/* Quick Metrics Stubs */}
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-sm">
-                <span className="text-xs text-slate-500 font-semibold uppercase tracking-wide">Students Managed</span>
-                <h3 className="text-3xl font-extrabold text-blue-600 mt-1 font-display">142</h3>
+                <span className="text-sm text-slate-500 font-semibold uppercase tracking-wide">Students Managed</span>
+                <h3 className="text-3xl font-extrabold text-brandNavy mt-1 font-display">142</h3>
               </div>
               <div className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-sm">
-                <span className="text-xs text-slate-500 font-semibold uppercase tracking-wide">Pending Approvals</span>
-                <h3 className="text-3xl font-extrabold text-indigo-600 mt-1 font-display">7</h3>
+                <span className="text-sm text-slate-500 font-semibold uppercase tracking-wide">Pending Approvals</span>
+                <h3 className="text-3xl font-extrabold text-brandAccent mt-1 font-display">7</h3>
               </div>
             </div>
 
@@ -193,26 +203,26 @@ function App() {
             <div className="p-6 rounded-2xl bg-white border border-slate-200/80 shadow-sm">
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-4">BatchMinder Modules</h3>
               <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-700">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-alertGood/5 border border-alertGood/25 text-alertGood">
                   <div className="flex items-center gap-3">
-                    <Shield className="h-4.5 w-4.5" />
+                    <Shield className="h-5 w-5" />
                     <span className="text-sm font-semibold">Module 1: Auth & RBAC</span>
                   </div>
-                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-white border border-emerald-200">Active</span>
+                  <span className="text-sm font-semibold px-2 py-0.5 rounded-full bg-white border border-alertGood/30">Active</span>
                 </div>
                 <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-400">
                   <div className="flex items-center gap-3">
-                    <BookOpen className="h-4.5 w-4.5" />
+                    <BookOpen className="h-5 w-5" />
                     <span className="text-sm">Module 2: CGPA & Risk Prediction</span>
                   </div>
-                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-white border border-slate-200">Soon</span>
+                  <span className="text-sm font-semibold px-2 py-0.5 rounded-full bg-white border border-slate-200">Soon</span>
                 </div>
                 <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-400">
                   <div className="flex items-center gap-3">
-                    <Calendar className="h-4.5 w-4.5" />
+                    <Calendar className="h-5 w-5" />
                     <span className="text-sm">Module 3: Timetable Scheduling</span>
                   </div>
-                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-white border border-slate-200">Soon</span>
+                  <span className="text-sm font-semibold px-2 py-0.5 rounded-full bg-white border border-slate-200">Soon</span>
                 </div>
               </div>
             </div>
@@ -227,7 +237,7 @@ function App() {
                 <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">Connection Health</h3>
                 <button 
                   onClick={checkHealth}
-                  className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-blue-600 transition-colors border border-slate-200 focus:outline-none"
+                  className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-brandAccent transition-colors border border-slate-200 focus:outline-none"
                 >
                   <RefreshCw className={`h-4 w-4 ${backendStatus === 'checking' ? 'animate-spin' : ''}`} />
                 </button>
@@ -235,16 +245,16 @@ function App() {
               <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50/50 border border-slate-200">
                 <span className="text-sm text-slate-700 font-medium">Express API Gateway</span>
                 {backendStatus === 'online' ? (
-                  <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 flex items-center gap-1.5 animate-fade-in">
-                    <CheckCircle className="h-3 w-3" /> Online {latency ? `(${latency}ms)` : ''}
+                  <span className="text-sm font-semibold text-alertGood bg-alertGood/5 px-2.5 py-1 rounded-full border border-alertGood/20 flex items-center gap-1.5 animate-fade-in">
+                    <CheckCircle className="h-4 w-4" /> Online {latency ? `(${latency}ms)` : ''}
                   </span>
                 ) : backendStatus === 'checking' ? (
-                  <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200 flex items-center gap-1.5">
-                    <RefreshCw className="h-3 w-3 animate-spin" /> Checking
+                  <span className="text-sm font-semibold text-alertWarning bg-alertWarning/5 px-2.5 py-1 rounded-full border border-alertWarning/20 flex items-center gap-1.5">
+                    <CircularProgress size={10} color="inherit" /> Checking
                   </span>
                 ) : (
-                  <span className="text-xs font-semibold text-red-700 bg-red-50 px-2.5 py-1 rounded-full border border-red-200 flex items-center gap-1.5">
-                    <AlertTriangle className="h-3 w-3" /> Offline
+                  <span className="text-sm font-semibold text-alertCritical bg-alertCritical/5 px-2.5 py-1 rounded-full border border-alertCritical/20 flex items-center gap-1.5">
+                    <AlertTriangle className="h-4 w-4" /> Offline
                   </span>
                 )}
               </div>
@@ -256,7 +266,7 @@ function App() {
                 <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">Database Audit Logs</h3>
                 <button 
                   onClick={fetchAuditLogs}
-                  className="text-xs text-blue-600 hover:text-blue-700 font-bold flex items-center gap-1 transition-colors focus:outline-none"
+                  className="text-sm text-brandAccent hover:text-brandAccent/90 font-bold flex items-center gap-1 transition-colors focus:outline-none"
                 >
                   <RefreshCw className={`h-3 w-3 ${logsLoading ? 'animate-spin' : ''}`} /> Reload
                 </button>
@@ -265,43 +275,44 @@ function App() {
               {/* Logs Content container */}
               <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
                 {logsLoading && (
-                  <div className="py-8 text-center text-xs text-slate-400">
-                    Retrieving database logs...
+                  <div className="py-8 text-center text-sm text-slate-400 flex justify-center items-center gap-2">
+                    <CircularProgress size={14} className="text-brandAccent" />
+                    <span>Retrieving database logs...</span>
                   </div>
                 )}
                 
                 {logsError && (
-                  <div className="p-3 rounded-lg bg-red-50 border border-red-100 text-red-600 text-xs flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-red-500" />
+                  <div className="p-3 rounded-lg bg-alertCritical/5 border border-alertCritical/10 text-alertCritical text-sm flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5" />
                     <span>{logsError} (Logs only queryable by Admins/Advisors)</span>
                   </div>
                 )}
 
                 {!logsLoading && !logsError && auditLogs.length === 0 && (
-                  <div className="py-8 text-center text-xs text-slate-400">
+                  <div className="py-8 text-center text-sm text-slate-400">
                     No database logs recorded yet.
                   </div>
                 )}
 
                 {!logsLoading && !logsError && auditLogs.map((log) => (
-                  <div key={log._id} className="p-3 rounded-lg bg-slate-50/50 border border-slate-200/80 hover:border-slate-300/80 transition-colors text-xs space-y-1">
+                  <div key={log._id} className="p-3 rounded-lg bg-slate-50/50 border border-slate-200/80 hover:border-slate-300/80 transition-colors text-sm space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase text-[10px] border border-blue-100">
+                      <span className="font-semibold text-brandAccent bg-brandAccent/5 px-2 py-0.5 rounded uppercase text-sm border border-brandAccent/10">
                         {log.action}
                       </span>
-                      <span className="text-[10px] text-slate-450">
+                      <span className="text-sm text-slate-400">
                         {new Date(log.timestamp).toLocaleTimeString()}
                       </span>
                     </div>
-                    <p className="text-slate-600 leading-normal">{log.description}</p>
+                    <p className="text-slate-600 leading-normal text-sm">{log.description}</p>
                     {log.userId?.name && (
-                      <div className="text-[10px] text-slate-400 flex items-center gap-1.5 pt-0.5 border-t border-slate-200">
-                        <UserIcon className="h-3 w-3 text-slate-400" /> {log.userId.name} ({log.userId.email})
+                      <div className="text-sm text-slate-400 flex items-center gap-1.5 pt-0.5 border-t border-slate-200">
+                        <UserIcon className="h-4 w-4 text-slate-400" /> {log.userId.name} ({log.userId.email})
                       </div>
                     )}
                     {!log.userId && log.userEmail && (
-                      <div className="text-[10px] text-slate-400 flex items-center gap-1.5 pt-0.5 border-t border-slate-200">
-                        <UserIcon className="h-3 w-3 text-slate-400" /> Anonymous ({log.userEmail})
+                      <div className="text-sm text-slate-400 flex items-center gap-1.5 pt-0.5 border-t border-slate-200">
+                        <UserIcon className="h-4 w-4 text-slate-400" /> Anonymous ({log.userEmail})
                       </div>
                     )}
                   </div>
@@ -312,37 +323,54 @@ function App() {
           </div>
         </main>
 
-        {/* Custom Logout Confirmation Modal */}
-        {showLogoutModal && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="w-full max-w-sm bg-white rounded-3xl p-8 border border-slate-100 shadow-[0_20px_50px_-20px_rgba(15,23,42,0.15)] animate-in fade-in zoom-in-95 duration-250 flex flex-col items-center text-center">
-              <div className="h-12 w-12 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-4 border border-red-100">
-                <AlertTriangle className="h-6 w-6" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-1 font-display">Confirm Log Out</h3>
-              <p className="text-slate-500 text-sm mb-6 leading-normal">
-                Are you sure you want to end your BatchMinder advisory session?
-              </p>
-              <div className="flex items-center gap-3 w-full">
-                <button
-                  onClick={() => setShowLogoutModal(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-all focus:outline-none"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    setShowLogoutModal(false);
-                    logout();
-                  }}
-                  className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition-all shadow-md shadow-red-500/10 focus:outline-none"
-                >
-                  Log Out
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Unified Logout Confirmation Dialog using Material UI Components */}
+        <Dialog
+          open={showLogoutModal}
+          onClose={() => setShowLogoutModal(false)}
+          PaperProps={{
+            style: {
+              borderRadius: '24px',
+              padding: '16px',
+              maxWidth: '380px'
+            }
+          }}
+        >
+          <DialogTitle style={{ fontWeight: 'bold', fontSize: '18px', color: '#1B3A6B', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertTriangle style={{ color: '#EF4444' }} />
+            Confirm Log Out
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText style={{ fontSize: '14px', color: '#64748b' }}>
+              Are you sure you want to end your BatchMinder advisory session?
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions style={{ padding: '8px 24px 16px' }}>
+            <MuiButton 
+              onClick={() => setShowLogoutModal(false)} 
+              style={{ color: '#64748b', textTransform: 'none', fontWeight: '600', fontSize: '14px' }}
+            >
+              Cancel
+            </MuiButton>
+            <MuiButton 
+              onClick={() => {
+                setShowLogoutModal(false);
+                logout();
+              }} 
+              style={{ 
+                backgroundColor: '#EF4444', 
+                color: '#ffffff', 
+                textTransform: 'none', 
+                fontWeight: '600', 
+                fontSize: '14px',
+                padding: '6px 20px', 
+                borderRadius: '12px',
+                boxShadow: '0 4px 12px rgba(239, 68, 68, 0.15)'
+              }}
+            >
+              Log Out
+            </MuiButton>
+          </DialogActions>
+        </Dialog>
 
         {/* Footer */}
         <footer className="border-t border-slate-200/80 bg-white py-6 mt-12">
@@ -351,9 +379,9 @@ function App() {
               &copy; {new Date().getFullYear()} BatchMinder. All rights reserved.
             </div>
             <div className="flex items-center gap-6">
-              <span className="hover:text-slate-600 cursor-pointer transition-colors">Privacy Policy</span>
-              <span className="hover:text-slate-600 cursor-pointer transition-colors">Terms of Service</span>
-              <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="hover:text-slate-500 hover:text-slate-700 transition-colors">
+              <span className="hover:text-slate-600 cursor-pointer transition-colors text-sm">Privacy Policy</span>
+              <span className="hover:text-slate-600 cursor-pointer transition-colors text-sm">Terms of Service</span>
+              <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="hover:text-slate-700 transition-colors">
                 <Github className="h-5 w-5" />
               </a>
             </div>
@@ -365,7 +393,7 @@ function App() {
 
   // Guest View (Login / Signup Forms)
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col justify-between selection:bg-blue-500 selection:text-white relative overflow-hidden font-sans">
+    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col justify-between selection:bg-brandNavy selection:text-white relative overflow-hidden font-sans">
       {/* Background blobs for premium depth */}
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-blue-100/40 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-indigo-100/40 blur-[120px] pointer-events-none" />
@@ -374,7 +402,7 @@ function App() {
       <header className="border-b border-slate-200/80 bg-white/60 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center shadow-md">
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-brandNavy to-brandAccent flex items-center justify-center shadow-md">
               <Layers className="h-5 w-5 text-white animate-pulse" />
             </div>
             <span className="text-xl font-bold tracking-tight text-slate-900 font-display">
@@ -382,7 +410,7 @@ function App() {
             </span>
           </div>
           <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-500 shadow-sm">
+            <span className="flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-500 shadow-sm">
               v1.0.0
             </span>
           </div>
@@ -405,9 +433,9 @@ function App() {
             &copy; {new Date().getFullYear()} BatchMinder. All rights reserved.
           </div>
           <div className="flex items-center gap-6">
-            <span className="hover:text-slate-600 cursor-pointer transition-colors">Privacy Policy</span>
-            <span className="hover:text-slate-600 cursor-pointer transition-colors">Terms of Service</span>
-            <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="hover:text-slate-500 hover:text-slate-700 transition-colors">
+            <span className="hover:text-slate-600 cursor-pointer transition-colors text-sm">Privacy Policy</span>
+            <span className="hover:text-slate-600 cursor-pointer transition-colors text-sm">Terms of Service</span>
+            <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="hover:text-slate-700 transition-colors">
               <Github className="h-5 w-5" />
             </a>
           </div>

@@ -7,17 +7,15 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
-        display: ['Outfit', 'sans-serif'],
+        sans: ['Inter', 'sans-serif'],
+        display: ['Inter', 'sans-serif'],
       },
       colors: {
-        primary: {
-          50: '#f0f9ff',
-          100: '#e0f2fe',
-          500: '#0284c7',
-          600: '#025a87',
-          700: '#0369a1',
-        }
+        brandNavy: '#1B3A6B',
+        brandAccent: '#2E75B6',
+        alertGood: '#10B981',
+        alertWarning: '#F59E0B',
+        alertCritical: '#EF4444',
       }
     },
   },
