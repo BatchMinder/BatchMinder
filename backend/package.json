@@ -19,7 +19,6 @@
     "jsonwebtoken": "^9.0.2",
     "mongodb": "^7.4.0",
     "mongoose": "^8.24.1",
-    "moongoose": "^0.0.5"
     "multer": "^2.2.0"
   },
   "devDependencies": {
