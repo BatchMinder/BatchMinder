@@ -4,6 +4,7 @@ import AuditLog from '../models/auditLog.js';
 import csv from 'csv-parser';
 import { Readable } from 'stream';
 import { uploadToCloudinary } from '../utils/cloudinary.js';
+import mongoose from 'mongoose';
 
 // Helper to log audit actions
 const logAudit = async (userId, userEmail, action, description) => {
@@ -462,6 +463,264 @@ export const getStudentTemplate = (req, res) => {
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename=student_import_template.csv');
     return res.status(200).send(csvContent);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// GET /api/students/analytics/batch-overview - Get aggregate data per batch
+export const getBatchOverview = async (req, res) => {
+  try {
+    const { batch } = req.query;
+    const matchStage = {};
+    if (batch) {
+      matchStage.batch = batch;
+    }
+
+    const stats = await Student.aggregate([
+      { $match: matchStage },
+      {
+        $group: {
+          _id: "$batch",
+          totalStudents: { $sum: 1 },
+          avgCgpa: { $avg: "$cgpa" },
+          goodStandingCount: {
+            $sum: { $cond: [{ $eq: ["$status", "good_standing"] }, 1, 0] }
+          },
+          warningCount: {
+            $sum: { $cond: [{ $eq: ["$status", "warning"] }, 1, 0] }
+          },
+          criticalCount: {
+            $sum: { $cond: [{ $eq: ["$status", "critical"] }, 1, 0] }
+          }
+        }
+      },
+      {
+        $project: {
+          batch: "$_id",
+          totalStudents: 1,
+          avgCgpa: { $round: ["$avgCgpa", 2] },
+          goodStandingCount: 1,
+          warningCount: 1,
+          criticalCount: 1,
+          _id: 0
+        }
+      },
+      { $sort: { batch: -1 } }
+    ]);
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        overview: stats
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// GET /api/students/analytics/cgpa-alerts - Get list of low GPA warning alerts
+export const getCgpaAlerts = async (req, res) => {
+  try {
+    const threshold = Number(req.query.threshold || 2.0);
+    const { batch } = req.query;
+
+    const query = {
+      $or: [
+        { cgpa: { $lte: threshold } },
+        { status: { $in: ['warning', 'critical'] } }
+      ]
+    };
+
+    if (batch) {
+      query.batch = batch;
+    }
+
+    const students = await Student.find(query)
+      .select('rollNumber name email batch department cgpa status')
+      .sort({ cgpa: 1 });
+
+    res.status(200).json({
+      status: 'success',
+      results: students.length,
+      data: {
+        alerts: students
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// GET /api/students/analytics/performance-tracking - Get academic performance statistics
+export const getPerformanceTracking = async (req, res) => {
+  try {
+    const { batch } = req.query;
+    const matchStage = {};
+    if (batch) {
+      matchStage.batch = batch;
+    }
+
+    const courseStats = await Student.aggregate([
+      { $match: matchStage },
+      { $unwind: "$courses" },
+      {
+        $group: {
+          _id: "$courses.courseCode",
+          courseTitle: { $first: "$courses.courseTitle" },
+          creditHours: { $first: "$courses.creditHours" },
+          totalStudents: { $sum: 1 },
+          enrolledCount: {
+            $sum: { $cond: [{ $eq: ["$courses.status", "enrolled"] }, 1, 0] }
+          },
+          completedCount: {
+            $sum: { $cond: [{ $eq: ["$courses.status", "completed"] }, 1, 0] }
+          },
+          failedCount: {
+            $sum: { $cond: [{ $eq: ["$courses.status", "failed"] }, 1, 0] }
+          },
+          avgAttendance: { $avg: "$courses.attendance" }
+        }
+      },
+      {
+        $project: {
+          courseCode: "$_id",
+          courseTitle: 1,
+          creditHours: 1,
+          totalStudents: 1,
+          enrolledCount: 1,
+          completedCount: 1,
+          failedCount: 1,
+          avgAttendance: { $round: ["$avgAttendance", 1] },
+          passRate: {
+            $cond: [
+              { $gt: ["$totalStudents", 0] },
+              { $round: [{ $multiply: [{ $divide: ["$completedCount", "$totalStudents"] }, 100] }, 1] },
+              0
+            ]
+          },
+          _id: 0
+        }
+      },
+      { $sort: { courseCode: 1 } }
+    ]);
+
+    const cgpaDistribution = await Student.aggregate([
+      { $match: matchStage },
+      {
+        $bucket: {
+          groupBy: "$cgpa",
+          boundaries: [0.0, 2.0, 2.5, 3.0, 3.5, 4.01],
+          default: "Other",
+          output: {
+            count: { $sum: 1 }
+          }
+        }
+      }
+    ]);
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        courseStats,
+        cgpaDistribution
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// GET /api/students/:id/analysis - Detailed student profile academic analysis and risk assessment
+export const getStudentProfileAnalysis = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const query = mongoose.isValidObjectId(id) 
+      ? { _id: id } 
+      : { rollNumber: id.toUpperCase().trim() };
+
+    const student = await Student.findOne(query);
+    if (!student) {
+      return res.status(404).json({ message: 'Student profile not found' });
+    }
+
+    const courses = student.courses || [];
+    let totalCreditsAttempted = 0;
+    let totalCreditsCompleted = 0;
+    let attendanceSum = 0;
+    const lowAttendanceCourses = [];
+    const failedCourses = [];
+
+    courses.forEach(c => {
+      totalCreditsAttempted += c.creditHours;
+      if (c.status === 'completed') {
+        totalCreditsCompleted += c.creditHours;
+      } else if (c.status === 'failed') {
+        failedCourses.push(c);
+      }
+      attendanceSum += c.attendance || 100;
+      if (c.attendance < 75) {
+        lowAttendanceCourses.push(c);
+      }
+    });
+
+    const avgAttendance = courses.length > 0 ? (attendanceSum / courses.length) : 100;
+
+    let riskLevel = 'low';
+    const riskFactors = [];
+
+    if (student.status === 'critical' || student.cgpa < 2.0) {
+      riskLevel = 'high';
+      riskFactors.push('Critical academic standing or low cumulative GPA');
+    } else if (student.status === 'warning') {
+      riskLevel = 'medium';
+      riskFactors.push('Warning academic standing');
+    }
+
+    if (failedCourses.length > 0) {
+      riskFactors.push(`Failed courses detected (${failedCourses.length} course(s))`);
+      if (failedCourses.length >= 2 && riskLevel !== 'high') {
+        riskLevel = 'high';
+      } else if (riskLevel === 'low') {
+        riskLevel = 'medium';
+      }
+    }
+
+    if (lowAttendanceCourses.length > 0) {
+      riskFactors.push(`Attendance below 75% detected (${lowAttendanceCourses.length} course(s))`);
+      if (avgAttendance < 75 && riskLevel !== 'high') {
+        riskLevel = 'high';
+      } else if (riskLevel === 'low') {
+        riskLevel = 'medium';
+      }
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        student: {
+          rollNumber: student.rollNumber,
+          name: student.name,
+          email: student.email,
+          batch: student.batch,
+          department: student.department,
+          cgpa: student.cgpa,
+          status: student.status,
+          currentSemester: student.currentSemester
+        },
+        analysis: {
+          totalCreditsAttempted,
+          totalCreditsCompleted,
+          avgAttendance: Math.round(avgAttendance * 10) / 10,
+          failedCourses: failedCourses.map(c => ({ code: c.courseCode, title: c.courseTitle, grade: c.grade })),
+          lowAttendanceCourses: lowAttendanceCourses.map(c => ({ code: c.courseCode, title: c.courseTitle, attendance: c.attendance })),
+          riskLevel,
+          riskFactors
+        }
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -9,7 +9,11 @@ import {
   bulkUploadStudents,
   syncLmsRecords,
   promoteSemester,
-  getStudentTemplate
+  getStudentTemplate,
+  getBatchOverview,
+  getCgpaAlerts,
+  getPerformanceTracking,
+  getStudentProfileAnalysis
 } from '../controllers/studentController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { restrictTo } from '../middleware/roleMiddleware.js';
@@ -25,6 +29,10 @@ router.use(protect);
 // Student profile management endpoints
 router.get('/', restrictTo('admin', 'advisor'), getAllStudents);
 router.get('/template', restrictTo('admin', 'advisor'), getStudentTemplate);
+router.get('/analytics/batch-overview', restrictTo('admin', 'advisor'), getBatchOverview);
+router.get('/analytics/cgpa-alerts', restrictTo('admin', 'advisor'), getCgpaAlerts);
+router.get('/analytics/performance-tracking', restrictTo('admin', 'advisor'), getPerformanceTracking);
+router.get('/:id/analysis', restrictTo('admin', 'advisor'), getStudentProfileAnalysis);
 router.get('/:id', restrictTo('admin', 'advisor'), getStudentById);
 router.post('/', restrictTo('admin'), createStudent);
 router.put('/:id', restrictTo('admin', 'advisor'), updateStudent);
