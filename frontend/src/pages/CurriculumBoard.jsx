@@ -90,7 +90,7 @@ export default function CurriculumBoard() {
 
   const handleAddCourse = async (e) => {
     e.preventDefault();
-    
+
     // Check all fields
     validateField('courseCode', courseCode);
     validateField('courseName', courseName);
@@ -210,18 +210,18 @@ export default function CurriculumBoard() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      
+
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
           <h1 className="text-2xl font-extrabold text-brandNavy font-display">Curriculum Version Board</h1>
           <p className="text-slate-500 text-sm">Define degree pathways, batch templates, and course prerequisite constraints.</p>
         </div>
-        
+
         {/* Batch Selection */}
         <div className="flex items-center gap-3">
           <span className="text-sm font-semibold text-slate-600">Active Curriculum:</span>
-          <select 
+          <select
             value={selectedBatch}
             onChange={(e) => setSelectedBatch(e.target.value)}
             className="py-1.5 px-4 border border-slate-200 rounded-lg text-sm font-bold focus:outline-none focus:border-brandAccent text-brandNavy bg-white shadow-sm"
@@ -234,7 +234,7 @@ export default function CurriculumBoard() {
       </div>
 
       <div className="grid lg:grid-cols-12 gap-8">
-        
+
         {/* Left Columns: Visual Curriculum Semesters Tree (UI-1, UI-2) */}
         <div className="lg:col-span-8 space-y-6">
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
@@ -268,7 +268,7 @@ export default function CurriculumBoard() {
                   <div key={sem} className="relative pl-6 border-l-2 border-slate-100 space-y-3">
                     {/* Visual Connector Dot */}
                     <div className="absolute top-1.5 left-[-6px] h-3.5 w-3.5 rounded-full bg-brandAccent border-4 border-white shadow-sm shadow-brandAccent/30" />
-                    
+
                     <h3 className="text-sm font-extrabold text-brandNavy flex items-center gap-2">
                       Semester {sem}
                       <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
@@ -281,8 +281,8 @@ export default function CurriculumBoard() {
                     ) : (
                       <div className="grid sm:grid-cols-2 gap-4">
                         {semesterCourses.map(course => (
-                          <div 
-                            key={course.code} 
+                          <div
+                            key={course.code}
                             className="p-4 rounded-xl border border-slate-150 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-350 transition-colors flex flex-col justify-between group shadow-sm"
                           >
                             <div className="space-y-2">
@@ -290,7 +290,7 @@ export default function CurriculumBoard() {
                                 <span className="font-mono text-xs font-bold text-brandAccent bg-brandAccent/5 px-2 py-0.5 rounded border border-brandAccent/10 uppercase tracking-wide">
                                   {course.code}
                                 </span>
-                                <button 
+                                <button
                                   onClick={() => handleDeleteCourse(course.code)}
                                   className="text-slate-400 hover:text-alertCritical p-1 rounded-lg hover:bg-white border border-transparent hover:border-slate-100 transition-all opacity-0 group-hover:opacity-100 focus:outline-none"
                                   title="Remove Course"
@@ -333,19 +333,18 @@ export default function CurriculumBoard() {
             </div>
 
             <form onSubmit={handleAddCourse} className="space-y-4">
-              
+
               {/* Course Code Input */}
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Course Code</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   placeholder="e.g. CS-201"
                   value={courseCode}
                   onChange={(e) => setCourseCode(e.target.value)}
                   onBlur={() => validateField('courseCode', courseCode)}
-                  className={`w-full px-3 py-2 border rounded-lg text-sm font-semibold uppercase focus:outline-none transition-colors text-slate-800 placeholder-slate-400 ${
-                    errors.courseCode ? 'border-alertCritical focus:border-alertCritical' : 'border-slate-200 focus:border-brandAccent'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded-lg text-sm font-semibold uppercase focus:outline-none transition-colors text-slate-800 placeholder-slate-400 ${errors.courseCode ? 'border-alertCritical focus:border-alertCritical' : 'border-slate-200 focus:border-brandAccent'
+                    }`}
                 />
                 {errors.courseCode && (
                   <p className="text-xs font-medium text-alertCritical flex items-center gap-1 mt-1">
@@ -358,15 +357,14 @@ export default function CurriculumBoard() {
               {/* Course Name Input */}
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Course Name</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   placeholder="e.g. Object Oriented Programming"
                   value={courseName}
                   onChange={(e) => setCourseName(e.target.value)}
                   onBlur={() => validateField('courseName', courseName)}
-                  className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none transition-colors text-slate-800 placeholder-slate-400 ${
-                    errors.courseName ? 'border-alertCritical focus:border-alertCritical' : 'border-slate-200 focus:border-brandAccent'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none transition-colors text-slate-800 placeholder-slate-400 ${errors.courseName ? 'border-alertCritical focus:border-alertCritical' : 'border-slate-200 focus:border-brandAccent'
+                    }`}
                 />
                 {errors.courseName && (
                   <p className="text-xs font-medium text-alertCritical flex items-center gap-1 mt-1">
@@ -380,16 +378,15 @@ export default function CurriculumBoard() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Credits (CH)</label>
-                  <input 
-                    type="number" 
-                    min="1" 
+                  <input
+                    type="number"
+                    min="1"
                     max="4"
                     value={credits}
                     onChange={(e) => setCredits(e.target.value)}
                     onBlur={() => validateField('credits', credits)}
-                    className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none transition-colors text-slate-800 ${
-                      errors.credits ? 'border-alertCritical focus:border-alertCritical' : 'border-slate-200 focus:border-brandAccent'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none transition-colors text-slate-800 ${errors.credits ? 'border-alertCritical focus:border-alertCritical' : 'border-slate-200 focus:border-brandAccent'
+                      }`}
                   />
                   {errors.credits && (
                     <p className="text-xs font-medium text-alertCritical flex items-center gap-1 mt-1">
@@ -401,7 +398,7 @@ export default function CurriculumBoard() {
 
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Semester</label>
-                  <select 
+                  <select
                     value={semester}
                     onChange={(e) => setSemester(e.target.value)}
                     className="w-full py-2 px-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brandAccent text-slate-700 bg-white"
@@ -416,7 +413,7 @@ export default function CurriculumBoard() {
               {/* Prerequisite course selection */}
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Prerequisite Course</label>
-                <select 
+                <select
                   value={prereq}
                   onChange={(e) => setPrereq(e.target.value)}
                   className="w-full py-2 px-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brandAccent text-slate-700 bg-white"
@@ -429,7 +426,7 @@ export default function CurriculumBoard() {
               </div>
 
               {/* Submit Button */}
-              <button 
+              <button
                 type="submit"
                 className="w-full py-2.5 px-4 bg-brandNavy text-white hover:bg-brandNavy/95 font-bold rounded-lg text-sm focus:outline-none transition-colors shadow-sm shadow-brandNavy/10 flex items-center justify-center gap-2 mt-4"
               >
