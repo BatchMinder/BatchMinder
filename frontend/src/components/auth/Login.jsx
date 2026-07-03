@@ -262,6 +262,16 @@ export default function Login() {
             <span>Secured with Firebase Authentication • Role-Based Access Control enforced</span>
           </div>
 
+          {/* Consistent Footer */}
+          <div className="pt-8 border-t border-slate-150 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-400 mt-10">
+            <span className="font-bold text-slate-800 uppercase tracking-wider">BatchMinder</span>
+            <span className="text-center font-medium">&copy; 2024 BatchMinder Academic Management Portal. All Rights Reserved.</span>
+            <div className="flex items-center gap-4 shrink-0 font-bold">
+              <span className="hover:text-slate-600 cursor-pointer transition-colors">Security Policy</span>
+              <span className="hover:text-slate-600 cursor-pointer transition-colors">Terms of Service</span>
+            </div>
+          </div>
+
         </div>
       </div>
       
