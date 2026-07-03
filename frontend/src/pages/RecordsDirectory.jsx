@@ -179,7 +179,7 @@ export default function RecordsDirectory() {
         </div>
 
         {/* Rows Limit Selection */}
-        <div className="lg:col-span-3 flex items-center justify-end gap-2 text-sm text-slate-500">
+        <div className="lg:col-span-3 flex items-center justify-start lg:justify-end gap-2 text-sm text-slate-500">
           <span>Show:</span>
           <select
             value={pageSize}
