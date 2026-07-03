@@ -375,7 +375,12 @@ function App() {
   }
 
   // Aligned & Highly Responsive Guest View Sandbox Grid Layout
-  return <Login />;
+  return (
+    <div className="min-h-screen flex flex-col justify-between font-sans bg-slate-50 overflow-x-hidden">
+      <Login />
+      <Footer />
+    </div>
+  );
 }
 
 export default App;

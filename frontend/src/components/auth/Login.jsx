@@ -79,7 +79,7 @@ export default function Login() {
   ];
 
   return (
-    <div className="min-h-screen w-screen flex flex-col md:flex-row font-sans selection:bg-blue-600 selection:text-white bg-slate-50">
+    <div className="flex-1 flex flex-col md:flex-row font-sans selection:bg-blue-600 selection:text-white bg-slate-50 w-full">
       
       {/* Left Panel: Feature Highlights */}
       <div className="w-full md:w-[45%] bg-slate-900 text-white flex flex-col justify-center px-8 xl:px-12 py-16 relative overflow-hidden shrink-0">
@@ -262,15 +262,7 @@ export default function Login() {
             <span>Secured with Firebase Authentication • Role-Based Access Control enforced</span>
           </div>
 
-          {/* Consistent Footer */}
-          <div className="pt-8 border-t border-slate-150 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-400 mt-10">
-            <span className="font-bold text-slate-800 uppercase tracking-wider">BatchMinder</span>
-            <span className="text-center font-medium">&copy; 2024 BatchMinder Academic Management Portal. All Rights Reserved.</span>
-            <div className="flex items-center gap-4 shrink-0 font-bold">
-              <span className="hover:text-slate-600 cursor-pointer transition-colors">Security Policy</span>
-              <span className="hover:text-slate-600 cursor-pointer transition-colors">Terms of Service</span>
-            </div>
-          </div>
+
 
         </div>
       </div>
