@@ -1,115 +1,148 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
+import {
+  Table, TableBody, TableCell, TableContainer, TableHead,
+  TableRow, TablePagination, TableSortLabel, Paper, TextField, Box
+} from '@mui/material';
 
-/**
- * StudentTable – displays a list of students with sorting and pagination.
- * Props:
- *   students: array of student objects { id, name, email, cohort }
- *   pageSizeOptions: optional array of page sizes (default [25, 50, 100])
- */
-export default function StudentTable({ students = [], pageSizeOptions = [25, 50, 100] }) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(pageSizeOptions[0]);
-  const [sortedStudents, setSortedStudents] = useState([]);
-  const [sortKey, setSortKey] = useState('name');
-  const [sortAsc, setSortAsc] = useState(true);
+const StudentTable = ({ students = [], onEdit, onAdd, canEdit = false }) => {
+  const [order, setOrder] = useState('asc');
+  const [orderBy, setOrderBy] = useState('studentID');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25); // Enforces 25 default
+  const [searchQuery, setSearchQuery] = useState('');
 
+  // Page index reset handler avoids layout mismatch failures
   useEffect(() => {
-    const sorted = [...students].sort((a, b) => {
-      const aVal = a[sortKey] ?? '';
-      const bVal = b[sortKey] ?? '';
-      if (aVal < bVal) return sortAsc ? -1 : 1;
-      if (aVal > bVal) return sortAsc ? 1 : -1;
-      return 0;
-    });
-    setSortedStudents(sorted);
-  }, [students, sortKey, sortAsc]);
+    setPage(0);
+  }, [searchQuery]);
 
-  const totalPages = Math.ceil(sortedStudents.length / pageSize);
-  const displayed = sortedStudents.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
-  const changeSort = (key) => {
-    if (key === sortKey) {
-      setSortAsc(!sortAsc);
-    } else {
-      setSortKey(key);
-      setSortAsc(true);
-    }
-    setCurrentPage(1);
+  const handleRequestSort = (property) => {
+    const isAsc = orderBy === property && order === 'asc';
+    setOrder(isAsc ? 'desc' : 'asc');
+    setOrderBy(property);
   };
 
-  return (
-    <div className="overflow-x-auto rounded-lg shadow-sm bg-white">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            <th
-              className="px-4 py-2 text-left text-xs font-medium text-gray-500 cursor-pointer"
-              onClick={() => changeSort('name')}
-            >
-              Name {sortKey === 'name' && (sortAsc ? '▲' : '▼')}
-            </th>
-            <th
-              className="px-4 py-2 text-left text-xs font-medium text-gray-500 cursor-pointer"
-              onClick={() => changeSort('email')}
-            >
-              Email {sortKey === 'email' && (sortAsc ? '▲' : '▼')}
-            </th>
-            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">
-              Cohort
-            </th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-100">
-          {displayed.map((s) => (
-            <tr key={s.id} className="hover:bg-gray-50 transition-colors">
-              <td className="px-4 py-2 text-sm text-gray-800">{s.name}</td>
-              <td className="px-4 py-2 text-sm text-gray-600">{s.email}</td>
-              <td className="px-4 py-2 text-sm text-gray-500">{s.cohort}</td>
-            </tr>
-          ))}
-          {displayed.length === 0 && (
-            <tr>
-              <td colSpan={3} className="px-4 py-6 text-center text-gray-400">No students found.</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+  const handleChangePage = (event, newPage) => setPage(newPage);
 
-      {/* Pagination controls */}
-      <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-t border-gray-200">
-        <div className="flex items-center space-x-2">
-          <label htmlFor="pageSize" className="text-sm text-gray-600">Rows per page:</label>
-          <select
-            id="pageSize"
-            value={pageSize}
-            onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
-            className="rounded border-gray-300 text-sm"
-          >
-            {pageSizeOptions.map((opt) => (
-              <option key={opt} value={opt}>{opt}</option>
-            ))}
-          </select>
-        </div>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-            disabled={currentPage === 1}
-            className="px-2 py-1 text-sm text-gray-600 bg-gray-200 rounded disabled:opacity-50"
-          >
-            Previous
-          </button>
-          <span className="text-sm text-gray-700">
-            Page {currentPage} of {totalPages}
-          </span>
-          <button
-            onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-            disabled={currentPage === totalPages}
-            className="px-2 py-1 text-sm text-gray-600 bg-gray-200 rounded disabled:opacity-50"
-          >
-            Next
-          </button>
-        </div>
-      </div>
-    </div>
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const filteredStudents = students.filter(student =>
+    student.studentName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    student.studentID?.toLowerCase().includes(searchQuery.toLowerCase())
   );
-}
+
+  const sortedStudents = useMemo(() => {
+    const compare = (a, b) => {
+      const aVal = a[orderBy];
+      const bVal = b[orderBy];
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+      if (typeof aVal === 'number' && typeof bVal === 'number') return aVal - bVal;
+      return String(aVal).localeCompare(String(bVal), undefined, { numeric: true });
+    };
+    const sorted = [...filteredStudents].sort(compare);
+    return order === 'asc' ? sorted : sorted.reverse();
+  }, [filteredStudents, order, orderBy]);
+
+  const headers = [
+    { id: 'studentID', label: 'STUDENT ID' },
+    { id: 'studentName', label: 'FULL NAME' },
+    { id: 'semester', label: 'SEMESTER' },
+    { id: 'cgpa', label: 'CGPA' }
+  ];
+
+  return (
+    <Box className="w-full bg-white rounded-md p-2">
+      <Box className="flex justify-between items-center mb-4 gap-4">
+        <TextField
+          fullWidth
+          variant="outlined"
+          placeholder="Search by ID or Name..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          size="small"
+          inputProps={{ style: { fontSize: 14 } }}
+        />
+      </Box>
+      <TableContainer component={Paper} className="shadow-none border border-gray-200">
+        <Table stickyHeader>
+          <TableHead>
+            <TableRow>
+              {headers.map((col) => (
+                <TableCell key={col.id} sx={{ color: 'white', fontWeight: 'bold', backgroundColor: '#1B3A6B', fontSize: '13px', py: 1.5 }}>
+                  <TableSortLabel
+                    active={orderBy === col.id}
+                    direction={orderBy === col.id ? order : 'asc'}
+                    onClick={() => handleRequestSort(col.id)}
+                    sx={{ '&.MuiTableSortLabel-active': { color: 'white' }, '& .MuiTableSortLabel-icon': { color: 'white !important' } }}
+                  >
+                    {col.label}
+                  </TableSortLabel>
+                </TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {sortedStudents.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} align="center" sx={{ py: 4, color: '#666', fontSize: '14px' }}>
+                  No matching entries available.
+                </TableCell>
+              </TableRow>
+            ) : (
+              sortedStudents
+                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                .map((student) => {
+                  const valCgpa = typeof student.cgpa === 'number' ? student.cgpa : null;
+                  const tagStyle = valCgpa == null
+                    ? 'bg-gray-100 text-gray-600 border-gray-200'
+                    : valCgpa < 2.0
+                      ? 'bg-red-50 text-red-700 border-red-200'
+                      : valCgpa <= 2.1
+                        ? 'bg-amber-50 text-amber-700 border-amber-200'
+                        : 'bg-green-50 text-green-700 border-green-200';
+
+                  return (
+                    <TableRow
+                      hover
+                      key={student._id || student.studentID}
+                      onClick={() => onEdit?.(student)}
+                      className="cursor-pointer transition-colors"
+                      sx={{ '&:hover': { backgroundColor: '#f8fafc !important' } }}
+                      tabIndex={0}
+                      onKeyDown={(e) => { if (e.key === 'Enter') onEdit?.(student); }}
+                    >
+                      <TableCell sx={{ fontSize: '14px', py: 1.5 }}>{student.studentID}</TableCell>
+                      <TableCell sx={{ fontSize: '14px', py: 1.5, fontWeight: '500' }}>{student.studentName}</TableCell>
+                      <TableCell sx={{ fontSize: '14px', py: 1.5 }}>Semester {student.semester}</TableCell>
+                      <TableCell sx={{ fontSize: '14px', py: 1.5 }}>
+                        <span className={`px-2.5 py-0.5 rounded border text-xs font-bold ${tagStyle}`}>
+                          {valCgpa != null ? valCgpa.toFixed(2) : 'N/A'}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+      <TablePagination
+        rowsPerPageOptions={[25, 50, 100]}
+        component="div"
+        count={filteredStudents.length}
+        rowsPerPage={rowsPerPage}
+        page={page}
+        onPageChange={handleChangePage}
+        onRowsPerPageChange={handleChangeRowsPerPage}
+        sx={{ '.MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows': { fontSize: '13px' } }}
+      />
+    </Box>
+  );
+};
+
+export default StudentTable;
