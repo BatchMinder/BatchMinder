@@ -3,6 +3,7 @@ import Curriculum from '../models/curriculum.js';
 import AuditLog from '../models/auditLog.js';
 import csv from 'csv-parser';
 import { Readable } from 'stream';
+import { uploadToCloudinary } from '../utils/cloudinary.js';
 
 // Helper to log audit actions
 const logAudit = async (userId, userEmail, action, description) => {
@@ -268,6 +269,15 @@ export const bulkUploadStudents = async (req, res) => {
 
     const result = await Student.bulkWrite(bulkOps);
 
+    // Upload the CSV file buffer to Cloudinary for archive storage
+    let archiveUrl = null;
+    try {
+      const uploadResult = await uploadToCloudinary(req.file.buffer, 'csv_archives');
+      archiveUrl = uploadResult.secure_url;
+    } catch (err) {
+      console.error('Failed to archive CSV to Cloudinary:', err);
+    }
+
     // Audit log
     const actorEmail = req.user ? req.user.email : 'system@batchminder.local';
     const actorId = req.user ? req.user._id : null;
@@ -275,7 +285,7 @@ export const bulkUploadStudents = async (req, res) => {
       actorId,
       actorEmail,
       'STUDENT_BULK_UPLOADED',
-      `Bulk imported student records. Upserted count: ${bulkOps.length}. Modified: ${result.nModified || 0}. Inserted/Upserted: ${result.nUpserted || 0}`
+      `Bulk imported student records. Upserted count: ${bulkOps.length}. Modified: ${result.nModified || 0}. Inserted/Upserted: ${result.nUpserted || 0}. Archive: ${archiveUrl || 'Failed to upload'}`
     );
 
     res.status(200).json({
@@ -285,6 +295,7 @@ export const bulkUploadStudents = async (req, res) => {
         upserted: result.nUpserted,
         modified: result.nModified,
         errors: errors.length > 0 ? errors : undefined,
+        archiveUrl: archiveUrl || undefined,
       }
     });
 
