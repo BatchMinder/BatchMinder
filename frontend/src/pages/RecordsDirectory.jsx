@@ -1,23 +1,23 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  Search, 
-  ChevronDown, 
-  ChevronUp, 
-  User, 
-  Mail, 
-  BookOpen, 
-  Award, 
-  AlertCircle, 
-  X, 
+import {
+  Search,
+  ChevronDown,
+  ChevronUp,
+  User,
+  Mail,
+  BookOpen,
+  Award,
+  AlertCircle,
+  X,
   Filter,
   Eye
 } from 'lucide-react';
-import { 
-  Dialog, 
-  DialogTitle, 
-  DialogContent, 
-  DialogActions, 
-  Button as MuiButton 
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button as MuiButton
 } from '@mui/material';
 
 const MOCK_STUDENTS = [
@@ -56,8 +56,8 @@ export default function RecordsDirectory() {
     // 1. Search Filter
     if (searchTerm) {
       const lowerSearch = searchTerm.toLowerCase();
-      result = result.filter(student => 
-        student.name.toLowerCase().includes(lowerSearch) || 
+      result = result.filter(student =>
+        student.name.toLowerCase().includes(lowerSearch) ||
         student.id.toLowerCase().includes(lowerSearch) ||
         student.email.toLowerCase().includes(lowerSearch)
       );
@@ -101,7 +101,7 @@ export default function RecordsDirectory() {
   // Sort icon renderer
   const renderSortIcon = (field) => {
     if (sortField !== field) return <ChevronDown className="h-4 w-4 text-slate-300 ml-1 opacity-50" />;
-    return sortOrder === 'asc' 
+    return sortOrder === 'asc'
       ? <ChevronUp className="h-4 w-4 text-brandAccent ml-1" />
       : <ChevronDown className="h-4 w-4 text-brandAccent ml-1" />;
   };
@@ -134,13 +134,13 @@ export default function RecordsDirectory() {
 
       {/* Control Panel (Search, Filters, Limit) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-        
+
         {/* Search */}
         <div className="lg:col-span-4 relative">
           <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
             <Search className="h-5 w-5" />
           </span>
-          <input 
+          <input
             type="text"
             placeholder="Search by Name, Roll No, or Email..."
             value={searchTerm}
@@ -152,7 +152,7 @@ export default function RecordsDirectory() {
         {/* Status Filter */}
         <div className="lg:col-span-3 flex items-center gap-2">
           <Filter className="h-4 w-4 text-slate-400 hidden sm:inline" />
-          <select 
+          <select
             value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
             className="w-full py-2 px-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brandAccent text-slate-700 bg-white"
@@ -166,7 +166,7 @@ export default function RecordsDirectory() {
 
         {/* Batch Filter */}
         <div className="lg:col-span-2 flex items-center gap-2">
-          <select 
+          <select
             value={batchFilter}
             onChange={(e) => { setBatchFilter(e.target.value); setCurrentPage(1); }}
             className="w-full py-2 px-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brandAccent text-slate-700 bg-white"
@@ -181,7 +181,7 @@ export default function RecordsDirectory() {
         {/* Rows Limit Selection */}
         <div className="lg:col-span-3 flex items-center justify-end gap-2 text-sm text-slate-500">
           <span>Show:</span>
-          <select 
+          <select
             value={pageSize}
             onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
             className="py-1 px-2 border border-slate-200 rounded text-sm focus:outline-none text-slate-700 bg-white"
@@ -239,7 +239,7 @@ export default function RecordsDirectory() {
                       </span>
                     </td>
                     <td className="py-3.5 px-4 text-right">
-                      <button 
+                      <button
                         onClick={() => setSelectedStudent(student)}
                         className="inline-flex items-center gap-1 text-sm font-semibold text-brandAccent hover:text-brandAccent/80 focus:outline-none transition-colors"
                       >
@@ -260,14 +260,14 @@ export default function RecordsDirectory() {
               Showing page <strong className="text-slate-700">{currentPage}</strong> of <strong className="text-slate-700">{totalPages}</strong> ({processedStudents.length} entries)
             </span>
             <div className="flex gap-2">
-              <button 
+              <button
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                 className="px-3 py-1.5 rounded border border-slate-200 hover:bg-slate-50 text-slate-600 disabled:opacity-50 disabled:pointer-events-none transition-colors"
               >
                 Previous
               </button>
-              <button 
+              <button
                 disabled={currentPage === totalPages}
                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                 className="px-3 py-1.5 rounded border border-slate-200 hover:bg-slate-50 text-slate-600 disabled:opacity-50 disabled:pointer-events-none transition-colors"
@@ -299,7 +299,7 @@ export default function RecordsDirectory() {
                 <User className="h-5 w-5 text-brandAccent" />
                 Student Academic Card
               </div>
-              <button 
+              <button
                 onClick={() => setSelectedStudent(null)}
                 className="p-1 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 focus:outline-none transition-colors"
               >
@@ -355,11 +355,10 @@ export default function RecordsDirectory() {
 
               {/* Warnings alert if applicable */}
               {selectedStudent.status !== 'Good' && (
-                <div className={`p-3 rounded-lg border text-sm flex gap-2.5 leading-relaxed ${
-                  selectedStudent.status === 'Critical' 
-                    ? 'bg-alertCritical/5 border-alertCritical/10 text-alertCritical' 
+                <div className={`p-3 rounded-lg border text-sm flex gap-2.5 leading-relaxed ${selectedStudent.status === 'Critical'
+                    ? 'bg-alertCritical/5 border-alertCritical/10 text-alertCritical'
                     : 'bg-alertWarning/5 border-alertWarning/10 text-alertWarning'
-                }`}>
+                  }`}>
                   <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
                   <div>
                     <span className="font-bold block">Academic Standing Alert</span>
@@ -369,10 +368,10 @@ export default function RecordsDirectory() {
               )}
             </DialogContent>
             <DialogActions style={{ padding: '8px 24px 16px' }}>
-              <MuiButton 
+              <MuiButton
                 onClick={() => setSelectedStudent(null)}
-                style={{ 
-                  backgroundColor: '#1B3A6B', 
+                style={{
+                  backgroundColor: '#1B3A6B',
                   color: '#ffffff',
                   textTransform: 'none',
                   fontWeight: '600',

@@ -6,8 +6,8 @@ import RecordsDirectory from './pages/RecordsDirectory';
 import DataIngestionHub from './pages/DataIngestionHub';
 import CurriculumBoard from './pages/CurriculumBoard';
 import MigrationManager from './pages/MigrationManager';
-import { 
-  Layers, 
+import {
+  Layers,
   Github,
   CheckCircle,
   AlertTriangle,
@@ -21,12 +21,12 @@ import {
   AlertCircle,
   Database
 } from 'lucide-react';
-import { 
-  Dialog, 
-  DialogTitle, 
-  DialogContent, 
-  DialogContentText, 
-  DialogActions, 
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
   Button as MuiButton,
   CircularProgress
 } from '@mui/material';
@@ -35,14 +35,14 @@ function App() {
   const { user, loading, logout } = useAuth();
   const [view, setView] = useState('login');
   const [activeTab, setActiveTab] = useState('overview');
-  
+
   // Dashboard states
   const [backendStatus, setBackendStatus] = useState('checking');
   const [latency, setLatency] = useState(null);
   const [auditLogs, setAuditLogs] = useState([]);
   const [logsLoading, setLogsLoading] = useState(false);
   const [logsError, setLogsError] = useState('');
-  
+
   // Logout modal state
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
@@ -65,6 +65,9 @@ function App() {
   };
 
   const fetchAuditLogs = async () => {
+    const activeToken = localStorage.getItem('token');
+    if (!activeToken) return;
+
     setLogsLoading(true);
     setLogsError('');
     try {
@@ -127,13 +130,13 @@ function App() {
     };
 
     return (
-      <div className="min-h-screen bg-slate-50 text-slate-800 flex selection:bg-brandNavy selection:text-white relative overflow-hidden font-sans">
+      <div className="h-screen bg-slate-50 text-slate-800 flex selection:bg-brandNavy selection:text-white relative overflow-hidden font-sans">
         {/* Background blobs for premium depth */}
         <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-blue-100/40 blur-[120px] pointer-events-none z-0" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-indigo-100/40 blur-[120px] pointer-events-none z-0" />
 
         {/* Sidebar Component (UI-3) */}
-        <aside className="w-64 bg-white border-r border-slate-200/80 flex flex-col justify-between sticky top-0 h-screen z-40 shrink-0 select-none shadow-sm">
+        <aside className="w-64 bg-white border-r border-slate-200/80 flex flex-col justify-between h-screen z-40 shrink-0 select-none shadow-sm">
           <div className="p-6 space-y-6">
             <div className="flex items-center gap-3">
               <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-brandNavy to-brandAccent flex items-center justify-center shadow-md shadow-brandNavy/10">
@@ -174,11 +177,10 @@ function App() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all focus:outline-none ${
-                      isActive 
-                        ? 'bg-brandNavy text-white shadow-md shadow-brandNavy/15' 
-                        : 'text-slate-500 hover:text-brandNavy hover:bg-slate-50'
-                    }`}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all focus:outline-none ${isActive
+                      ? 'bg-brandNavy text-white shadow-md shadow-brandNavy/15'
+                      : 'text-slate-500 hover:text-brandNavy hover:bg-slate-50'
+                      }`}
                   >
                     <Icon className="h-5 w-5 shrink-0" />
                     <span>{tab.label}</span>
@@ -190,7 +192,7 @@ function App() {
 
           {/* Logout button inside sidebar */}
           <div className="p-6 border-t border-slate-100 bg-slate-50/50">
-            <button 
+            <button
               onClick={() => setShowLogoutModal(true)}
               className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:text-alertCritical hover:bg-alertCritical/5 transition-all focus:outline-none"
             >
@@ -201,15 +203,15 @@ function App() {
         </aside>
 
         {/* Content Wrapper */}
-        <div className="flex-1 flex flex-col justify-between min-h-screen min-w-0 z-10">
-          
+        <div className="flex-1 flex flex-col justify-between h-screen min-w-0 overflow-y-auto overflow-x-hidden z-10">
+
           {/* Main Top Header */}
           <header className="border-b border-slate-200/80 bg-white/80 backdrop-blur-md sticky top-0 z-30">
             <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
               <span className="text-lg font-bold tracking-tight text-slate-800 uppercase text-xs font-semibold tracking-wider text-slate-400">
                 Advisory Workspace / {activeTab === 'overview' ? 'Overview' : activeTab === 'directory' ? 'Student Directory' : activeTab === 'ingestion' ? 'Ingestion Hub' : activeTab === 'curriculum' ? 'Curriculum' : 'Migration'}
               </span>
-              
+
               {/* Connection Status indicator inside Header */}
               <div className="flex items-center gap-3">
                 {backendStatus === 'online' ? (
@@ -233,7 +235,7 @@ function App() {
           <main className="max-w-7xl mx-auto px-6 py-8 flex-1 w-full">
             {activeTab === 'overview' && (
               <div className="grid lg:grid-cols-12 gap-8">
-                
+
                 {/* Left Panel: Overview and Module Status */}
                 <div className="lg:col-span-6 space-y-6">
                   {/* Welcome Banner */}
@@ -293,12 +295,12 @@ function App() {
 
                 {/* Right Panel: Live System Audit Logs & Health */}
                 <div className="lg:col-span-6 space-y-6">
-                  
+
                   {/* Connection Health Manual trigger */}
                   <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm font-sans">
                     <div className="flex items-center justify-between mb-4 font-sans">
                       <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">Connection Health</h3>
-                      <button 
+                      <button
                         onClick={checkHealth}
                         className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-brandAccent transition-colors border border-slate-200 focus:outline-none"
                       >
@@ -327,7 +329,7 @@ function App() {
                   <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm flex-1 flex flex-col font-sans">
                     <div className="flex items-center justify-between mb-4 font-sans">
                       <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">Database Audit Logs</h3>
-                      <button 
+                      <button
                         onClick={fetchAuditLogs}
                         className="text-sm text-brandAccent hover:text-brandAccent/90 font-bold flex items-center gap-1 transition-colors focus:outline-none"
                       >
@@ -343,7 +345,7 @@ function App() {
                           <span>Retrieving database logs...</span>
                         </div>
                       )}
-                      
+
                       {logsError && (
                         <div className="p-3 rounded-lg bg-alertCritical/5 border border-alertCritical/10 text-alertCritical text-sm flex items-center gap-2">
                           <AlertCircle className="h-5 w-5" />
@@ -431,24 +433,24 @@ function App() {
               </DialogContentText>
             </DialogContent>
             <DialogActions style={{ padding: '8px 24px 16px' }}>
-              <MuiButton 
-                onClick={() => setShowLogoutModal(false)} 
+              <MuiButton
+                onClick={() => setShowLogoutModal(false)}
                 style={{ color: '#64748b', textTransform: 'none', fontWeight: '600', fontSize: '14px' }}
               >
                 Cancel
               </MuiButton>
-              <MuiButton 
+              <MuiButton
                 onClick={() => {
                   setShowLogoutModal(false);
                   logout();
-                }} 
-                style={{ 
-                  backgroundColor: '#EF4444', 
-                  color: '#ffffff', 
-                  textTransform: 'none', 
-                  fontWeight: '600', 
+                }}
+                style={{
+                  backgroundColor: '#EF4444',
+                  color: '#ffffff',
+                  textTransform: 'none',
+                  fontWeight: '600',
                   fontSize: '14px',
-                  padding: '6px 20px', 
+                  padding: '6px 20px',
                   borderRadius: '12px',
                   boxShadow: '0 4px 12px rgba(239, 68, 68, 0.15)'
                 }}

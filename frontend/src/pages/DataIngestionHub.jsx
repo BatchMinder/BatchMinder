@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { 
-  Upload, 
-  Download, 
-  RefreshCw, 
-  Settings, 
-  CheckCircle, 
-  AlertTriangle, 
-  FileSpreadsheet, 
+import {
+  Upload,
+  Download,
+  RefreshCw,
+  Settings,
+  CheckCircle,
+  AlertTriangle,
+  FileSpreadsheet,
   Database,
   History,
   AlertCircle
@@ -35,7 +35,7 @@ export default function DataIngestionHub() {
   const [apiUrl, setApiUrl] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [syncBatch, setSyncBatch] = useState('All');
-  
+
   // Validation Errors States
   const [errors, setErrors] = useState({
     apiUrl: '',
@@ -97,7 +97,7 @@ export default function DataIngestionHub() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      
+
       {/* Page Header */}
       <div className="border-b border-slate-200 pb-4">
         <h1 className="text-2xl font-extrabold text-brandNavy font-display">Data Ingestion Hub</h1>
@@ -105,7 +105,7 @@ export default function DataIngestionHub() {
       </div>
 
       <div className="grid lg:grid-cols-12 gap-8">
-        
+
         {/* Left Side: CSV/Excel Bulk Upload (FR-2.2) */}
         <div className="lg:col-span-6 space-y-6">
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
@@ -121,8 +121,8 @@ export default function DataIngestionHub() {
 
             {/* Drop Zone Box */}
             <div className="border-2 border-dashed border-slate-200 hover:border-brandAccent/50 rounded-2xl p-8 text-center bg-slate-50/50 hover:bg-slate-50 transition-all flex flex-col items-center justify-center relative cursor-pointer group">
-              <input 
-                type="file" 
+              <input
+                type="file"
                 accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
                 onChange={handleFileUpload}
                 className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
@@ -174,11 +174,10 @@ export default function DataIngestionHub() {
                           <td className="py-2.5 px-3 text-slate-800 font-semibold">{err.field}</td>
                           <td className="py-2.5 px-3 font-mono text-slate-500">{err.value}</td>
                           <td className="py-2.5 px-3">
-                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wide mr-2 ${
-                              err.severity === 'error' 
+                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wide mr-2 ${err.severity === 'error'
                                 ? 'bg-alertCritical/5 border-alertCritical/20 text-alertCritical'
                                 : 'bg-alertWarning/5 border-alertWarning/20 text-alertWarning'
-                            }`}>
+                              }`}>
                               {err.severity}
                             </span>
                             {err.error}
@@ -200,7 +199,7 @@ export default function DataIngestionHub() {
               <Database className="h-5 w-5 text-brandAccent" />
               <h2 className="text-lg font-bold text-slate-800">LMS/ERP Synchronizer</h2>
             </div>
-            
+
             <p className="text-slate-500 text-sm leading-relaxed">
               Connect directly to the university's institutional REST API gateway to retrieve the latest student enrollment statuses and GPA grades.
             </p>
@@ -209,15 +208,14 @@ export default function DataIngestionHub() {
               {/* API URL Input */}
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">REST API Endpoints Gateway</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   placeholder="https://lms.university.edu/api/v1/students"
                   value={apiUrl}
                   onChange={(e) => setApiUrl(e.target.value)}
                   onBlur={() => validateField('apiUrl', apiUrl)}
-                  className={`w-full px-4 py-2 border rounded-lg text-sm focus:outline-none transition-colors text-slate-800 placeholder-slate-400 ${
-                    errors.apiUrl ? 'border-alertCritical focus:border-alertCritical' : 'border-slate-200 focus:border-brandAccent'
-                  }`}
+                  className={`w-full px-4 py-2 border rounded-lg text-sm focus:outline-none transition-colors text-slate-800 placeholder-slate-400 ${errors.apiUrl ? 'border-alertCritical focus:border-alertCritical' : 'border-slate-200 focus:border-brandAccent'
+                    }`}
                 />
                 {errors.apiUrl && (
                   <p className="text-xs font-medium text-alertCritical flex items-center gap-1 mt-1">
@@ -230,15 +228,14 @@ export default function DataIngestionHub() {
               {/* API Security Token Input */}
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Security Access Key/Token</label>
-                <input 
-                  type="password" 
+                <input
+                  type="password"
                   placeholder="••••••••••••••••••••••••"
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
                   onBlur={() => validateField('apiKey', apiKey)}
-                  className={`w-full px-4 py-2 border rounded-lg text-sm focus:outline-none transition-colors text-slate-800 placeholder-slate-400 ${
-                    errors.apiKey ? 'border-alertCritical focus:border-alertCritical' : 'border-slate-200 focus:border-brandAccent'
-                  }`}
+                  className={`w-full px-4 py-2 border rounded-lg text-sm focus:outline-none transition-colors text-slate-800 placeholder-slate-400 ${errors.apiKey ? 'border-alertCritical focus:border-alertCritical' : 'border-slate-200 focus:border-brandAccent'
+                    }`}
                 />
                 {errors.apiKey && (
                   <p className="text-xs font-medium text-alertCritical flex items-center gap-1 mt-1">
@@ -252,7 +249,7 @@ export default function DataIngestionHub() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Target Batch Selection</label>
-                  <select 
+                  <select
                     value={syncBatch}
                     onChange={(e) => setSyncBatch(e.target.value)}
                     className="w-full py-2 px-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brandAccent text-slate-700 bg-white"
@@ -264,7 +261,7 @@ export default function DataIngestionHub() {
                   </select>
                 </div>
                 <div className="flex items-end">
-                  <button 
+                  <button
                     type="button"
                     onClick={handleSyncTrigger}
                     disabled={syncing}
@@ -300,7 +297,7 @@ export default function DataIngestionHub() {
                 <History className="h-4 w-4" />
                 Previous API Sync History
               </div>
-              
+
               <div className="space-y-2">
                 {MOCK_SYNC_LOGS.map((log, i) => (
                   <div key={i} className="flex justify-between items-center p-3 rounded-xl border border-slate-150 text-xs">
@@ -309,11 +306,10 @@ export default function DataIngestionHub() {
                       <span className="text-slate-400 block mt-0.5">{log.timestamp}</span>
                     </div>
                     <div className="text-right">
-                      <span className={`inline-block px-2 py-0.5 rounded-full font-bold border uppercase text-[10px] ${
-                        log.status.startsWith('Success') 
+                      <span className={`inline-block px-2 py-0.5 rounded-full font-bold border uppercase text-[10px] ${log.status.startsWith('Success')
                           ? 'bg-alertGood/10 border-alertGood/30 text-alertGood'
                           : 'bg-alertCritical/10 border-alertCritical/30 text-alertCritical'
-                      }`}>
+                        }`}>
                         {log.status}
                       </span>
                       <span className="block text-slate-500 font-semibold mt-1">{log.records} records processed</span>

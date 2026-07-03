@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  User, 
-  HelpCircle, 
-  ArrowRight, 
-  CheckCircle, 
-  XCircle, 
-  ChevronRight, 
+import {
+  User,
+  HelpCircle,
+  ArrowRight,
+  CheckCircle,
+  XCircle,
+  ChevronRight,
   Award,
   Sparkles,
   Info
@@ -34,7 +34,7 @@ const LOCAL_AVAILABLE_COURSES = [
 
 export default function MigrationManager() {
   const [student, setStudent] = useState(MOCK_MIGRATION_STUDENT);
-  
+
   // Track selected local matches
   const [mappings, setMappings] = useState({
     'CS110': '',
@@ -65,6 +65,15 @@ export default function MigrationManager() {
     setStatuses(prev => ({ ...prev, [sourceCode]: 'Rejected' }));
   };
 
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  const handleSubmitAudit = () => {
+    setSubmitSuccess(true);
+    setTimeout(() => {
+      setSubmitSuccess(false);
+    }, 4000);
+  };
+
   // Recalculate credit mapping results dynamically (FR-2.6, UI-8)
   const statistics = useMemo(() => {
     let acceptedCredits = 0;
@@ -93,7 +102,7 @@ export default function MigrationManager() {
 
   return (
     <div className="space-y-8 animate-fade-in text-slate-800">
-      
+
       {/* Page Header */}
       <div className="border-b border-slate-200 pb-4">
         <h1 className="text-2xl font-extrabold text-brandNavy font-display">Migration Manager</h1>
@@ -113,19 +122,19 @@ export default function MigrationManager() {
 
           {/* Progress Bar Container */}
           <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden border border-slate-200 flex">
-            <div 
+            <div
               style={{ width: `${statistics.completionRate}%` }}
-              className="h-full bg-brandNavy transition-all duration-500" 
+              className="h-full bg-brandNavy transition-all duration-500"
               title="Accepted Credits"
             />
             {/* Split for Rejected credits */}
-            <div 
+            <div
               style={{ width: `${(statistics.rejectedCredits / statistics.totalCreditsChecked) * 100}%` }}
               className="h-full bg-alertCritical/40 transition-all duration-500 border-l border-white"
               title="Rejected Credit Loss"
             />
           </div>
-          
+
           <div className="flex gap-4 text-xs font-semibold text-slate-400">
             <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-brandNavy inline-block" /> Accepted Integration</span>
             <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-alertCritical/40 inline-block" /> Rejected / Credit Loss</span>
@@ -142,7 +151,7 @@ export default function MigrationManager() {
       </div>
 
       <div className="grid lg:grid-cols-12 gap-8">
-        
+
         {/* Left Column: Migration Student Profile Details (FR-2.5) */}
         <div className="lg:col-span-4 space-y-6">
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5">
@@ -164,7 +173,7 @@ export default function MigrationManager() {
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Source University</span>
                   <span className="font-medium text-slate-700 leading-snug">{student.sourceUniversity}</span>
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4 pt-1">
                   <div className="space-y-0.5">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Previous CGPA</span>
@@ -209,10 +218,10 @@ export default function MigrationManager() {
               {student.completedCourses.map((c) => {
                 const status = statuses[c.code];
                 const matchedCode = mappings[c.code];
-                
+
                 return (
-                  <div 
-                    key={c.code} 
+                  <div
+                    key={c.code}
                     className="p-4 rounded-xl border border-slate-150 bg-slate-50/30 grid md:grid-cols-12 gap-4 items-center hover:border-slate-300 transition-colors shadow-sm"
                   >
                     {/* Left: Source Course Info */}
@@ -222,17 +231,17 @@ export default function MigrationManager() {
                     </div>
 
                     {/* Middle: Match visual indicator */}
-                    <div className="md:col-span-1 flex justify-center text-slate-400">
+                    <div className="md:col-span-1 flex items-center justify-center text-slate-400">
                       <ChevronRight className="h-5 w-5 rotate-90 md:rotate-0" />
                     </div>
 
                     {/* Right: Local Course Dropdown & Action Buttons */}
-                    <div className="md:col-span-6 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <select 
+                    <div className="md:col-span-6 space-y-3 min-w-0">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <select
                           value={matchedCode}
                           onChange={(e) => handleMatchChange(c.code, e.target.value)}
-                          className="flex-1 py-1.5 px-3 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-brandAccent text-slate-700 bg-white"
+                          className="flex-1 min-w-0 w-full py-1.5 px-3 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-brandAccent text-slate-700 bg-white"
                         >
                           <option value="">Match local course...</option>
                           {LOCAL_AVAILABLE_COURSES.map(local => (
@@ -240,13 +249,12 @@ export default function MigrationManager() {
                           ))}
                         </select>
 
-                        <button 
+                        <button
                           onClick={() => handleReject(c.code)}
-                          className={`p-1.5 rounded-lg border focus:outline-none transition-all ${
-                            status === 'Rejected'
+                          className={`p-1.5 rounded-lg border focus:outline-none transition-all ${status === 'Rejected'
                               ? 'bg-alertCritical/10 border-alertCritical/30 text-alertCritical'
                               : 'bg-white border-slate-200 text-slate-400 hover:text-alertCritical hover:bg-slate-50'
-                          }`}
+                            }`}
                           title="Mark Credit Loss"
                         >
                           <XCircle className="h-4 w-4" />
@@ -276,15 +284,24 @@ export default function MigrationManager() {
               })}
             </div>
 
-            {/* Complete evaluation action button */}
-            <div className="flex justify-end pt-4 border-t border-slate-100">
-              <button 
-                type="button"
-                className="py-2 px-6 bg-brandNavy text-white hover:bg-brandNavy/95 font-bold rounded-lg text-sm focus:outline-none transition-colors shadow-sm shadow-brandNavy/10"
-              >
-                Submit Migration Audit
-              </button>
-            </div>
+             {/* Success Notification Alert */}
+             {submitSuccess && (
+               <div className="p-3 rounded-xl bg-alertGood/5 border border-alertGood/25 text-alertGood text-xs font-semibold flex items-center gap-2 animate-fade-in mb-4">
+                 <CheckCircle className="h-4 w-4 shrink-0" />
+                 <span>Migration academic audit submitted successfully! Cohort registry and credit transfers synchronized.</span>
+               </div>
+             )}
+
+             {/* Complete evaluation action button */}
+             <div className="flex justify-end pt-4 border-t border-slate-100">
+               <button
+                 type="button"
+                 onClick={handleSubmitAudit}
+                 className="py-2 px-6 bg-brandNavy text-white hover:bg-brandNavy/95 font-bold rounded-lg text-sm focus:outline-none transition-colors shadow-sm shadow-brandNavy/10"
+               >
+                 Submit Migration Audit
+               </button>
+             </div>
 
           </div>
         </div>
