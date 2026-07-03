@@ -1,5 +1,5 @@
 import express from 'express';
-import { register, login, logout, getMe, getAuditLogs, checkEmail } from '../controllers/authController.js';
+import { register, login, logout, getMe, getAuditLogs, checkEmail, setupSuperAdmin } from '../controllers/authController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { restrictTo } from '../middleware/roleMiddleware.js';
 
@@ -9,6 +9,7 @@ router.post('/register', register);
 router.post('/login', login);
 router.post('/logout', logout);
 router.get('/check-email', checkEmail);
+router.post('/setup-super-admin', setupSuperAdmin);
 router.get('/me', protect, getMe);
 router.get('/audit-logs', protect, restrictTo('admin', 'advisor'), getAuditLogs);
 

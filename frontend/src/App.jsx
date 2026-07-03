@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import Login from './components/auth/Login';
+import SuperAdminSetup from './components/auth/SuperAdminSetup';
+import SuperAdminDashboard from './components/dashboard/SuperAdminDashboard';
 import CurriculumGrid from './components/curriculum/CurriculumGrid';
 import EquivalencyForm from './components/curriculum/EquivalencyForm';
 import FileDropzone from './components/ingestion/FileDropzone';
@@ -42,6 +44,7 @@ function App() {
   const { user, loading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [totalStudents, setTotalStudents] = useState(0);
+  const [currentPath, setCurrentPath] = useState(window.location.pathname);
 
   // Dashboard states
   const [backendStatus, setBackendStatus] = useState('checking');
@@ -165,6 +168,15 @@ function App() {
   }
 
   if (user) {
+    if (user.role === 'super_admin') {
+      return (
+        <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col justify-between selection:bg-brandNavy selection:text-white relative overflow-hidden font-sans">
+          <SuperAdminDashboard onLogout={() => setShowLogoutModal(true)} />
+          <Footer />
+        </div>
+      );
+    }
+
     const roleColors = {
       admin: 'text-brandNavy bg-brandNavy/5 border-brandNavy/20',
       advisor: 'text-brandAccent bg-brandAccent/5 border-brandAccent/20',
@@ -377,7 +389,11 @@ function App() {
   // Aligned & Highly Responsive Guest View Sandbox Grid Layout
   return (
     <div className="min-h-screen flex flex-col justify-between font-sans bg-slate-50 overflow-x-hidden">
-      <Login />
+      {currentPath === '/super-admin-setup' ? (
+        <SuperAdminSetup setCurrentPath={setCurrentPath} />
+      ) : (
+        <Login />
+      )}
       <Footer />
     </div>
   );

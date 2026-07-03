@@ -217,4 +217,47 @@ export const checkEmail = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+export const setupSuperAdmin = async (req, res) => {
+  try {
+    const { name, email, password, secret } = req.body;
 
+    if (!email || !password || !secret) {
+      return res.status(400).json({ message: 'Email, password, and secret key are required' });
+    }
+
+    if (secret !== 'BatchMinderSecretKey2026') {
+      return res.status(403).json({ message: 'Invalid secret key' });
+    }
+
+    // Check if user already exists
+    let user = await User.findOne({ email: email.toLowerCase().trim(), role: 'super_admin' });
+    if (user) {
+      // Update password
+      user.password = password;
+      if (name) user.name = name;
+      await user.save();
+      await logAudit(user._id, user.email, 'SUPER_ADMIN_RECOVERED', 'Super admin password reset completed via secret link.');
+      return res.status(200).json({
+        status: 'success',
+        message: 'Super admin password updated successfully'
+      });
+    }
+
+    // Create new super admin
+    user = await User.create({
+      name: name || 'Super Admin',
+      email: email.toLowerCase().trim(),
+      password,
+      role: 'super_admin'
+    });
+
+    await logAudit(user._id, user.email, 'SUPER_ADMIN_CREATED', 'New Super Admin account registered via secret link.');
+
+    res.status(201).json({
+      status: 'success',
+      message: 'Super admin registered successfully'
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

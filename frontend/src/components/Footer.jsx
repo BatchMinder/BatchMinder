@@ -2,7 +2,7 @@ import React from 'react';
 
 export default function Footer() {
   return (
-    <footer 
+    <footer
       style={{
         boxSizing: 'border-box',
         display: 'flex',
@@ -22,7 +22,7 @@ export default function Footer() {
       className="font-sans shrink-0 select-none z-20"
     >
       {/* Container - Left */}
-      <div 
+      <div
         style={{
           display: 'flex',
           flexDirection: 'column',
@@ -57,7 +57,7 @@ export default function Footer() {
       </div>
 
       {/* Container - Center */}
-      <div 
+      <div
         style={{
           display: 'flex',
           flexDirection: 'column',
@@ -88,12 +88,12 @@ export default function Footer() {
             flexGrow: 0,
           }}
         >
-          &copy; 2024 BatchMinder Academic Management Portal. All Rights Reserved.
+          &copy; 2026 BatchMinder Academic Management Portal. All Rights Reserved.
         </span>
       </div>
 
       {/* Container - Right */}
-      <div 
+      <div
         style={{
           display: 'flex',
           flexDirection: 'row',
