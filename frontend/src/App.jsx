@@ -374,106 +374,12 @@ function App() {
         </div>
       </header>
 
-      {/* Responsive Grid System: Multi-column handling based on breakpoint widths */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 w-full z-10 items-start">
-
-        {/* Full row table layout */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm md:col-span-2 xl:col-span-3">
-          <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">👥 Student Record Directory</h2>
-          <div className="flex justify-end mb-4">
-            <button
-              onClick={() => { setEditingStudent(null); setModalOpen(true); }}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold text-sm transition-colors shadow-sm"
-            >
-              + Register New Student Profile
-            </button>
-          </div>
-          <StudentTable
-            students={students}
-            canEdit={true}
-            onAdd={() => { setEditingStudent(null); setModalOpen(true); }}
-            onEdit={(student) => { setEditingStudent(student); setModalOpen(true); }}
-          />
-          <StudentModal
-            open={modalOpen}
-            onClose={handleCloseModal}
-            studentData={editingStudent}
-            onSave={handleSaveStudent}
-            canEdit={true}
-          />
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <h2 className="text-2xl font-bold mb-4">📥 Bulk Data Ingestion</h2>
-          <FileDropzone
-            onFileUpload={async (file) => console.log('Spreadsheet template parsed for:', file.name)}
-            templateUrl="/templates/student-records-template.csv"
-          />
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <h2 className="text-2xl font-bold mb-4">📚 Curriculum Layout Overview</h2>
-          <CurriculumGrid curriculumData={[
-            {
-              semester: 1,
-              courses: [
-                { courseCode: 'CS-101', courseTitle: 'Intro to Programming', creditHours: 3, courseType: 'Core' },
-                { courseCode: 'MT-101', courseTitle: 'Calculus I', creditHours: 3, courseType: 'Core' },
-              ]
-            },
-            {
-              semester: 2,
-              courses: [
-                { courseCode: 'CS-201', courseTitle: 'Data Structures', creditHours: 3, courseType: 'Core' },
-                { courseCode: 'CS-210', courseTitle: 'Advanced JavaScript', creditHours: 4, courseType: 'Elective' },
-              ]
-            },
-          ]} />
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <h2 className="text-2xl font-bold mb-4">🔄 Transfer Decision Matrix</h2>
-          <EquivalencyForm
-            onSubmitEquivalency={(data) => console.log('Equivalency mapped:', data)}
-            canEdit={true}
-          />
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <h2 className="text-2xl font-bold mb-4">📡 LMS Sync Panel</h2>
-          <SyncPanel
-            sources={[
-              { id: 'lms1', name: 'Moodle LMS Gateway', type: 'LMS', status: 'connected', lastSyncedAt: new Date().toISOString() },
-              { id: 'erp1', name: 'Campus Management ERP', type: 'ERP', status: 'idle' },
-            ]}
-            onSync={async (sourceId) => console.log('Syncing channel:', sourceId)}
-            canManageSync={true}
-          />
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <h2 className="text-2xl font-bold mb-4">⛓️ Prerequisite Chain Mapper</h2>
-          <PrerequisiteMapper
-            courses={[
-              { courseCode: 'CS-301', courseTitle: 'Algorithms', prerequisites: ['CS-101', 'CS-201'] },
-              { courseCode: 'CS-101', courseTitle: 'Intro to Programming', prerequisites: [] },
-            ]}
-            completedCourseCodes={['CS-101']}
-          />
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <h2 className="text-2xl font-bold mb-4">📊 Degree Progression</h2>
-          <ProgressPreview
-            progress={{
-              totalCreditsRequired: 130,
-              creditsCompleted: 90,
-              creditsTransferred: 12,
-              creditsLost: 3,
-              recalculatedAt: new Date().toISOString(),
-            }}
-          />
-        </div>
+      <main className="max-w-7xl mx-auto px-6 py-12 flex-1 flex flex-col justify-center items-center w-full z-10">
+        {view === 'login' ? (
+          <Login setView={setView} />
+        ) : (
+          <Signup setView={setView} />
+        )}
       </main>
 
       <footer className="border-t border-slate-200 bg-white py-6 mt-12">
