@@ -11,13 +11,10 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        if (authService.isAuthenticated()) {
-          const currentUser = await authService.getMe();
-          setUser(currentUser);
-        }
+        const currentUser = await authService.getMe();
+        setUser(currentUser);
       } catch (err) {
-        console.error('Failed to restore session:', err);
-        setError(err.message);
+        console.log('No active session restored:', err.message);
       } finally {
         setLoading(false);
       }
@@ -50,8 +47,8 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
-    authService.logout();
+  const logout = async () => {
+    await authService.logout();
     setUser(null);
     setError(null);
   };
