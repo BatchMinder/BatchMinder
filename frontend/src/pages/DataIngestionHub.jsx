@@ -216,9 +216,13 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                 <FileSpreadsheet className="h-5 w-5 text-brandAccent" />
                 <h2 className="text-lg font-bold text-slate-800">Bulk CSV/Excel Ingestion</h2>
               </div>
-              <button className="flex items-center gap-1.5 text-sm font-semibold text-brandAccent hover:text-brandAccent/80 focus:outline-none transition-colors">
+              <a 
+                href="/api/students/template" 
+                download="student_import_template.csv"
+                className="flex items-center gap-1.5 text-sm font-semibold text-brandAccent hover:text-brandAccent/80 focus:outline-none transition-colors"
+              >
                 <Download className="h-4 w-4" /> Template.csv
-              </button>
+              </a>
             </div>
 
             {/* Drop Zone Box */}
