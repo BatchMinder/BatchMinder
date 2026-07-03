@@ -3,29 +3,59 @@ import User from '../models/user.js';
 
 export const protect = async (req, res, next) => {
   try {
-    let token;
+    let token = req.cookies?.accessToken;
 
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
     }
 
-    if (!token) {
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const currentUser = await User.findById(decoded.id);
+        if (currentUser) {
+          req.user = currentUser;
+          return next();
+        }
+      } catch (err) {
+        // Access token verification failed. Fallback to check refresh token below.
+        console.log('Access token invalid or expired. Checking refresh token...');
+      }
+    }
+
+    // Try using refresh token
+    const refreshToken = req.cookies?.refreshToken;
+    if (!refreshToken) {
       return res.status(401).json({ message: 'You are not logged in. Please log in to get access.' });
     }
 
-    // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    try {
+      const decodedRefresh = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET);
+      const currentUser = await User.findById(decodedRefresh.id);
+      
+      if (!currentUser) {
+        return res.status(401).json({ message: 'The user belonging to this token no longer exists.' });
+      }
 
-    // Check if user still exists
-    const currentUser = await User.findById(decoded.id);
-    if (!currentUser) {
-      return res.status(401).json({ message: 'The user belonging to this token no longer exists.' });
+      // Silent refresh: generate a new access token
+      const newAccessToken = jwt.sign({ id: currentUser._id }, process.env.JWT_SECRET, {
+        expiresIn: '15m',
+      });
+
+      res.cookie('accessToken', newAccessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        expires: new Date(Date.now() + 15 * 60 * 1000), // 15 mins
+      });
+
+      req.user = currentUser;
+      return next();
+    } catch (err) {
+      return res.status(401).json({ message: 'Invalid or expired session. Please log in again.' });
     }
-
-    // Grant access to protected route
-    req.user = currentUser;
-    next();
   } catch (error) {
-    return res.status(401).json({ message: 'Invalid or expired token. Please log in again.' });
+    return res.status(401).json({ message: 'Authentication error. Please log in again.' });
   }
 };
