@@ -22,10 +22,7 @@ import {
   Clock,
   BookOpen,
   Calendar,
-  AlertCircle,
-  Database,
-  Menu,
-  X
+  AlertCircle
 } from 'lucide-react';
 import {
   Dialog,
@@ -130,7 +127,6 @@ function App() {
   useEffect(() => {
     if (user) {
       fetchAuditLogs();
-      fetchTotalStudents();
     }
   }, [user]);
 
@@ -177,7 +173,7 @@ function App() {
                 <Layers className="h-5 w-5 text-white" />
               </div>
               <span className="text-xl font-bold tracking-tight text-slate-900 font-display">
-                BatchMinder
+                BatchMinder Portal
               </span>
             </div>
 
@@ -196,137 +192,12 @@ function App() {
                 className="flex items-center gap-2 text-slate-500 hover:text-alertCritical text-sm font-medium transition-colors focus:outline-none"
                 title="Log Out"
               >
-                <X className="h-5 w-5" />
+                <LogOut className="h-5 w-5" />
+                <span className="hidden sm:inline">Log Out</span>
               </button>
-            )}
-          </div>
-
-          {/* Profile widget in sidebar */}
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/60 space-y-2">
-            <div>
-              <h4 className="text-sm font-bold text-slate-800">{user.name}</h4>
-              <p className="text-xs text-slate-500 truncate font-medium">{user.email}</p>
-            </div>
-            <div className="flex flex-col gap-1 pt-1.5 border-t border-slate-200 text-xs">
-              <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block">Assigned Batch</span>
-              <span className="font-bold text-brandNavy">CS Batch 2022</span>
-              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border uppercase text-center block mt-1.5 ${roleColors[user.role]}`}>
-                {roleLabels[user.role]}
-              </span>
             </div>
           </div>
-
-          {/* Sidebar Navigation */}
-          <nav className="space-y-1">
-            {[
-              { id: 'overview', label: 'Dashboard Overview', icon: Layers },
-              { id: 'directory', label: 'Records Directory', icon: UserIcon },
-              { id: 'ingestion', label: 'Data Ingestion Hub', icon: Database },
-              { id: 'curriculum', label: 'Curriculum Board', icon: BookOpen },
-              { id: 'migration', label: 'Migration Manager', icon: RefreshCw }
-            ].map(tab => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => {
-                    setActiveTab(tab.id);
-                    if (closeMobileMenu) closeMobileMenu();
-                  }}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all focus:outline-none ${isActive
-                    ? 'bg-brandNavy text-white shadow-md shadow-brandNavy/15'
-                    : 'text-slate-500 hover:text-brandNavy hover:bg-slate-50'
-                    }`}
-                >
-                  <Icon className="h-5 w-5 shrink-0" />
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-        </div>
-
-        {/* Logout button inside sidebar */}
-        <div className="p-6 border-t border-slate-100 bg-slate-50/50">
-          <button
-            onClick={() => {
-              setShowLogoutModal(true);
-              if (closeMobileMenu) closeMobileMenu();
-            }}
-            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:text-alertCritical hover:bg-alertCritical/5 transition-all focus:outline-none"
-          >
-            <LogOut className="h-5 w-5 shrink-0" />
-            <span>Log Out</span>
-          </button>
-        </div>
-      </div>
-    );
-
-    return (
-      <div className="h-screen bg-slate-50 text-slate-800 flex selection:bg-brandNavy selection:text-white relative overflow-hidden font-sans">
-        {/* Background blobs for premium depth */}
-        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-blue-100/40 blur-[120px] pointer-events-none z-0" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-indigo-100/40 blur-[120px] pointer-events-none z-0" />
-
-        {/* Desktop Sidebar Component (visible on md and larger) */}
-        <aside className="hidden md:flex w-64 bg-white border-r border-slate-200/80 flex-col justify-between h-screen z-40 shrink-0 select-none shadow-sm">
-          {renderSidebarContent()}
-        </aside>
-
-        {/* Mobile Sidebar overlay backdrop */}
-        {isMobileMenuOpen && (
-          <div 
-            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 md:hidden"
-            onClick={() => setIsMobileMenuOpen(false)}
-          />
-        )}
-
-        {/* Mobile Sidebar Drawer */}
-        <aside className={`fixed inset-y-0 left-0 w-64 bg-white flex flex-col justify-between h-screen z-50 select-none shadow-xl transform transition-transform duration-300 ease-in-out md:hidden ${
-          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}>
-          {renderSidebarContent(() => setIsMobileMenuOpen(false))}
-        </aside>
-
-        {/* Content Wrapper */}
-        <div className="flex-1 flex flex-col justify-between h-screen min-w-0 overflow-y-auto overflow-x-hidden z-10">
-
-          {/* Main Top Header */}
-          <header className="border-b border-slate-200/80 bg-white/80 backdrop-blur-md sticky top-0 z-30">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2.5 min-w-0">
-                {/* Hamburger Toggle Button for mobile */}
-                <button
-                  onClick={() => setIsMobileMenuOpen(true)}
-                  className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 md:hidden focus:outline-none shrink-0"
-                  title="Open Navigation Menu"
-                >
-                  <Menu className="h-6 w-6" />
-                </button>
-                <span className="text-sm sm:text-lg font-bold tracking-tight text-slate-800 uppercase text-xs font-semibold tracking-wider text-slate-400 truncate">
-                  Advisory Workspace / {activeTab === 'overview' ? 'Overview' : activeTab === 'directory' ? 'Student Directory' : activeTab === 'ingestion' ? 'Ingestion Hub' : activeTab === 'curriculum' ? 'Curriculum' : 'Migration'}
-                </span>
-              </div>
-
-              {/* Connection Status indicator inside Header */}
-              <div className="flex items-center gap-3 shrink-0">
-                {backendStatus === 'online' ? (
-                  <span className="text-xs font-bold text-alertGood bg-alertGood/5 px-2.5 py-1 rounded-full border border-alertGood/20 flex items-center gap-1.5 animate-fade-in">
-                    <CheckCircle className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Online</span> {latency ? `(${latency}ms)` : ''}
-                  </span>
-                ) : backendStatus === 'checking' ? (
-                  <span className="text-xs font-bold text-alertWarning bg-alertWarning/5 px-2.5 py-1 rounded-full border border-alertWarning/20 flex items-center gap-1.5">
-                    <CircularProgress size={8} color="inherit" /> <span className="hidden sm:inline">Checking</span>
-                  </span>
-                ) : (
-                  <span className="text-xs font-bold text-alertCritical bg-alertCritical/5 px-2.5 py-1 rounded-full border border-alertCritical/20 flex items-center gap-1.5 animate-pulse">
-                    <AlertTriangle className="h-3.5 w-3.5" /> <span className="hidden sm:inline">API Offline</span>
-                  </span>
-                )}
-              </div>
-            </div>
-          </header>
+        </header>
 
         <main className="max-w-7xl mx-auto px-6 py-8 flex-1 w-full grid lg:grid-cols-12 gap-8 z-10">
           <div className="lg:col-span-6 space-y-6">
