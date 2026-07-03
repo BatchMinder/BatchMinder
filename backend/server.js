@@ -1,8 +1,11 @@
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import authRoutes from './routes/authRoutes.js';
+import studentRoutes from './routes/studentRoutes.js';
+import curriculumRoutes from './routes/curriculumRoutes.js';
 
 // Load environment variables
 dotenv.config();
@@ -11,7 +14,11 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true
+}));
+app.use(cookieParser());
 app.use(express.json());
 
 // Database connection
@@ -30,6 +37,8 @@ mongoose.connect(mongoUri)
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/students', studentRoutes);
+app.use('/api/curriculum', curriculumRoutes);
 
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to the BatchMinder API' });
