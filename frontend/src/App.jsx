@@ -170,9 +170,24 @@ function App() {
   if (user) {
     if (user.role === 'super_admin') {
       return (
-        <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col justify-between selection:bg-brandNavy selection:text-white relative overflow-hidden font-sans">
+        <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: "'Inter', sans-serif" }}>
           <SuperAdminDashboard onLogout={() => setShowLogoutModal(true)} />
-          <Footer />
+
+          {/* Logout Confirm Dialog */}
+          <Dialog open={showLogoutModal} onClose={() => setShowLogoutModal(false)} PaperProps={{ style: { borderRadius: '24px', padding: '16px', maxWidth: '380px' } }}>
+            <DialogTitle style={{ fontWeight: 'bold', fontSize: '18px', color: '#1B3A6B', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <AlertTriangle style={{ color: '#EF4444' }} /> Confirm Log Out
+            </DialogTitle>
+            <DialogContent>
+              <DialogContentText style={{ fontSize: '14px', color: '#64748b' }}>
+                Are you sure you want to end your BatchMinder Super Admin session?
+              </DialogContentText>
+            </DialogContent>
+            <DialogActions style={{ padding: '8px 24px 16px' }}>
+              <MuiButton onClick={() => setShowLogoutModal(false)} style={{ color: '#64748b', textTransform: 'none', fontWeight: '600', fontSize: '14px' }}>Cancel</MuiButton>
+              <MuiButton onClick={() => { setShowLogoutModal(false); logout(); }} style={{ backgroundColor: '#EF4444', color: '#ffffff', textTransform: 'none', fontWeight: '600', fontSize: '14px', padding: '6px 20px', borderRadius: '12px' }}>Log Out</MuiButton>
+            </DialogActions>
+          </Dialog>
         </div>
       );
     }

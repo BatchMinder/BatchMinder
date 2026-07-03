@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { 
-  Layers, 
-  GraduationCap, 
-  Users, 
-  Home, 
-  BookOpen, 
-  Shield, 
-  Bell, 
+import UserManagement from './UserManagement';
+import {
+  Layers,
+  GraduationCap,
+  Users,
+  Home,
+  BookOpen,
+  Shield,
+  Bell,
   LogOut,
   FolderOpen,
   Calendar,
@@ -18,84 +19,94 @@ import {
   CheckCircle,
   Plus,
   BarChart2,
-  ExternalLink
+  ExternalLink,
+  TrendingUp,
+  Settings,
+  ChevronRight
 } from 'lucide-react';
-import { CircularProgress } from '@mui/material';
 
 export default function SuperAdminDashboard({ onLogout }) {
   const { user } = useAuth();
   const [currentDate, setCurrentDate] = useState('');
+  const [activeNav, setActiveNav] = useState('dashboard');
 
   useEffect(() => {
-    // Set formatted date matching "Friday, May 22, 2026"
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     setCurrentDate(new Date().toLocaleDateString('en-US', options));
   }, []);
 
   const metrics = [
     {
-      title: 'TOTAL REGISTERED STUDENTS',
+      title: 'Total Registered Students',
       value: '2,847',
       footer: '↑ +143 this semester',
-      footerColor: 'text-emerald-600',
+      footerColor: '#15803D',
       icon: Users,
-      iconBg: 'bg-blue-50 text-blue-600'
+      iconBg: '#EFF6FF',
+      iconColor: '#2563EB'
     },
     {
-      title: 'ACTIVE SYSTEM USERS',
+      title: 'Active System Users',
       value: '38',
       footer: 'Advisors, HODs, Admins',
-      footerColor: 'text-slate-500',
-      icon: Users,
-      iconBg: 'bg-amber-50 text-amber-600'
+      footerColor: '#64748B',
+      icon: Activity,
+      iconBg: '#FFFBEB',
+      iconColor: '#D97706'
     },
     {
-      title: 'ACTIVE DEPARTMENTS',
+      title: 'Active Departments',
       value: '6',
       footer: '↑ 1 added this year',
-      footerColor: 'text-emerald-600',
+      footerColor: '#15803D',
       icon: Home,
-      iconBg: 'bg-slate-100 text-slate-700'
+      iconBg: '#F8FAFC',
+      iconColor: '#475569'
     },
     {
-      title: 'ACTIVE BATCHES',
+      title: 'Active Batches',
       value: '24',
       footer: 'Across all departments',
-      footerColor: 'text-slate-500',
+      footerColor: '#64748B',
       icon: FolderOpen,
-      iconBg: 'bg-indigo-50 text-indigo-600'
+      iconBg: '#EEF2FF',
+      iconColor: '#4F46E5'
     },
     {
-      title: 'SYSTEM UPTIME (30 DAYS)',
-      value: '94.2%',
+      title: 'System Uptime (30 Days)',
+      value: '99.2%',
       footer: 'All services operational',
-      footerColor: 'text-emerald-600',
+      footerColor: '#15803D',
       icon: CheckCircle,
-      iconBg: 'bg-emerald-50 text-emerald-600'
+      iconBg: '#F0FDF4',
+      iconColor: '#16A34A'
     },
     {
-      title: 'PENDING APPROVALS',
+      title: 'Pending Approvals',
       value: '47',
       footer: '↑ +12 requires attention',
-      footerColor: 'text-amber-600',
+      footerColor: '#B45309',
       icon: Clock,
-      iconBg: 'bg-amber-50/70 text-amber-600'
+      iconBg: '#FFFBEB',
+      iconColor: '#D97706'
     },
     {
-      title: 'MIGRATION REQUESTS',
+      title: 'Migration Requests',
       value: '18',
       footer: 'Awaiting processing',
-      footerColor: 'text-slate-500',
+      footerColor: '#64748B',
       icon: ArrowRightLeft,
-      iconBg: 'bg-indigo-50 text-indigo-600'
+      iconBg: '#EEF2FF',
+      iconColor: '#4F46E5'
     },
     {
-      title: 'AT-RISK STUDENTS',
+      title: 'At-Risk Students',
       value: '63',
       footer: '↑ +8 from last month',
-      footerColor: 'text-rose-600',
+      footerColor: '#B91C1C',
       icon: AlertTriangle,
-      iconBg: 'bg-rose-50 text-rose-600'
+      iconBg: '#FFF1F2',
+      iconColor: '#E11D48'
     }
   ];
 
@@ -103,264 +114,468 @@ export default function SuperAdminDashboard({ onLogout }) {
     {
       name: 'Computer Science (CS)',
       students: '847',
-      stats: '8 Batches • 12 Advisors • 4 HODs',
-      color: 'bg-blue-600',
-      width: 'w-full'
+      stats: '8 Batches · 12 Advisors · 4 HODs',
+      color: '#2563EB',
+      pct: 100
     },
     {
       name: 'Software Engineering (SE)',
       students: '634',
-      stats: '6 Batches • 9 Advisors • 3 HODs',
-      color: 'bg-emerald-500',
-      width: 'w-[75%]'
+      stats: '6 Batches · 9 Advisors · 3 HODs',
+      color: '#10B981',
+      pct: 75
     },
     {
       name: 'Electrical Engineering (EE)',
       students: '512',
-      stats: '5 Batches • 8 Advisors • 3 HODs',
-      color: 'bg-indigo-500',
-      width: 'w-[60%]'
+      stats: '5 Batches · 8 Advisors · 3 HODs',
+      color: '#6366F1',
+      pct: 60
     }
   ];
 
   const quickActions = [
-    { title: 'Add New User', icon: Plus, iconColor: 'text-blue-600', bg: 'bg-blue-50' },
-    { title: 'Add Department', icon: Home, iconColor: 'text-indigo-600', bg: 'bg-indigo-50' },
-    { title: 'Create Batch', icon: FolderOpen, iconColor: 'text-slate-700', bg: 'bg-slate-100' },
-    { title: 'Setup Curriculum', icon: BookOpen, iconColor: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { title: 'Assign Roles', icon: Shield, iconColor: 'text-violet-600', bg: 'bg-violet-50' },
-    { title: 'View Reports', icon: BarChart2, iconColor: 'text-slate-800', bg: 'bg-slate-150' }
+    { title: 'Add New User', icon: Plus, iconColor: '#2563EB', bg: '#EFF6FF' },
+    { title: 'Add Department', icon: Home, iconColor: '#4F46E5', bg: '#EEF2FF' },
+    { title: 'Create Batch', icon: FolderOpen, iconColor: '#475569', bg: '#F1F5F9' },
+    { title: 'Setup Curriculum', icon: BookOpen, iconColor: '#16A34A', bg: '#F0FDF4' },
+    { title: 'Assign Roles', icon: Shield, iconColor: '#7C3AED', bg: '#F5F3FF' },
+    { title: 'View Reports', icon: BarChart2, iconColor: '#0F172A', bg: '#F8FAFC' }
   ];
 
+  const navItems = {
+    overview: [
+      { id: 'dashboard', label: 'Dashboard', icon: Activity }
+    ],
+    management: [
+      { id: 'users', label: 'User Management', icon: Users },
+      { id: 'departments', label: 'Departments', icon: Home },
+      { id: 'batches', label: 'Batch Allocation', icon: Layers },
+      { id: 'curriculum', label: 'Curriculum Setup', icon: BookOpen }
+    ],
+    system: [
+      { id: 'roles', label: 'Roles & Permissions', icon: Shield },
+      { id: 'notifications', label: 'Notifications', icon: Bell }
+    ]
+  };
+
+  const displayName = user?.name || 'Super Admin';
+  const displayEmail = user?.email || '';
+  const initials = displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'SA';
+
   return (
-    <div className="flex-grow flex font-sans bg-slate-50 text-slate-800 overflow-x-hidden min-h-[calc(100vh-73px)]">
-      
-      {/* Left Sidebar */}
-      <aside className="hidden lg:flex flex-col w-64 bg-slate-900 text-white shrink-0 justify-between select-none">
-        
-        {/* Top Section */}
-        <div className="p-6 space-y-6">
-          {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-blue-600 flex items-center justify-center shadow-md shadow-blue-500/20">
-              <GraduationCap className="h-5.5 w-5.5 text-white" />
+    <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden', fontFamily: "'Inter', 'Liberation Sans', -apple-system, sans-serif" }}>
+
+      {/* ── SIDEBAR ── */}
+      <aside style={{
+        width: '256px',
+        minWidth: '256px',
+        backgroundColor: '#0F172A',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        overflowY: 'auto',
+        flexShrink: 0
+      }}>
+
+        {/* Logo */}
+        <div style={{ padding: '24px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{
+              width: '36px', height: '36px', borderRadius: '10px',
+              background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(37,99,235,0.3)'
+            }}>
+              <GraduationCap size={18} color="#fff" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-white font-display">
+            <span style={{ fontSize: '17px', fontWeight: 700, color: '#F8FAFC', letterSpacing: '-0.3px' }}>
               BatchMinder
             </span>
           </div>
+        </div>
 
-          {/* Super Administrator Badge */}
-          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-500 text-[10px] font-black uppercase tracking-wider">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" />
-            Super Administrator
+        {/* User Profile */}
+        <div style={{ padding: '16px 20px' }}>
+          {/* Badge */}
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: '6px',
+            backgroundColor: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)',
+            borderRadius: '20px', padding: '3px 10px', marginBottom: '12px'
+          }}>
+            <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#F59E0B', animation: 'pulse 2s infinite' }} />
+            <span style={{ fontSize: '10px', fontWeight: 800, color: '#F59E0B', letterSpacing: '1px', textTransform: 'uppercase' }}>
+              Super Administrator
+            </span>
           </div>
 
           {/* User Card */}
-          <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/5">
-            <div className="h-10 w-10 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-sm tracking-wider text-white">
-              SA
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '12px',
+            padding: '12px', borderRadius: '12px',
+            backgroundColor: 'rgba(255,255,255,0.05)',
+            border: '1px solid rgba(255,255,255,0.07)'
+          }}>
+            <div style={{
+              width: '40px', height: '40px', borderRadius: '10px',
+              background: 'linear-gradient(135deg, #4F46E5 0%, #6366F1 100%)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '14px', fontWeight: 700, color: '#fff', letterSpacing: '0.5px',
+              flexShrink: 0
+            }}>
+              {initials}
             </div>
-            <div className="min-w-0">
-              <h4 className="text-sm font-bold text-white truncate">Dr. Syed Arif Shah</h4>
-              <p className="text-xs text-slate-400 truncate">s.arif@stmu.edu.pk</p>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ fontSize: '13px', fontWeight: 700, color: '#F1F5F9', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {displayName}
+              </p>
+              <p style={{ fontSize: '11px', color: '#94A3B8', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {displayEmail}
+              </p>
             </div>
           </div>
-
-          {/* Nav Categories */}
-          <nav className="space-y-6 pt-4">
-            {/* Overview */}
-            <div className="space-y-2">
-              <span className="block text-[10px] font-black uppercase tracking-widest text-slate-500">Overview</span>
-              <button className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl bg-white/10 text-white text-sm font-bold transition-all duration-150">
-                <Activity className="h-4 w-4" />
-                <span>Dashboard</span>
-              </button>
-            </div>
-
-            {/* Management */}
-            <div className="space-y-2">
-              <span className="block text-[10px] font-black uppercase tracking-widest text-slate-500">Management</span>
-              <div className="space-y-1">
-                {[
-                  { label: 'User Management', icon: Users },
-                  { label: 'Departments', icon: Home },
-                  { label: 'Batch Allocation', icon: Layers },
-                  { label: 'Curriculum Setup', icon: BookOpen }
-                ].map((item, i) => {
-                  const Icon = item.icon;
-                  return (
-                    <button key={i} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 text-sm font-semibold transition-all duration-150 text-left">
-                      <Icon className="h-4 w-4" />
-                      <span>{item.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* System */}
-            <div className="space-y-2">
-              <span className="block text-[10px] font-black uppercase tracking-widest text-slate-500">System</span>
-              <div className="space-y-1">
-                {[
-                  { label: 'Roles & Permissions', icon: Shield },
-                  { label: 'Notifications', icon: Bell }
-                ].map((item, i) => {
-                  const Icon = item.icon;
-                  return (
-                    <button key={i} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 text-sm font-semibold transition-all duration-150 text-left">
-                      <Icon className="h-4 w-4" />
-                      <span>{item.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </nav>
         </div>
 
-        {/* Bottom Logout */}
-        <div className="p-6 border-t border-white/5">
-          <button 
+        {/* Navigation */}
+        <nav style={{ flex: 1, padding: '8px 12px 0', overflowY: 'auto' }}>
+          {/* Overview */}
+          <div style={{ marginBottom: '20px' }}>
+            <p style={{ fontSize: '10px', fontWeight: 800, color: '#475569', letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px 8px' }}>
+              Overview
+            </p>
+            {navItems.overview.map(item => {
+              const Icon = item.icon;
+              const isActive = activeNav === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveNav(item.id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '10px',
+                    width: '100%', padding: '9px 12px', borderRadius: '9px',
+                    backgroundColor: isActive ? 'rgba(37,99,235,0.15)' : 'transparent',
+                    border: isActive ? '1px solid rgba(37,99,235,0.2)' : '1px solid transparent',
+                    color: isActive ? '#60A5FA' : '#94A3B8',
+                    fontSize: '13px', fontWeight: isActive ? 700 : 500,
+                    cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s'
+                  }}
+                  onMouseEnter={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#F1F5F9'; } }}
+                  onMouseLeave={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94A3B8'; } }}
+                >
+                  <Icon size={15} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Management */}
+          <div style={{ marginBottom: '20px' }}>
+            <p style={{ fontSize: '10px', fontWeight: 800, color: '#475569', letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px 8px' }}>
+              Management
+            </p>
+            {navItems.management.map(item => {
+              const Icon = item.icon;
+              const isActive = activeNav === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveNav(item.id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '10px',
+                    width: '100%', padding: '9px 12px', borderRadius: '9px',
+                    backgroundColor: isActive ? 'rgba(37,99,235,0.15)' : 'transparent',
+                    border: isActive ? '1px solid rgba(37,99,235,0.2)' : '1px solid transparent',
+                    color: isActive ? '#60A5FA' : '#94A3B8',
+                    fontSize: '13px', fontWeight: isActive ? 700 : 500,
+                    cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s'
+                  }}
+                  onMouseEnter={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#F1F5F9'; } }}
+                  onMouseLeave={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94A3B8'; } }}
+                >
+                  <Icon size={15} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* System */}
+          <div style={{ marginBottom: '20px' }}>
+            <p style={{ fontSize: '10px', fontWeight: 800, color: '#475569', letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px 8px' }}>
+              System
+            </p>
+            {navItems.system.map(item => {
+              const Icon = item.icon;
+              const isActive = activeNav === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveNav(item.id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '10px',
+                    width: '100%', padding: '9px 12px', borderRadius: '9px',
+                    backgroundColor: isActive ? 'rgba(37,99,235,0.15)' : 'transparent',
+                    border: isActive ? '1px solid rgba(37,99,235,0.2)' : '1px solid transparent',
+                    color: isActive ? '#60A5FA' : '#94A3B8',
+                    fontSize: '13px', fontWeight: isActive ? 700 : 500,
+                    cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s'
+                  }}
+                  onMouseEnter={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#F1F5F9'; } }}
+                  onMouseLeave={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94A3B8'; } }}
+                >
+                  <Icon size={15} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+
+        {/* Sidebar Logout */}
+        <div style={{ padding: '12px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <button
             onClick={onLogout}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white text-sm font-bold transition-all duration-200"
+            style={{
+              display: 'flex', alignItems: 'center', gap: '10px',
+              width: '100%', padding: '10px 14px', borderRadius: '9px',
+              backgroundColor: 'rgba(239,68,68,0.08)',
+              border: '1px solid rgba(239,68,68,0.15)',
+              color: '#F87171', fontSize: '13px', fontWeight: 600,
+              cursor: 'pointer', transition: 'all 0.15s'
+            }}
+            onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#EF4444'; e.currentTarget.style.color = '#fff'; }}
+            onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.08)'; e.currentTarget.style.color = '#F87171'; }}
           >
-            <LogOut className="h-4 w-4" />
+            <LogOut size={15} />
             <span>Log Out Portal</span>
           </button>
         </div>
       </aside>
 
-      {/* Main Panel */}
-      <main className="flex-1 p-6 md:p-10 space-y-8 min-w-0">
-        
-        {/* Top Navbar */}
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      {/* ── MAIN PANEL ── */}
+      <main style={{
+        flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden'
+      }}>
+        {activeNav === 'users' ? (
+          <UserManagement />
+        ) : (
+          <div style={{ flex: 1, overflowY: 'auto', backgroundColor: '#F8FAFC', display: 'flex', flexDirection: 'column' }}>
+        {/* Top Header */}
+
+        <div style={{
+          backgroundColor: '#FFFFFF', borderBottom: '1px solid #E2E8F0',
+          padding: '18px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          flexShrink: 0
+        }}>
           <div>
-            <h1 className="text-3xl font-black tracking-tight text-slate-900 font-display">Super Admin Dashboard</h1>
-            <p className="text-sm font-medium text-slate-400 mt-1">
-              BatchMinder ERP &bull; <span className="text-slate-600">Dashboard</span>
+            <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>
+              Super Admin Dashboard
+            </h1>
+            <p style={{ margin: '3px 0 0', fontSize: '13px', color: '#94A3B8' }}>
+              BatchMinder ERP &bull; <span style={{ color: '#64748B' }}>Dashboard</span>
             </p>
           </div>
 
-          <div className="flex items-center gap-3 self-stretch md:self-auto justify-between md:justify-start">
-            {/* Date Pill */}
-            <div className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200/80 rounded-2xl text-slate-600 text-xs font-bold shadow-sm">
-              <Calendar className="h-4 w-4 text-slate-400" />
-              <span>{currentDate || 'Loading date...'}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {/* Date */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '7px',
+              padding: '8px 14px', borderRadius: '10px',
+              backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0',
+              fontSize: '12px', fontWeight: 600, color: '#475569'
+            }}>
+              <Calendar size={14} color="#94A3B8" />
+              {currentDate}
             </div>
 
-            {/* Notifications Alert Pill */}
-            <button className="h-10 w-10 rounded-2xl bg-white border border-slate-200/80 flex items-center justify-center text-slate-500 hover:text-slate-800 shadow-sm relative transition-colors focus:outline-none">
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-1 right-1 h-5 w-5 bg-rose-500 border border-white text-white text-[10px] font-black rounded-full flex items-center justify-center">
-                7
-              </span>
+            {/* Bell */}
+            <button style={{
+              position: 'relative', width: '38px', height: '38px', borderRadius: '10px',
+              backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', color: '#64748B'
+            }}>
+              <Bell size={17} />
+              <span style={{
+                position: 'absolute', top: '4px', right: '4px',
+                width: '18px', height: '18px', borderRadius: '50%',
+                backgroundColor: '#EF4444', border: '2px solid #fff',
+                fontSize: '9px', fontWeight: 800, color: '#fff',
+                display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>7</span>
             </button>
 
-            {/* Live Indicator Pill */}
-            <div className="flex items-center gap-1.5 px-4.5 py-2.5 rounded-2xl bg-emerald-550 bg-emerald-600 text-white text-xs font-bold tracking-wider uppercase shadow-md shadow-emerald-600/10">
-              <span className="h-2 w-2 rounded-full bg-white animate-pulse" />
+            {/* Live */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              padding: '8px 14px', borderRadius: '10px',
+              backgroundColor: '#16A34A', fontSize: '11px',
+              fontWeight: 700, color: '#fff', letterSpacing: '0.5px', textTransform: 'uppercase'
+            }}>
+              <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#fff', display: 'inline-block', animation: 'pulse 2s infinite' }} />
               Live System
             </div>
-
-            {/* Logout (Visible on mobile/tablet where sidebar is hidden) */}
-            <button 
-              onClick={onLogout}
-              className="lg:hidden h-10 w-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center focus:outline-none hover:bg-rose-100 transition-colors"
-              title="Log Out"
-            >
-              <LogOut className="h-5 w-5" />
-            </button>
           </div>
-        </header>
+        </div>
 
-        {/* 8 Grid Metric Cards */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {metrics.map((m, i) => {
-            const Icon = m.icon;
-            return (
-              <div key={i} className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden flex flex-col justify-between h-[145px]">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span className="block text-[10px] font-extrabold text-slate-400 tracking-wider uppercase">{m.title}</span>
-                    <h3 className="text-3xl font-extrabold text-slate-800 mt-2 font-display">{m.value}</h3>
-                  </div>
-                  <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${m.iconBg}`}>
-                    <Icon className="h-5 w-5" />
-                  </div>
-                </div>
-                <div className={`text-xs font-bold ${m.footerColor} pt-2 border-t border-slate-50 mt-auto`}>
-                  {m.footer}
-                </div>
-              </div>
-            );
-          })}
-        </section>
+        {/* Scrollable Content */}
+        <div style={{ flex: 1, padding: '28px 32px', overflowY: 'auto' }}>
 
-        {/* Bottom Widgets layout */}
-        <section className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-          
-          {/* Department Overview Widget */}
-          <div className="xl:col-span-8 bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm flex flex-col">
-            <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <Home className="h-5 w-5 text-slate-500" />
-                <h3 className="text-lg font-bold text-slate-900">Department Overview</h3>
-              </div>
-              <button className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition-colors flex items-center gap-1.5 focus:outline-none">
-                <span>Manage Depts</span>
-                <ExternalLink className="h-3.5 w-3.5" />
-              </button>
-            </div>
-
-            <div className="space-y-6 flex-1 justify-center flex flex-col">
-              {depts.map((d, i) => (
-                <div key={i} className="space-y-2">
-                  <div className="flex justify-between items-center text-sm font-semibold">
-                    <span className="text-slate-800">{d.name}</span>
-                    <span className="text-slate-500 font-bold">{d.students} Students</span>
-                  </div>
-                  <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full ${d.color} ${d.width}`} />
-                  </div>
-                  <div className="text-[11px] font-bold text-slate-400 tracking-wide uppercase">
-                    {d.stats}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Quick Actions Widget */}
-          <div className="xl:col-span-4 bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm flex flex-col">
-            <h3 className="text-lg font-bold text-slate-900 mb-6 pb-4 border-b border-slate-100">
-              Quick Actions
-            </h3>
-            
-            <div className="grid grid-cols-2 gap-4">
-              {quickActions.map((action, i) => {
-                const ActionIcon = action.icon;
-                return (
-                  <button 
-                    key={i} 
-                    className="p-4 bg-slate-50 hover:bg-slate-100 border border-slate-200/50 hover:border-slate-350 rounded-2xl flex flex-col items-center justify-center gap-2.5 transition-all text-center focus:outline-none shadow-sm group"
-                  >
-                    <div className={`h-11 w-11 rounded-2xl flex items-center justify-center ${action.bg} group-hover:scale-105 transition-transform`}>
-                      <ActionIcon className={`h-5.5 w-5.5 ${action.iconColor}`} />
+          {/* 8-Card Metrics Grid */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: '16px',
+            marginBottom: '24px'
+          }}>
+            {metrics.map((m, i) => {
+              const Icon = m.icon;
+              return (
+                <div
+                  key={i}
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #E2E8F0',
+                    borderRadius: '14px',
+                    padding: '20px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                    transition: 'box-shadow 0.2s',
+                    cursor: 'default'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'}
+                  onMouseLeave={e => e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)'}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                    <div style={{
+                      width: '36px', height: '36px', borderRadius: '9px',
+                      backgroundColor: m.iconBg,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      <Icon size={17} color={m.iconColor} />
                     </div>
-                    <span className="text-xs font-bold text-slate-700 tracking-tight">{action.title}</span>
-                  </button>
-                );
-              })}
-            </div>
+                  </div>
+                  <div>
+                    <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
+                      {m.title}
+                    </p>
+                    <h3 style={{ margin: '4px 0 0', fontSize: '28px', fontWeight: 800, color: '#0F172A', letterSpacing: '-1px' }}>
+                      {m.value}
+                    </h3>
+                  </div>
+                  <div style={{
+                    fontSize: '11px', fontWeight: 600, color: m.footerColor,
+                    paddingTop: '10px', borderTop: '1px solid #F1F5F9'
+                  }}>
+                    {m.footer}
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
-        </section>
+          {/* Bottom Row: Dept Overview + Quick Actions */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '16px' }}>
 
+            {/* Department Overview */}
+            <div style={{
+              backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0',
+              borderRadius: '14px', padding: '24px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #F1F5F9' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Home size={17} color="#64748B" />
+                  <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Department Overview</h3>
+                </div>
+                <button style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  padding: '7px 14px', borderRadius: '8px',
+                  backgroundColor: '#0F172A', border: 'none',
+                  color: '#fff', fontSize: '12px', fontWeight: 600,
+                  cursor: 'pointer', transition: 'background 0.15s'
+                }}
+                  onMouseEnter={e => e.currentTarget.style.backgroundColor = '#1E293B'}
+                  onMouseLeave={e => e.currentTarget.style.backgroundColor = '#0F172A'}
+                >
+                  Manage Depts
+                  <ExternalLink size={12} />
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {depts.map((d, i) => (
+                  <div key={i}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 600, color: '#1E293B' }}>{d.name}</span>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: '#64748B' }}>{d.students} Students</span>
+                    </div>
+                    <div style={{ height: '8px', backgroundColor: '#F1F5F9', borderRadius: '4px', overflow: 'hidden', marginBottom: '6px' }}>
+                      <div style={{
+                        height: '100%', borderRadius: '4px',
+                        backgroundColor: d.color,
+                        width: `${d.pct}%`,
+                        transition: 'width 0.8s ease'
+                      }} />
+                    </div>
+                    <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      {d.stats}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div style={{
+              backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0',
+              borderRadius: '14px', padding: '24px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+            }}>
+              <h3 style={{ margin: '0 0 16px', fontSize: '15px', fontWeight: 700, color: '#0F172A', paddingBottom: '16px', borderBottom: '1px solid #F1F5F9' }}>
+                Quick Actions
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                {quickActions.map((action, i) => {
+                  const ActionIcon = action.icon;
+                  return (
+                    <button
+                      key={i}
+                      style={{
+                        display: 'flex', flexDirection: 'column',
+                        alignItems: 'center', justifyContent: 'center', gap: '10px',
+                        padding: '16px 10px', borderRadius: '11px',
+                        backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0',
+                        cursor: 'pointer', transition: 'all 0.15s', textAlign: 'center'
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#F1F5F9'; e.currentTarget.style.borderColor = '#CBD5E1'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#F8FAFC'; e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                    >
+                      <div style={{
+                        width: '40px', height: '40px', borderRadius: '10px',
+                        backgroundColor: action.bg,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                      }}>
+                        <ActionIcon size={18} color={action.iconColor} />
+                      </div>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#374151' }}>
+                        {action.title}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+          </div>
+        </div>
+        </div>
+        )}
       </main>
-
     </div>
   );
 }
