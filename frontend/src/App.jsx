@@ -13,6 +13,7 @@ import RecordsDirectory from './pages/students/RecordsDirectory';
 import DataIngestionHub from './pages/ingestion/DataIngestionHub';
 import CurriculumBoard from './pages/curriculum/CurriculumBoard';
 import MigrationManager from './pages/migration/MigrationManager';
+import Footer from './components/Footer';
 import {
   Layers,
   Github,
@@ -368,18 +369,7 @@ function App() {
           </DialogActions>
         </Dialog>
 
-        <footer className="border-t border-slate-200 bg-white py-6 mt-12 z-20">
-          <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-slate-500">
-            <div className="font-bold text-slate-800">BatchMinder</div>
-            <div>
-              &copy; 2024 BatchMinder Academic Management Portal. All Rights Reserved.
-            </div>
-            <div className="flex items-center gap-6">
-              <span className="hover:text-slate-650 cursor-pointer transition-colors text-sm">Security Policy</span>
-              <span className="hover:text-slate-650 cursor-pointer transition-colors text-sm">Terms of Service</span>
-            </div>
-          </div>
-        </footer>
+        <Footer />
       </div>
     );
   }
