@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from './contexts/AuthContext';
-import Login from './components/Login';
-import Signup from './components/Signup';
-import CurriculumGrid from './components/CurriculumGrid';
-import EquivalencyForm from './components/EquivalencyForm';
-import FileDropzone from './components/FileDropzone';
-import StudentModal from './components/StudentModal';
-import StudentTable from './components/StudentTable';
-import SyncPanel from './components/SyncPanel';
-import PrerequisiteMapper from './components/PrerequisiteMapper';
-import ProgressPreview from './components/ProgressPreview';
+import Login from './components/auth/Login';
+import Signup from './components/auth/Signup';
+import CurriculumGrid from './components/curriculum/CurriculumGrid';
+import EquivalencyForm from './components/curriculum/EquivalencyForm';
+import FileDropzone from './components/ingestion/FileDropzone';
+import StudentModal from './components/students/StudentModal';
+import StudentTable from './components/students/StudentTable';
+import SyncPanel from './components/ingestion/SyncPanel';
+import PrerequisiteMapper from './components/curriculum/PrerequisiteMapper';
+import ProgressPreview from './components/dashboard/ProgressPreview';
 import {
   Layers,
   Github,
