@@ -2,9 +2,37 @@ import jwt from 'jsonwebtoken';
 import User from '../models/user.js';
 import AuditLog from '../models/auditLog.js';
 
-const signToken = (id) => {
+const signAccessToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    expiresIn: '15m',
+  });
+};
+
+const signRefreshToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET, {
+    expiresIn: '7d',
+  });
+};
+
+const sendTokenCookies = (res, userId) => {
+  const accessToken = signAccessToken(userId);
+  const refreshToken = signRefreshToken(userId);
+
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+  };
+
+  res.cookie('accessToken', accessToken, {
+    ...cookieOptions,
+    expires: new Date(Date.now() + 15 * 60 * 1000), // 15 mins
+  });
+
+  res.cookie('refreshToken', refreshToken, {
+    ...cookieOptions,
+    expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
   });
 };
 
@@ -44,7 +72,7 @@ export const register = async (req, res) => {
       role: role || 'advisor',
     });
 
-    const token = signToken(newUser._id);
+    sendTokenCookies(res, newUser._id);
 
     // Log action
     await logAudit(newUser._id, newUser.email, 'USER_REGISTERED', `New user registered with role: ${newUser.role}`);
@@ -54,7 +82,6 @@ export const register = async (req, res) => {
 
     res.status(201).json({
       status: 'success',
-      token,
       data: {
         user: newUser,
       },
@@ -80,7 +107,7 @@ export const login = async (req, res) => {
       return res.status(401).json({ message: 'Incorrect email, password, or role' });
     }
 
-    const token = signToken(user._id);
+    sendTokenCookies(res, user._id);
 
     // Log action
     await logAudit(user._id, user.email, 'USER_LOGGED_IN', 'User logged in successfully.');
@@ -90,10 +117,57 @@ export const login = async (req, res) => {
 
     res.status(200).json({
       status: 'success',
-      token,
       data: {
         user,
       },
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const logout = async (req, res) => {
+  try {
+    let userId = null;
+    let userEmail = 'unknown';
+
+    if (req.cookies && req.cookies.accessToken) {
+      try {
+        const decoded = jwt.verify(req.cookies.accessToken, process.env.JWT_SECRET);
+        const user = await User.findById(decoded.id);
+        if (user) {
+          userId = user._id;
+          userEmail = user.email;
+        }
+      } catch (err) {
+        // ignore decoding errors during logout
+      }
+    }
+
+    if (userId) {
+      await logAudit(userId, userEmail, 'USER_LOGGED_OUT', 'User logged out successfully.');
+    }
+
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+    };
+
+    res.cookie('accessToken', 'loggedout', {
+      ...cookieOptions,
+      expires: new Date(Date.now() + 1000),
+    });
+
+    res.cookie('refreshToken', 'loggedout', {
+      ...cookieOptions,
+      expires: new Date(Date.now() + 1000),
+    });
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Logged out successfully'
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

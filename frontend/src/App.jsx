@@ -65,17 +65,10 @@ function App() {
   };
 
   const fetchAuditLogs = async () => {
-    const activeToken = localStorage.getItem('token');
-    if (!activeToken) return;
-    
     setLogsLoading(true);
     setLogsError('');
     try {
-      const response = await fetch('/api/auth/audit-logs', {
-        headers: {
-          'Authorization': `Bearer ${activeToken}`
-        }
-      });
+      const response = await fetch('/api/auth/audit-logs');
       const resData = await response.json();
       if (response.ok) {
         setAuditLogs(resData.data.logs || []);
