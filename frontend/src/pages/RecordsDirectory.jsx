@@ -1,36 +1,25 @@
-import React, { useState, useMemo } from 'react';
-import {
-  Search,
-  ChevronDown,
-  ChevronUp,
-  User,
-  Mail,
-  BookOpen,
-  Award,
-  AlertCircle,
-  X,
+import React, { useState, useMemo, useEffect } from 'react';
+import { 
+  Search, 
+  ChevronDown, 
+  ChevronUp, 
+  User, 
+  Mail, 
+  BookOpen, 
+  Award, 
+  AlertCircle, 
+  X, 
   Filter,
   Eye
 } from 'lucide-react';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button as MuiButton
+import { 
+  Dialog, 
+  DialogTitle, 
+  DialogContent, 
+  DialogActions, 
+  Button as MuiButton,
+  CircularProgress
 } from '@mui/material';
-
-const MOCK_STUDENTS = [
-  { id: 'F22-BCS-001', name: 'Ayesha Khan', email: 'ayesha.khan@university.edu', cgpa: 3.82, status: 'Good', batch: '2022', coursesCompleted: 24, remainingCredits: 48 },
-  { id: 'F22-BCS-014', name: 'Ali Raza', email: 'ali.raza@university.edu', cgpa: 2.05, status: 'Warning', batch: '2022', coursesCompleted: 20, remainingCredits: 60 },
-  { id: 'F22-BCS-032', name: 'Bilal Siddiqui', email: 'bilal.siddiqui@university.edu', cgpa: 1.88, status: 'Critical', batch: '2022', coursesCompleted: 18, remainingCredits: 66 },
-  { id: 'F23-BCS-054', name: 'Zainab Fatima', email: 'zainab.fatima@university.edu', cgpa: 3.56, status: 'Good', batch: '2023', coursesCompleted: 12, remainingCredits: 84 },
-  { id: 'F23-BCS-088', name: 'Hamza Malik', email: 'hamza.malik@university.edu', cgpa: 2.10, status: 'Warning', batch: '2023', coursesCompleted: 11, remainingCredits: 87 },
-  { id: 'F23-BCS-099', name: 'Sana Yusuf', email: 'sana.yusuf@university.edu', cgpa: 3.91, status: 'Good', batch: '2023', coursesCompleted: 13, remainingCredits: 81 },
-  { id: 'F24-BCS-102', name: 'Mustafa Ahmed', email: 'mustafa.ahmed@university.edu', cgpa: 1.95, status: 'Critical', batch: '2024', coursesCompleted: 4, remainingCredits: 108 },
-  { id: 'F24-BCS-115', name: 'Eshaal Imran', email: 'eshaal.imran@university.edu', cgpa: 2.75, status: 'Good', batch: '2024', coursesCompleted: 5, remainingCredits: 105 },
-  { id: 'F22-BCS-150', name: 'Saad Ur Rehman', email: 'saad.rehman@university.edu', cgpa: 3.12, status: 'Good', batch: '2022', coursesCompleted: 22, remainingCredits: 54 }
-];
 
 export default function RecordsDirectory() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,6 +31,43 @@ export default function RecordsDirectory() {
   const [sortOrder, setSortOrder] = useState('asc'); // 'asc' or 'desc'
   const [selectedStudent, setSelectedStudent] = useState(null);
 
+  // API Integration States
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const fetchStudents = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const params = new URLSearchParams();
+      if (batchFilter !== 'All') params.append('batch', batchFilter);
+      if (statusFilter !== 'All') {
+        const mappedStatus = statusFilter === 'Good' ? 'good_standing' : statusFilter.toLowerCase();
+        params.append('status', mappedStatus);
+      }
+      if (searchTerm) params.append('search', searchTerm);
+      
+      params.append('limit', '1000'); // Grab matching batch results to allow frontend sorting/pagination
+
+      const response = await fetch(`/api/students?${params.toString()}`);
+      const data = await response.json();
+      if (response.ok) {
+        setStudents(data.data.students || []);
+      } else {
+        setError(data.message || 'Failed to fetch students');
+      }
+    } catch (err) {
+      setError('Network error fetching student records');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStudents();
+  }, [searchTerm, statusFilter, batchFilter]);
+
   // Sorting Handler
   const handleSort = (field) => {
     const isAsc = sortField === field && sortOrder === 'asc';
@@ -49,31 +75,33 @@ export default function RecordsDirectory() {
     setSortField(field);
   };
 
-  // Filter & Sort Logic
+  // Filter & Sort Logic (Mapped to backend schema attributes)
   const processedStudents = useMemo(() => {
-    let result = [...MOCK_STUDENTS];
+    let result = students.map(student => {
+      const completedCredits = student.courses 
+        ? student.courses.filter(c => c.status === 'completed').reduce((sum, c) => sum + c.creditHours, 0)
+        : 0;
+      const completedCourses = student.courses 
+        ? student.courses.filter(c => c.status === 'completed').length 
+        : 0;
 
-    // 1. Search Filter
-    if (searchTerm) {
-      const lowerSearch = searchTerm.toLowerCase();
-      result = result.filter(student =>
-        student.name.toLowerCase().includes(lowerSearch) ||
-        student.id.toLowerCase().includes(lowerSearch) ||
-        student.email.toLowerCase().includes(lowerSearch)
-      );
-    }
+      return {
+        id: student.rollNumber,
+        name: student.name,
+        email: student.email || 'N/A',
+        cgpa: student.cgpa || 0.0,
+        status: student.status === 'good_standing' 
+          ? 'Good' 
+          : student.status === 'warning' 
+          ? 'Warning' 
+          : 'Critical',
+        batch: student.batch,
+        coursesCompleted: completedCourses,
+        remainingCredits: Math.max(130 - completedCredits, 0)
+      };
+    });
 
-    // 2. Status Filter
-    if (statusFilter !== 'All') {
-      result = result.filter(student => student.status === statusFilter);
-    }
-
-    // 3. Batch Filter
-    if (batchFilter !== 'All') {
-      result = result.filter(student => student.batch === batchFilter);
-    }
-
-    // 4. Sort
+    // Sort
     result.sort((a, b) => {
       let aVal = a[sortField];
       let bVal = b[sortField];
@@ -89,7 +117,7 @@ export default function RecordsDirectory() {
     });
 
     return result;
-  }, [searchTerm, statusFilter, batchFilter, sortField, sortOrder]);
+  }, [students, sortField, sortOrder]);
 
   // Pagination Logic
   const totalPages = Math.ceil(processedStudents.length / pageSize);
@@ -217,7 +245,25 @@ export default function RecordsDirectory() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
-              {paginatedStudents.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-slate-500 text-sm">
+                    <div className="flex justify-center items-center gap-2">
+                      <CircularProgress size={16} className="text-brandAccent" />
+                      Loading student records...
+                    </div>
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-alertCritical text-sm">
+                    <div className="flex justify-center items-center gap-2">
+                      <AlertCircle className="h-4 w-4" />
+                      {error}
+                    </div>
+                  </td>
+                </tr>
+              ) : paginatedStudents.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-8 text-center text-slate-400 text-sm">
                     No matching student records found.

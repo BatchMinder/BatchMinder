@@ -44,7 +44,8 @@ function App() {
   const [auditLogs, setAuditLogs] = useState([]);
   const [logsLoading, setLogsLoading] = useState(false);
   const [logsError, setLogsError] = useState('');
-
+  const [totalStudents, setTotalStudents] = useState(0);
+  
   // Logout modal state
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -88,6 +89,18 @@ function App() {
     }
   };
 
+  const fetchTotalStudents = async () => {
+    try {
+      const response = await fetch('/api/students?limit=1');
+      const data = await response.json();
+      if (response.ok) {
+        setTotalStudents(data.total || 0);
+      }
+    } catch (err) {
+      console.error('Failed to fetch total students:', err);
+    }
+  };
+
   useEffect(() => {
     checkHealth();
   }, []);
@@ -95,6 +108,7 @@ function App() {
   useEffect(() => {
     if (user) {
       fetchAuditLogs();
+      fetchTotalStudents();
     }
   }, [user]);
 
@@ -306,7 +320,7 @@ function App() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-sm font-sans">
                       <span className="text-sm text-slate-500 font-semibold uppercase tracking-wide">Students Managed</span>
-                      <h3 className="text-3xl font-extrabold text-brandNavy mt-1 font-display">142</h3>
+                      <h3 className="text-3xl font-extrabold text-brandNavy mt-1 font-display">{totalStudents}</h3>
                     </div>
                     <div className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-sm font-sans">
                       <span className="text-sm text-slate-500 font-semibold uppercase tracking-wide">Pending Approvals</span>
@@ -440,7 +454,7 @@ function App() {
             )}
 
             {activeTab === 'directory' && <RecordsDirectory />}
-            {activeTab === 'ingestion' && <DataIngestionHub />}
+            {activeTab === 'ingestion' && <DataIngestionHub onUploadSuccess={fetchTotalStudents} />}
             {activeTab === 'curriculum' && <CurriculumBoard />}
             {activeTab === 'migration' && <MigrationManager />}
           </main>

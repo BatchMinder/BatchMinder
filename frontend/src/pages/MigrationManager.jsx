@@ -1,11 +1,11 @@
-import React, { useState, useMemo } from 'react';
-import {
-  User,
-  HelpCircle,
-  ArrowRight,
-  CheckCircle,
-  XCircle,
-  ChevronRight,
+import React, { useState, useMemo, useEffect } from 'react';
+import { 
+  User, 
+  HelpCircle, 
+  ArrowRight, 
+  CheckCircle, 
+  XCircle, 
+  ChevronRight, 
   Award,
   Sparkles,
   Info
@@ -24,17 +24,11 @@ const MOCK_MIGRATION_STUDENT = {
   ]
 };
 
-const LOCAL_AVAILABLE_COURSES = [
-  { code: 'CS-101', name: 'Programming Fundamentals', credits: 4 },
-  { code: 'CS-102', name: 'Calculus & Analytical Geometry', credits: 3 },
-  { code: 'CS-201', name: 'Object Oriented Programming', credits: 4 },
-  { code: 'CS-202', name: 'Discrete Structures', credits: 3 },
-  { code: 'CS-301', name: 'Data Structures & Algorithms', credits: 4 }
-];
-
 export default function MigrationManager() {
   const [student, setStudent] = useState(MOCK_MIGRATION_STUDENT);
-
+  const [localCourses, setLocalCourses] = useState([]);
+  const [loadingLocalCourses, setLoadingLocalCourses] = useState(false);
+  
   // Track selected local matches
   const [mappings, setMappings] = useState({
     'CS110': '',
@@ -50,6 +44,36 @@ export default function MigrationManager() {
     'CS210': 'Pending',
     'HUM102': 'Pending'
   });
+
+  useEffect(() => {
+    const fetchLocalCourses = async () => {
+      setLoadingLocalCourses(true);
+      try {
+        const response = await fetch('/api/curriculum?department=Computer Science&batch=2022');
+        const data = await response.json();
+        if (response.ok) {
+          const coursesList = [];
+          const curriculums = data.data.curriculum || [];
+          curriculums.forEach(curr => {
+            curr.courses.forEach(c => {
+              coursesList.push({
+                code: c.courseCode,
+                name: c.title,
+                credits: c.creditHours
+              });
+            });
+          });
+          setLocalCourses(coursesList);
+        }
+      } catch (err) {
+        console.error('Error fetching curriculum for migration matcher:', err);
+      } finally {
+        setLoadingLocalCourses(false);
+      }
+    };
+
+    fetchLocalCourses();
+  }, []);
 
   const handleMatchChange = (sourceCode, localCode) => {
     setMappings(prev => ({ ...prev, [sourceCode]: localCode }));
@@ -244,7 +268,7 @@ export default function MigrationManager() {
                           className="flex-1 min-w-0 w-full py-1.5 px-3 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-brandAccent text-slate-700 bg-white"
                         >
                           <option value="">Match local course...</option>
-                          {LOCAL_AVAILABLE_COURSES.map(local => (
+                          {localCourses.map(local => (
                             <option key={local.code} value={local.code}>{local.code} - {local.name} ({local.credits} CH)</option>
                           ))}
                         </select>

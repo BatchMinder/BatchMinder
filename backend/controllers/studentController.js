@@ -443,3 +443,15 @@ export const promoteSemester = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// GET /api/students/template - Download bulk CSV import template
+export const getStudentTemplate = (req, res) => {
+  try {
+    const csvContent = 'rollNumber,name,email,batch,department,cgpa,status\nF22-BCS-001,Ayesha Khan,ayesha.khan@university.edu,2022,Computer Science,3.82,good_standing\nF22-BCS-014,Ali Raza,ali.raza@university.edu,2022,Computer Science,2.05,warning\nF22-BCS-032,Bilal Siddiqui,bilal.siddiqui@university.edu,2022,Computer Science,1.88,critical\n';
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=student_import_template.csv');
+    return res.status(200).send(csvContent);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

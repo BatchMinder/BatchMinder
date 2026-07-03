@@ -2,10 +2,10 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
-import mongoose from 'mongoose';
 import authRoutes from './routes/authRoutes.js';
 import studentRoutes from './routes/studentRoutes.js';
 import curriculumRoutes from './routes/curriculumRoutes.js';
+import connectDB from './utils/db.js';
 
 // Load environment variables
 dotenv.config();
@@ -22,18 +22,7 @@ app.use(cookieParser());
 app.use(express.json());
 
 // Database connection
-const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/batchminder';
-mongoose.connect(mongoUri)
-  .then(async () => {
-    console.log('Successfully connected to MongoDB.');
-    try {
-      await mongoose.model('User').syncIndexes();
-      console.log('User indices synchronized successfully.');
-    } catch (err) {
-      console.error('Error syncing User indices:', err);
-    }
-  })
-  .catch(err => console.error('MongoDB connection error:', err));
+connectDB();
 
 // Routes
 app.use('/api/auth', authRoutes);

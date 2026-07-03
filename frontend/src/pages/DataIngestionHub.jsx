@@ -25,7 +25,7 @@ const MOCK_SYNC_LOGS = [
   { timestamp: '2026-06-30 14:22:00', source: 'LMS API Gateway', records: 0, status: 'Failed (Timeout)' }
 ];
 
-export default function DataIngestionHub() {
+export default function DataIngestionHub({ onUploadSuccess }) {
   // Upload States
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -46,6 +46,13 @@ export default function DataIngestionHub() {
   const [syncing, setSyncing] = useState(false);
   const [syncSuccess, setSyncSuccess] = useState(false);
 
+  // Integration States
+  const [validationErrors, setValidationErrors] = useState([]);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [uploadStats, setUploadStats] = useState(null);
+  const [syncCount, setSyncCount] = useState(0);
+  const [syncError, setSyncError] = useState('');
+
   // Form Field Validation on Blur (UI-5)
   const validateField = (field, value) => {
     let errorMsg = '';
@@ -65,23 +72,82 @@ export default function DataIngestionHub() {
     setErrors(prev => ({ ...prev, [field]: errorMsg }));
   };
 
-  // Mock upload logic
-  const handleFileUpload = (e) => {
+  // Real upload logic
+  const handleFileUpload = async (e) => {
     const selectedFile = e.target.files[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      setUploading(true);
-      setTimeout(() => {
-        setUploading(false);
-        setShowValidationReport(true);
-      }, 1500);
+    if (!selectedFile) return;
+
+    setFile(selectedFile);
+    setUploading(true);
+    setUploadSuccess(false);
+    setUploadStats(null);
+    setValidationErrors([]);
+    setShowValidationReport(false);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      const response = await fetch('/api/students/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setUploadSuccess(true);
+        if (onUploadSuccess) onUploadSuccess();
+        setUploadStats({
+          processed: data.data.processed,
+          upserted: data.data.upserted,
+          modified: data.data.modified
+        });
+        if (data.data.errors) {
+          const parsed = data.data.errors.map((errStr, idx) => {
+            const match = errStr.match(/^Row (\d+): (.*)/);
+            return {
+              row: match ? Number(match[1]) : idx + 1,
+              field: 'Record Schema',
+              value: 'Invalid',
+              error: match ? match[2] : errStr,
+              severity: 'error'
+            };
+          });
+          setValidationErrors(parsed);
+          setShowValidationReport(true);
+        }
+      } else {
+        const errMsg = data.message || 'File upload failed';
+        const rawErrors = data.errors || [];
+        const parsed = rawErrors.map((errStr, idx) => {
+          const match = errStr.match(/^Row (\d+): (.*)/);
+          return {
+            row: match ? Number(match[1]) : idx + 1,
+            field: 'Required Attribute',
+            value: 'Missing / Blank',
+            error: match ? match[2] : errStr,
+            severity: 'error'
+          };
+        });
+        
+        if (parsed.length > 0) {
+          setValidationErrors(parsed);
+          setShowValidationReport(true);
+        } else {
+          alert(errMsg);
+        }
+      }
+    } catch (err) {
+      alert('Network error uploading CSV spreadsheet');
+    } finally {
+      setUploading(false);
     }
   };
 
-  // Mock sync trigger logic
-  const handleSyncTrigger = () => {
+  // Real sync trigger logic
+  const handleSyncTrigger = async () => {
     if (!apiUrl || errors.apiUrl || !apiKey || errors.apiKey) {
-      // Run full checks
       validateField('apiUrl', apiUrl);
       validateField('apiKey', apiKey);
       return;
@@ -89,10 +155,46 @@ export default function DataIngestionHub() {
 
     setSyncing(true);
     setSyncSuccess(false);
-    setTimeout(() => {
+    setSyncError('');
+    setSyncCount(0);
+
+    try {
+      const batches = syncBatch === 'All' ? ['2022', '2023', '2024'] : [syncBatch];
+      let netCount = 0;
+      let failedBatch = null;
+
+      for (const b of batches) {
+        const response = await fetch('/api/students/sync-lms', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            batch: b,
+            department: 'Computer Science'
+          })
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+          netCount += data.syncedCount || 0;
+        } else {
+          failedBatch = b;
+          setSyncError(data.message || `Failed to sync batch ${b}`);
+          break;
+        }
+      }
+
+      if (!failedBatch) {
+        setSyncSuccess(true);
+        setSyncCount(netCount);
+        if (onUploadSuccess) onUploadSuccess();
+      }
+    } catch (err) {
+      setSyncError('Network error connecting to LMS synchronizer');
+    } finally {
       setSyncing(false);
-      setSyncSuccess(true);
-    }, 2500);
+    }
   };
 
   return (
@@ -114,9 +216,13 @@ export default function DataIngestionHub() {
                 <FileSpreadsheet className="h-5 w-5 text-brandAccent" />
                 <h2 className="text-lg font-bold text-slate-800">Bulk CSV/Excel Ingestion</h2>
               </div>
-              <button className="flex items-center gap-1.5 text-sm font-semibold text-brandAccent hover:text-brandAccent/80 focus:outline-none transition-colors">
+              <a 
+                href="/api/students/template" 
+                download="student_import_template.csv"
+                className="flex items-center gap-1.5 text-sm font-semibold text-brandAccent hover:text-brandAccent/80 focus:outline-none transition-colors"
+              >
                 <Download className="h-4 w-4" /> Template.csv
-              </button>
+              </a>
             </div>
 
             {/* Drop Zone Box */}
@@ -143,14 +249,28 @@ export default function DataIngestionHub() {
               </div>
             )}
 
+            {/* Upload success feedback */}
+            {uploadSuccess && uploadStats && (
+              <div className="p-4 rounded-xl bg-alertGood/5 border border-alertGood/25 text-alertGood text-sm flex gap-3 leading-relaxed animate-fade-in">
+                <CheckCircle className="h-5 w-5 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold block">Spreadsheet Ingestion Complete</span>
+                  Successfully processed all **{uploadStats.processed} records** from the file.
+                  <span className="block text-xs mt-1 text-slate-500 font-semibold">
+                    Upserted: {uploadStats.upserted} | Modified: {uploadStats.modified}
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Validation reports grid (UI-1, UI-6) */}
-            {showValidationReport && !uploading && (
+            {showValidationReport && !uploading && validationErrors.length > 0 && (
               <div className="space-y-4">
                 <div className="p-4 rounded-xl bg-alertCritical/5 border border-alertCritical/20 flex gap-3 text-sm text-alertCritical leading-relaxed">
                   <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
                   <div>
                     <span className="font-bold block">Spreadsheet Validation Check Failed</span>
-                    We found **{MOCK_VALIDATION_ERRORS.length} warnings/errors** in the uploaded file. Please fix the records highlighted below and re-upload.
+                    We found **{validationErrors.length} warnings/errors** in the uploaded file. Please fix the records highlighted below and re-upload.
                   </div>
                 </div>
 
@@ -168,7 +288,7 @@ export default function DataIngestionHub() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-medium text-slate-600">
-                      {MOCK_VALIDATION_ERRORS.map((err, i) => (
+                      {validationErrors.map((err, i) => (
                         <tr key={i} className="hover:bg-slate-50/20">
                           <td className="py-2.5 px-3 font-mono">#{err.row}</td>
                           <td className="py-2.5 px-3 text-slate-800 font-semibold">{err.field}</td>
@@ -287,7 +407,15 @@ export default function DataIngestionHub() {
             {syncSuccess && (
               <div className="p-3 rounded-xl bg-alertGood/5 border border-alertGood/25 text-alertGood text-sm flex items-center gap-2 animate-fade-in font-medium">
                 <CheckCircle className="h-5 w-5 shrink-0" />
-                <span>Sync process completed! 168 student profiles synced successfully.</span>
+                <span>Sync process completed! {syncCount} student profiles synced successfully.</span>
+              </div>
+            )}
+
+            {/* Sync error feedback */}
+            {syncError && (
+              <div className="p-3 rounded-xl bg-alertCritical/5 border border-alertCritical/25 text-alertCritical text-sm flex items-center gap-2 animate-fade-in font-medium">
+                <AlertCircle className="h-5 w-5 shrink-0" />
+                <span>Sync failed: {syncError}</span>
               </div>
             )}
 

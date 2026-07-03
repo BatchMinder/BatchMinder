@@ -1,41 +1,21 @@
-import React, { useState, useMemo } from 'react';
-import {
-  BookOpen,
-  Layers,
-  Plus,
-  Trash2,
+import React, { useState, useMemo, useEffect } from 'react';
+import { 
+  BookOpen, 
+  Layers, 
+  Plus, 
+  Trash2, 
   AlertTriangle,
   ArrowRight,
   Sparkles
 } from 'lucide-react';
-
-const MOCK_CURRICULUM = {
-  '2022': [
-    { code: 'CS-101', name: 'Programming Fundamentals', credits: 4, semester: 1, prereq: 'None' },
-    { code: 'CS-102', name: 'Calculus & Analytical Geometry', credits: 3, semester: 1, prereq: 'None' },
-    { code: 'CS-201', name: 'Object Oriented Programming', credits: 4, semester: 2, prereq: 'CS-101' },
-    { code: 'CS-202', name: 'Discrete Structures', credits: 3, semester: 2, prereq: 'None' },
-    { code: 'CS-301', name: 'Data Structures & Algorithms', credits: 4, semester: 3, prereq: 'CS-201' },
-    { code: 'CS-302', name: 'Database Systems', credits: 4, semester: 3, prereq: 'CS-201' },
-    { code: 'CS-401', name: 'Operating Systems', credits: 4, semester: 4, prereq: 'CS-301' },
-    { code: 'CS-402', name: 'Software Engineering', credits: 3, semester: 4, prereq: 'None' }
-  ],
-  '2023': [
-    { code: 'CS-101', name: 'Programming Fundamentals', credits: 4, semester: 1, prereq: 'None' },
-    { code: 'CS-103', name: 'Introduction to ICT', credits: 3, semester: 1, prereq: 'None' },
-    { code: 'CS-201', name: 'Object Oriented Programming', credits: 4, semester: 2, prereq: 'CS-101' },
-    { code: 'CS-301', name: 'Data Structures & Algorithms', credits: 4, semester: 3, prereq: 'CS-201' }
-  ],
-  '2024': [
-    { code: 'CS-101', name: 'Programming Fundamentals', credits: 4, semester: 1, prereq: 'None' },
-    { code: 'CS-104', name: 'Applied Physics', credits: 3, semester: 1, prereq: 'None' }
-  ]
-};
+import { CircularProgress } from '@mui/material';
 
 export default function CurriculumBoard() {
   const [selectedBatch, setSelectedBatch] = useState('2022');
-  const [courses, setCourses] = useState(MOCK_CURRICULUM);
-
+  const [coursesList, setCoursesList] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  
   // Form Input States
   const [courseCode, setCourseCode] = useState('');
   const [courseName, setCourseName] = useState('');
@@ -50,12 +30,47 @@ export default function CurriculumBoard() {
     credits: ''
   });
 
+  const fetchCurriculum = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch(`/api/curriculum?department=Computer Science&batch=${selectedBatch}`);
+      const data = await response.json();
+      if (response.ok) {
+        const compiledCourses = [];
+        const curriculums = data.data.curriculum || [];
+        curriculums.forEach(curr => {
+          curr.courses.forEach(c => {
+            compiledCourses.push({
+              code: c.courseCode,
+              name: c.title,
+              credits: c.creditHours,
+              semester: curr.semester,
+              prereq: c.prerequisites && c.prerequisites.length > 0 ? c.prerequisites.join(', ') : 'None'
+            });
+          });
+        });
+        setCoursesList(compiledCourses);
+      } else {
+        setError(data.message || 'Failed to load curriculum');
+      }
+    } catch (err) {
+      setError('Network error loading degree template');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCurriculum();
+  }, [selectedBatch]);
+
   const validateField = (field, value) => {
     let errorMsg = '';
     if (field === 'courseCode') {
       if (!value) {
         errorMsg = 'Course Code is required.';
-      } else if (!/^[A-Z]{2,3}-\d{3}$/.test(value)) {
+      } else if (!/^[A-Z]{2,4}-\d{3}$/.test(value.toUpperCase())) {
         errorMsg = 'Course Code must match department pattern (e.g. CS-201).';
       }
     } else if (field === 'courseName') {
@@ -73,7 +88,7 @@ export default function CurriculumBoard() {
     setErrors(prev => ({ ...prev, [field]: errorMsg }));
   };
 
-  const handleAddCourse = (e) => {
+  const handleAddCourse = async (e) => {
     e.preventDefault();
 
     // Check all fields
@@ -85,48 +100,113 @@ export default function CurriculumBoard() {
       return;
     }
 
-    const newCourse = {
-      code: courseCode.trim().toUpperCase(),
-      name: courseName.trim(),
-      credits: Number(credits),
-      semester: Number(semester),
-      prereq: prereq
-    };
+    setLoading(true);
+    try {
+      const targetSem = Number(semester);
+      const existingSemCourses = coursesList
+        .filter(c => c.semester === targetSem)
+        .map(c => ({
+          courseCode: c.code,
+          title: c.name,
+          creditHours: c.credits,
+          prerequisites: c.prereq.split(',').map(p => p.trim()).filter(p => p && p !== 'None')
+        }));
 
-    setCourses(prev => ({
-      ...prev,
-      [selectedBatch]: [...prev[selectedBatch], newCourse]
-    }));
+      const newCourseBackend = {
+        courseCode: courseCode.trim().toUpperCase(),
+        title: courseName.trim(),
+        creditHours: Number(credits),
+        prerequisites: prereq.split(',').map(p => p.trim()).filter(p => p && p !== 'None')
+      };
+      
+      const updatedCourses = [...existingSemCourses, newCourseBackend];
 
-    // Reset Form
-    setCourseCode('');
-    setCourseName('');
-    setCredits('3');
-    setSemester('1');
-    setPrereq('None');
+      const response = await fetch('/api/curriculum', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          department: 'Computer Science',
+          batch: selectedBatch,
+          semester: targetSem,
+          courses: updatedCourses
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setCourseCode('');
+        setCourseName('');
+        setCredits('3');
+        setSemester('1');
+        setPrereq('None');
+        fetchCurriculum();
+      } else {
+        alert(data.message || 'Failed to add course');
+      }
+    } catch (err) {
+      alert('Error updating curriculum');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDeleteCourse = (codeToDelete) => {
-    setCourses(prev => ({
-      ...prev,
-      [selectedBatch]: prev[selectedBatch].filter(course => course.code !== codeToDelete)
-    }));
+  const handleDeleteCourse = async (codeToDelete) => {
+    const courseToDelete = coursesList.find(c => c.code === codeToDelete);
+    if (!courseToDelete) return;
+
+    const targetSem = courseToDelete.semester;
+    setLoading(true);
+    try {
+      const updatedCourses = coursesList
+        .filter(c => c.semester === targetSem && c.code !== codeToDelete)
+        .map(c => ({
+          courseCode: c.code,
+          title: c.name,
+          creditHours: c.credits,
+          prerequisites: c.prereq.split(',').map(p => p.trim()).filter(p => p && p !== 'None')
+        }));
+
+      const response = await fetch('/api/curriculum', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          department: 'Computer Science',
+          batch: selectedBatch,
+          semester: targetSem,
+          courses: updatedCourses
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        fetchCurriculum();
+      } else {
+        alert(data.message || 'Failed to delete course');
+      }
+    } catch (err) {
+      alert('Error updating curriculum');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Group current batch courses by Semester
   const groupedCourses = useMemo(() => {
-    const currentBatchCourses = courses[selectedBatch] || [];
     const semesters = {};
     for (let i = 1; i <= 8; i++) {
       semesters[i] = [];
     }
-    currentBatchCourses.forEach(course => {
+    coursesList.forEach(course => {
       if (semesters[course.semester]) {
         semesters[course.semester].push(course);
       }
     });
     return semesters;
-  }, [courses, selectedBatch]);
+  }, [coursesList]);
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -165,10 +245,25 @@ export default function CurriculumBoard() {
 
             {/* Curriculum grid list */}
             <div className="space-y-6 max-h-[600px] overflow-y-auto pr-2">
-              {Object.keys(groupedCourses).map(sem => {
-                const semesterCourses = groupedCourses[sem];
-                if (semesterCourses.length === 0 && Number(sem) > 4) return null; // Hide empty upper semesters
-
+              {loading && coursesList.length === 0 ? (
+                <div className="py-8 text-center text-sm text-slate-500 flex justify-center items-center gap-2">
+                  <CircularProgress size={16} className="text-brandAccent" />
+                  Loading curriculum details...
+                </div>
+              ) : error ? (
+                <div className="py-8 text-center text-sm text-alertCritical flex justify-center items-center gap-2 font-semibold">
+                  <AlertTriangle className="h-4 w-4" />
+                  {error}
+                </div>
+              ) : Object.keys(groupedCourses).every(sem => groupedCourses[sem].length === 0) ? (
+                <div className="py-8 text-center text-sm text-slate-400 font-medium">
+                  No courses mapped to this curriculum batch yet. Add some courses using the form on the right.
+                </div>
+              ) : (
+                Object.keys(groupedCourses).map(sem => {
+                  const semesterCourses = groupedCourses[sem];
+                  if (semesterCourses.length === 0 && Number(sem) > 4) return null; // Hide empty upper semesters
+                
                 return (
                   <div key={sem} className="relative pl-6 border-l-2 border-slate-100 space-y-3">
                     {/* Visual Connector Dot */}
@@ -223,7 +318,8 @@ export default function CurriculumBoard() {
                     )}
                   </div>
                 );
-              })}
+                })
+              )}
             </div>
           </div>
         </div>
@@ -323,7 +419,7 @@ export default function CurriculumBoard() {
                   className="w-full py-2 px-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brandAccent text-slate-700 bg-white"
                 >
                   <option value="None">None (No prerequisites)</option>
-                  {(courses[selectedBatch] || []).map(course => (
+                  {coursesList.map(course => (
                     <option key={course.code} value={course.code}>{course.code} - {course.name}</option>
                   ))}
                 </select>
