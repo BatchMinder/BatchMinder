@@ -6,8 +6,8 @@ import RecordsDirectory from './pages/RecordsDirectory';
 import DataIngestionHub from './pages/DataIngestionHub';
 import CurriculumBoard from './pages/CurriculumBoard';
 import MigrationManager from './pages/MigrationManager';
-import { 
-  Layers, 
+import {
+  Layers,
   Github,
   CheckCircle,
   AlertTriangle,
@@ -19,14 +19,16 @@ import {
   BookOpen,
   Calendar,
   AlertCircle,
-  Database
+  Database,
+  Menu,
+  X
 } from 'lucide-react';
-import { 
-  Dialog, 
-  DialogTitle, 
-  DialogContent, 
-  DialogContentText, 
-  DialogActions, 
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
   Button as MuiButton,
   CircularProgress
 } from '@mui/material';
@@ -35,16 +37,17 @@ function App() {
   const { user, loading, logout } = useAuth();
   const [view, setView] = useState('login');
   const [activeTab, setActiveTab] = useState('overview');
-  
+
   // Dashboard states
   const [backendStatus, setBackendStatus] = useState('checking');
   const [latency, setLatency] = useState(null);
   const [auditLogs, setAuditLogs] = useState([]);
   const [logsLoading, setLogsLoading] = useState(false);
   const [logsError, setLogsError] = useState('');
-  
+
   // Logout modal state
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const checkHealth = async () => {
     setBackendStatus('checking');
@@ -65,6 +68,9 @@ function App() {
   };
 
   const fetchAuditLogs = async () => {
+    const activeToken = localStorage.getItem('token');
+    if (!activeToken) return;
+
     setLogsLoading(true);
     setLogsError('');
     try {
@@ -126,15 +132,10 @@ function App() {
       academic_admin: 'Academic Admin'
     };
 
-    return (
-      <div className="min-h-screen bg-slate-50 text-slate-800 flex selection:bg-brandNavy selection:text-white relative overflow-hidden font-sans">
-        {/* Background blobs for premium depth */}
-        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-blue-100/40 blur-[120px] pointer-events-none z-0" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-indigo-100/40 blur-[120px] pointer-events-none z-0" />
-
-        {/* Sidebar Component (UI-3) */}
-        <aside className="w-64 bg-white border-r border-slate-200/80 flex flex-col justify-between sticky top-0 h-screen z-40 shrink-0 select-none shadow-sm">
-          <div className="p-6 space-y-6">
+    const renderSidebarContent = (closeMobileMenu) => (
+      <div className="flex flex-col justify-between h-full">
+        <div className="p-6 space-y-6">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-brandNavy to-brandAccent flex items-center justify-center shadow-md shadow-brandNavy/10">
                 <Layers className="h-5 w-5 text-white" />
@@ -143,86 +144,137 @@ function App() {
                 BatchMinder
               </span>
             </div>
+            {closeMobileMenu && (
+              <button
+                onClick={closeMobileMenu}
+                className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 md:hidden focus:outline-none"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            )}
+          </div>
 
-            {/* Profile widget in sidebar */}
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/60 space-y-2">
-              <div>
-                <h4 className="text-sm font-bold text-slate-800">{user.name}</h4>
-                <p className="text-xs text-slate-500 truncate font-medium">{user.email}</p>
-              </div>
-              <div className="flex flex-col gap-1 pt-1.5 border-t border-slate-200 text-xs">
-                <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block">Assigned Batch</span>
-                <span className="font-bold text-brandNavy">CS Batch 2022</span>
-                <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border uppercase text-center block mt-1.5 ${roleColors[user.role]}`}>
-                  {roleLabels[user.role]}
-                </span>
-              </div>
+          {/* Profile widget in sidebar */}
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/60 space-y-2">
+            <div>
+              <h4 className="text-sm font-bold text-slate-800">{user.name}</h4>
+              <p className="text-xs text-slate-500 truncate font-medium">{user.email}</p>
             </div>
+            <div className="flex flex-col gap-1 pt-1.5 border-t border-slate-200 text-xs">
+              <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block">Assigned Batch</span>
+              <span className="font-bold text-brandNavy">CS Batch 2022</span>
+              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border uppercase text-center block mt-1.5 ${roleColors[user.role]}`}>
+                {roleLabels[user.role]}
+              </span>
+            </div>
+          </div>
 
-            {/* Sidebar Navigation */}
-            <nav className="space-y-1">
-              {[
-                { id: 'overview', label: 'Dashboard Overview', icon: Layers },
-                { id: 'directory', label: 'Records Directory', icon: UserIcon },
-                { id: 'ingestion', label: 'Data Ingestion Hub', icon: Database },
-                { id: 'curriculum', label: 'Curriculum Board', icon: BookOpen },
-                { id: 'migration', label: 'Migration Manager', icon: RefreshCw }
-              ].map(tab => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all focus:outline-none ${
-                      isActive 
-                        ? 'bg-brandNavy text-white shadow-md shadow-brandNavy/15' 
-                        : 'text-slate-500 hover:text-brandNavy hover:bg-slate-50'
+          {/* Sidebar Navigation */}
+          <nav className="space-y-1">
+            {[
+              { id: 'overview', label: 'Dashboard Overview', icon: Layers },
+              { id: 'directory', label: 'Records Directory', icon: UserIcon },
+              { id: 'ingestion', label: 'Data Ingestion Hub', icon: Database },
+              { id: 'curriculum', label: 'Curriculum Board', icon: BookOpen },
+              { id: 'migration', label: 'Migration Manager', icon: RefreshCw }
+            ].map(tab => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    if (closeMobileMenu) closeMobileMenu();
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all focus:outline-none ${isActive
+                    ? 'bg-brandNavy text-white shadow-md shadow-brandNavy/15'
+                    : 'text-slate-500 hover:text-brandNavy hover:bg-slate-50'
                     }`}
-                  >
-                    <Icon className="h-5 w-5 shrink-0" />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
+                >
+                  <Icon className="h-5 w-5 shrink-0" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
 
-          {/* Logout button inside sidebar */}
-          <div className="p-6 border-t border-slate-100 bg-slate-50/50">
-            <button 
-              onClick={() => setShowLogoutModal(true)}
-              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:text-alertCritical hover:bg-alertCritical/5 transition-all focus:outline-none"
-            >
-              <LogOut className="h-5 w-5 shrink-0" />
-              <span>Log Out</span>
-            </button>
-          </div>
+        {/* Logout button inside sidebar */}
+        <div className="p-6 border-t border-slate-100 bg-slate-50/50">
+          <button
+            onClick={() => {
+              setShowLogoutModal(true);
+              if (closeMobileMenu) closeMobileMenu();
+            }}
+            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:text-alertCritical hover:bg-alertCritical/5 transition-all focus:outline-none"
+          >
+            <LogOut className="h-5 w-5 shrink-0" />
+            <span>Log Out</span>
+          </button>
+        </div>
+      </div>
+    );
+
+    return (
+      <div className="h-screen bg-slate-50 text-slate-800 flex selection:bg-brandNavy selection:text-white relative overflow-hidden font-sans">
+        {/* Background blobs for premium depth */}
+        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-blue-100/40 blur-[120px] pointer-events-none z-0" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-indigo-100/40 blur-[120px] pointer-events-none z-0" />
+
+        {/* Desktop Sidebar Component (visible on md and larger) */}
+        <aside className="hidden md:flex w-64 bg-white border-r border-slate-200/80 flex-col justify-between h-screen z-40 shrink-0 select-none shadow-sm">
+          {renderSidebarContent()}
+        </aside>
+
+        {/* Mobile Sidebar overlay backdrop */}
+        {isMobileMenuOpen && (
+          <div 
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 md:hidden"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+        )}
+
+        {/* Mobile Sidebar Drawer */}
+        <aside className={`fixed inset-y-0 left-0 w-64 bg-white flex flex-col justify-between h-screen z-50 select-none shadow-xl transform transition-transform duration-300 ease-in-out md:hidden ${
+          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}>
+          {renderSidebarContent(() => setIsMobileMenuOpen(false))}
         </aside>
 
         {/* Content Wrapper */}
-        <div className="flex-1 flex flex-col justify-between min-h-screen min-w-0 z-10">
-          
+        <div className="flex-1 flex flex-col justify-between h-screen min-w-0 overflow-y-auto overflow-x-hidden z-10">
+
           {/* Main Top Header */}
           <header className="border-b border-slate-200/80 bg-white/80 backdrop-blur-md sticky top-0 z-30">
-            <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-              <span className="text-lg font-bold tracking-tight text-slate-800 uppercase text-xs font-semibold tracking-wider text-slate-400">
-                Advisory Workspace / {activeTab === 'overview' ? 'Overview' : activeTab === 'directory' ? 'Student Directory' : activeTab === 'ingestion' ? 'Ingestion Hub' : activeTab === 'curriculum' ? 'Curriculum' : 'Migration'}
-              </span>
-              
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2.5 min-w-0">
+                {/* Hamburger Toggle Button for mobile */}
+                <button
+                  onClick={() => setIsMobileMenuOpen(true)}
+                  className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 md:hidden focus:outline-none shrink-0"
+                  title="Open Navigation Menu"
+                >
+                  <Menu className="h-6 w-6" />
+                </button>
+                <span className="text-sm sm:text-lg font-bold tracking-tight text-slate-800 uppercase text-xs font-semibold tracking-wider text-slate-400 truncate">
+                  Advisory Workspace / {activeTab === 'overview' ? 'Overview' : activeTab === 'directory' ? 'Student Directory' : activeTab === 'ingestion' ? 'Ingestion Hub' : activeTab === 'curriculum' ? 'Curriculum' : 'Migration'}
+                </span>
+              </div>
+
               {/* Connection Status indicator inside Header */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 shrink-0">
                 {backendStatus === 'online' ? (
                   <span className="text-xs font-bold text-alertGood bg-alertGood/5 px-2.5 py-1 rounded-full border border-alertGood/20 flex items-center gap-1.5 animate-fade-in">
-                    <CheckCircle className="h-3.5 w-3.5" /> Online {latency ? `(${latency}ms)` : ''}
+                    <CheckCircle className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Online</span> {latency ? `(${latency}ms)` : ''}
                   </span>
                 ) : backendStatus === 'checking' ? (
                   <span className="text-xs font-bold text-alertWarning bg-alertWarning/5 px-2.5 py-1 rounded-full border border-alertWarning/20 flex items-center gap-1.5">
-                    <CircularProgress size={8} color="inherit" /> Checking API
+                    <CircularProgress size={8} color="inherit" /> <span className="hidden sm:inline">Checking</span>
                   </span>
                 ) : (
                   <span className="text-xs font-bold text-alertCritical bg-alertCritical/5 px-2.5 py-1 rounded-full border border-alertCritical/20 flex items-center gap-1.5 animate-pulse">
-                    <AlertTriangle className="h-3.5 w-3.5" /> API Offline
+                    <AlertTriangle className="h-3.5 w-3.5" /> <span className="hidden sm:inline">API Offline</span>
                   </span>
                 )}
               </div>
@@ -230,10 +282,10 @@ function App() {
           </header>
 
           {/* Router views mounting point */}
-          <main className="max-w-7xl mx-auto px-6 py-8 flex-1 w-full">
+          <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 flex-1 w-full">
             {activeTab === 'overview' && (
               <div className="grid lg:grid-cols-12 gap-8">
-                
+
                 {/* Left Panel: Overview and Module Status */}
                 <div className="lg:col-span-6 space-y-6">
                   {/* Welcome Banner */}
@@ -293,12 +345,12 @@ function App() {
 
                 {/* Right Panel: Live System Audit Logs & Health */}
                 <div className="lg:col-span-6 space-y-6">
-                  
+
                   {/* Connection Health Manual trigger */}
                   <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm font-sans">
                     <div className="flex items-center justify-between mb-4 font-sans">
                       <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">Connection Health</h3>
-                      <button 
+                      <button
                         onClick={checkHealth}
                         className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-brandAccent transition-colors border border-slate-200 focus:outline-none"
                       >
@@ -327,7 +379,7 @@ function App() {
                   <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm flex-1 flex flex-col font-sans">
                     <div className="flex items-center justify-between mb-4 font-sans">
                       <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">Database Audit Logs</h3>
-                      <button 
+                      <button
                         onClick={fetchAuditLogs}
                         className="text-sm text-brandAccent hover:text-brandAccent/90 font-bold flex items-center gap-1 transition-colors focus:outline-none"
                       >
@@ -343,7 +395,7 @@ function App() {
                           <span>Retrieving database logs...</span>
                         </div>
                       )}
-                      
+
                       {logsError && (
                         <div className="p-3 rounded-lg bg-alertCritical/5 border border-alertCritical/10 text-alertCritical text-sm flex items-center gap-2">
                           <AlertCircle className="h-5 w-5" />
@@ -395,7 +447,7 @@ function App() {
 
           {/* Footer */}
           <footer className="border-t border-slate-200/80 bg-white py-6 mt-12">
-            <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-slate-400">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-slate-400">
               <div>
                 &copy; {new Date().getFullYear()} BatchMinder. All rights reserved.
               </div>
@@ -431,24 +483,24 @@ function App() {
               </DialogContentText>
             </DialogContent>
             <DialogActions style={{ padding: '8px 24px 16px' }}>
-              <MuiButton 
-                onClick={() => setShowLogoutModal(false)} 
+              <MuiButton
+                onClick={() => setShowLogoutModal(false)}
                 style={{ color: '#64748b', textTransform: 'none', fontWeight: '600', fontSize: '14px' }}
               >
                 Cancel
               </MuiButton>
-              <MuiButton 
+              <MuiButton
                 onClick={() => {
                   setShowLogoutModal(false);
                   logout();
-                }} 
-                style={{ 
-                  backgroundColor: '#EF4444', 
-                  color: '#ffffff', 
-                  textTransform: 'none', 
-                  fontWeight: '600', 
+                }}
+                style={{
+                  backgroundColor: '#EF4444',
+                  color: '#ffffff',
+                  textTransform: 'none',
+                  fontWeight: '600',
                   fontSize: '14px',
-                  padding: '6px 20px', 
+                  padding: '6px 20px',
                   borderRadius: '12px',
                   boxShadow: '0 4px 12px rgba(239, 68, 68, 0.15)'
                 }}
