@@ -1,17 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import {
   Search, ChevronDown, Plus, Bell, AlertTriangle,
-  Users, UserCheck, Shield, Check, Calendar, Trash2, X, RefreshCw, Eye, EyeOff
+  Home, Check, Calendar, Trash2, X, RefreshCw
 } from 'lucide-react';
-import { useDepartments } from '../../hooks/useDepartments';
 import Header from './Header';
 
-const ROLE_OPTIONS   = ['All Roles', 'Batch Advisor', 'HOD', 'Administrator', 'Super Admin'];
-const STATUS_OPTIONS = ['All Status', 'Active', 'Pending', 'Inactive'];
+const STATUS_OPTIONS = ['All Status', 'Active', 'Inactive'];
 
 const STATUS_STYLE = {
   Active:   { bg: '#DCFCE7', color: '#15803D', border: '#BBF7D0' },
-  Pending:  { bg: '#FEF9C3', color: '#A16207', border: '#FDE68A' },
   Inactive: { bg: '#FEE2E2', color: '#B91C1C', border: '#FECACA' },
 };
 
@@ -62,93 +59,85 @@ function Dropdown({ value, options, onChange }) {
   );
 }
 
-export default function UserManagement({ setActiveNav }) {
-  const { departments, isLoading: deptsLoading } = useDepartments();
+export default function DepartmentManagement({ setActiveNav }) {
+  const [depts, setDepts]           = useState([]);
+  const [users, setUsers]           = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState(null);
 
-  const [users, setUsers]         = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState(null);
+  const [search, setSearch]         = useState('');
+  const [statusFilter, setStatus]   = useState('All Status');
+  const [selected, setSelected]     = useState([]);
+  const [currentPage, setPage]      = useState(1);
 
-  const [search, setSearch]       = useState('');
-  const [roleFilter, setRole]     = useState('All Roles');
-  const [deptFilter, setDept]     = useState('All Departments');
-  const [statusFilter, setStatus] = useState('All Status');
-  const [selected, setSelected]   = useState([]);
-  const [currentPage, setPage]    = useState(1);
-
-  // Edit / Create Form states
-  const [editingUserId, setEditingUserId] = useState(null);
+  // Form state
+  const [editingDeptId, setEditingDeptId] = useState(null);
   const [form, setForm] = useState({
-    name:       '',
-    email:      '',
-    employeeId: '',
-    phone:      '',
-    role:       'Batch Advisor',
-    dept:       '',
-    status:     'Active',
-    password:   '',
+    code: '',
+    name: '',
+    hod: 'Unassigned',
+    established: new Date().getFullYear(),
+    status: 'Active',
+    color: '#2563EB'
   });
-  const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
 
-  const DEPT_OPTIONS = ['All Departments', ...departments.map(d => d.name)];
-
-  useEffect(() => {
-    if (!editingUserId && departments.length > 0 && !form.dept) {
-      setForm(prev => ({ ...prev, dept: departments[0].name }));
-    }
-  }, [departments, editingUserId]);
-
-  const fetchUsers = async () => {
+  const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/users');
-      const data = await response.json();
-      if (response.ok && data.status === 'success') {
-        setUsers(data.data);
+      // Fetch departments
+      const deptResponse = await fetch('/api/departments');
+      const deptData = await deptResponse.json();
+      
+      // Fetch HOD candidates
+      const userResponse = await fetch('/api/users');
+      const userData = await userResponse.json();
+
+      if (deptResponse.ok && deptData.status === 'success') {
+        setDepts(deptData.data);
       } else {
-        setError(data.message || 'Failed to retrieve user directory.');
+        setError(deptData.message || 'Failed to fetch departments.');
+      }
+
+      if (userResponse.ok && userData.status === 'success') {
+        setUsers(userData.data);
       }
     } catch (err) {
-      setError('Connection failure: Unable to fetch user list.');
+      setError('Connection failure: Unable to fetch data from API.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchUsers();
+    fetchData();
   }, []);
 
-  const handleRowClick = (u) => {
-    setEditingUserId(u.id);
+  const handleRowClick = (d) => {
+    setEditingDeptId(d.id);
     setForm({
-      name:       u.name || '',
-      email:      u.email || '',
-      employeeId: u.employeeId || '',
-      phone:      u.phone || '',
-      role:       u.role || 'Batch Advisor',
-      dept:       u.dept || '',
-      status:     u.status || 'Active',
-      password:   u.password || '••••••••',
+      code: d.code || '',
+      name: d.name || '',
+      hod: d.hod || 'Unassigned',
+      established: d.established || new Date().getFullYear(),
+      status: d.status || 'Active',
+      color: d.color || '#2563EB'
     });
     setFormError('');
     setFormSuccess('');
   };
 
   const handleClearForm = () => {
-    setEditingUserId(null);
+    setEditingDeptId(null);
     setForm({
-      name:       '',
-      email:      '',
-      employeeId: '',
-      phone:      '',
-      role:       'Batch Advisor',
-      dept:       departments.length > 0 ? departments[0].name : '',
-      status:     'Active',
-      password:   '',
+      code: '',
+      name: '',
+      hod: 'Unassigned',
+      established: new Date().getFullYear(),
+      status: 'Active',
+      color: '#2563EB'
     });
     setFormError('');
     setFormSuccess('');
@@ -159,15 +148,15 @@ export default function UserManagement({ setActiveNav }) {
     setFormError('');
     setFormSuccess('');
 
-    if (!form.name || !form.email) {
-      setFormError('Name and Institutional Email are required fields.');
+    if (!form.code || !form.name) {
+      setFormError('Department Code and Name are required fields.');
       return;
     }
 
     try {
-      const method = editingUserId ? 'PATCH' : 'POST';
-      const url = editingUserId ? `/api/users/${editingUserId}` : '/api/users';
-      
+      const method = editingDeptId ? 'PATCH' : 'POST';
+      const url = editingDeptId ? `/api/departments/${editingDeptId}` : '/api/departments';
+
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -176,49 +165,47 @@ export default function UserManagement({ setActiveNav }) {
       const data = await response.json();
 
       if (response.ok && data.status === 'success') {
-        setFormSuccess(editingUserId ? 'User details updated successfully!' : 'User account created successfully!');
-        if (!editingUserId) {
+        setFormSuccess(editingDeptId ? 'Department details updated successfully!' : 'Department created successfully!');
+        if (!editingDeptId) {
           handleClearForm();
         }
-        fetchUsers();
+        fetchData();
       } else {
         setFormError(data.message || 'Operation failed.');
       }
     } catch (err) {
-      setFormError('Failed to communicate with authorization server.');
+      setFormError('Failed to communicate with configuration server.');
     }
   };
 
-  const handleDeleteUser = async (userId) => {
-    if (!window.confirm('Are you sure you want to permanently delete this user account?')) return;
+  const handleDeleteDept = async (deptId) => {
+    if (!window.confirm('Are you sure you want to permanently delete this department? All active batch link counts will clear.')) return;
     setFormError('');
     setFormSuccess('');
 
     try {
-      const response = await fetch(`/api/users/${userId}`, {
+      const response = await fetch(`/api/departments/${deptId}`, {
         method: 'DELETE'
       });
       const data = await response.json();
 
       if (response.ok) {
-        setFormSuccess('User deleted successfully.');
+        setFormSuccess('Department deleted successfully.');
         handleClearForm();
-        fetchUsers();
+        fetchData();
       } else {
-        setFormError(data.message || 'Failed to delete user.');
+        setFormError(data.message || 'Failed to delete department.');
       }
     } catch (err) {
-      setFormError('Failed to communicate with authorization server.');
+      setFormError('Failed to communicate with configuration server.');
     }
   };
 
-  const filtered = users.filter(u => {
+  const filtered = depts.filter(d => {
     const q = search.toLowerCase();
     return (
-      (!q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)) &&
-      (roleFilter   === 'All Roles'       || u.role   === roleFilter) &&
-      (deptFilter   === 'All Departments' || u.dept   === deptFilter) &&
-      (statusFilter === 'All Status'      || u.status === statusFilter)
+      (!q || d.code.toLowerCase().includes(q) || d.name.toLowerCase().includes(q) || d.hod.toLowerCase().includes(q)) &&
+      (statusFilter === 'All Status' || d.status === statusFilter)
     );
   });
 
@@ -226,23 +213,15 @@ export default function UserManagement({ setActiveNav }) {
   const toggleRow  = id => setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
   const stats = [
-    { label: 'Total Users',    value: users.length, icon: Users,         iconColor: '#2563EB', iconBg: '#EFF6FF', highlight: false },
-    { label: 'Batch Advisors', value: users.filter(u => u.role === 'Batch Advisor').length, icon: UserCheck,     iconColor: '#7C3AED', iconBg: '#F5F3FF', highlight: false },
-    { label: 'HODs',           value: users.filter(u => u.role === 'HOD').length,  icon: Shield,        iconColor: '#0891B2', iconBg: '#ECFEFF', highlight: false },
-    { label: 'Administrators', value: users.filter(u => u.role === 'Administrator').length,  icon: Shield,        iconColor: '#059669', iconBg: '#F0FDF4', highlight: false },
-    { label: 'Inactive Users', value: users.filter(u => u.status === 'Inactive').length,  icon: AlertTriangle, iconColor: '#D97706', iconBg: '#FFFBEB', highlight: true  },
+    { label: 'Total Departments', value: depts.length, icon: Home,         iconColor: '#2563EB', iconBg: '#EFF6FF' },
+    { label: 'Active Batches',    value: depts.reduce((acc, d) => acc + d.batches, 0), icon: Layers,       iconColor: '#7C3AED', iconBg: '#F5F3FF' },
+    { label: 'Total Students',    value: depts.reduce((acc, d) => acc + d.students, 0), icon: Users,        iconColor: '#0891B2', iconBg: '#ECFEFF' },
+    { label: 'Inactive Depts',    value: depts.filter(d => d.status === 'Inactive').length, icon: AlertTriangle, iconColor: '#D97706', iconBg: '#FFFBEB' },
   ];
 
-  // Dynamic role distribution based on DB state
-  const roleDistribution = [
-    { label: 'Batch Advisors', count: users.filter(u => u.role === 'Batch Advisor').length, color: '#2563EB' },
-    { label: 'HODs',           count: users.filter(u => u.role === 'HOD').length, color: '#7C3AED' },
-    { label: 'Administrators', count: users.filter(u => u.role === 'Administrator').length, color: '#059669' },
-    { label: 'Super Admins',   count: users.filter(u => u.role === 'Super Admin').length, color: '#E11D48' },
-    { label: 'Inactive',       count: users.filter(u => u.status === 'Inactive').length, color: '#D97706' },
-  ];
+  // Candidates who can be assigned as HOD
+  const hodCandidates = users.filter(u => u.role === 'HOD' || u.role === 'Administrator');
 
-  // Compact input/label styles for the right panel form
   const inputStyle = {
     width: '100%', padding: '7px 10px', borderRadius: '7px',
     border: '1px solid #E2E8F0', fontSize: '12px', color: '#1E293B',
@@ -263,13 +242,13 @@ export default function UserManagement({ setActiveNav }) {
       fontFamily: "'Inter','Liberation Sans',-apple-system,sans-serif"
     }}>
 
-      <Header title="User Management" subtitle="BatchMinder ERP • Super Admin • Users" setActiveNav={setActiveNav} />
+      <Header title="Departments Directory" subtitle="BatchMinder ERP • Super Admin • Departments" setActiveNav={setActiveNav} />
 
-      {/* ── Scrollable Body Container ── */}
+      {/* ── Body Container ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, padding: '18px 24px', backgroundColor: '#F8FAFC', overflowY: 'auto' }}>
 
         {/* Stats Row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '12px', marginBottom: '18px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '12px', marginBottom: '18px' }}>
           {stats.map((s, i) => {
             const Icon = s.icon;
             return (
@@ -288,7 +267,7 @@ export default function UserManagement({ setActiveNav }) {
                   <Icon size={17} color={s.iconColor} />
                 </div>
                 <div>
-                  <p style={{ margin: 0, fontSize: '21px', fontWeight: 800, color: s.highlight ? '#B91C1C' : '#0F172A', lineHeight: 1.1 }}>
+                  <p style={{ margin: 0, fontSize: '21px', fontWeight: 800, color: '#0F172A', lineHeight: 1.1 }}>
                     {loading ? '...' : s.value}
                   </p>
                   <p style={{ margin: '2px 0 0', fontSize: '10px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
@@ -303,7 +282,7 @@ export default function UserManagement({ setActiveNav }) {
         {/* Two-column layout */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '16px', alignItems: 'stretch', flex: 1 }}>
 
-          {/* ── Left Side: Directory Table Card ── */}
+          {/* ── Left Side: Departments List ── */}
           <div style={{
             backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0',
             borderRadius: '13px', overflow: 'hidden',
@@ -314,15 +293,15 @@ export default function UserManagement({ setActiveNav }) {
             {/* Filter Bar */}
             <div style={{
               padding: '12px 16px', borderBottom: '1px solid #F1F5F9',
-              display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap',
+              display: 'flex', alignItems: 'center', gap: '10px',
               backgroundColor: '#FAFAFA'
             }}>
-              <div style={{ position: 'relative', flex: 1, minWidth: '180px' }}>
+              <div style={{ position: 'relative', flex: 1 }}>
                 <Search size={13} color="#94A3B8" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
                 <input
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  placeholder="Search by name, email, department..."
+                  placeholder="Search by code, title, or HOD name..."
                   style={{
                     width: '100%', padding: '7px 10px 7px 30px', borderRadius: '7px',
                     border: '1px solid #E2E8F0', fontSize: '12px', color: '#1E293B',
@@ -330,12 +309,7 @@ export default function UserManagement({ setActiveNav }) {
                   }}
                 />
               </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Dropdown value={roleFilter} options={ROLE_OPTIONS} onChange={setRole} />
-                <Dropdown value={deptFilter} options={DEPT_OPTIONS} onChange={setDept} />
-                <Dropdown value={statusFilter} options={STATUS_OPTIONS} onChange={setStatus} />
-              </div>
+              <Dropdown value={statusFilter} options={STATUS_OPTIONS} onChange={setStatus} />
             </div>
 
             {/* Table or States */}
@@ -343,7 +317,7 @@ export default function UserManagement({ setActiveNav }) {
               {loading ? (
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px', gap: '12px' }}>
                   <RefreshCw size={24} color="#2563EB" style={{ animation: 'spin 1s linear infinite' }} />
-                  <span style={{ fontSize: '13px', color: '#64748B', fontWeight: 600 }}>Loading active user directory...</span>
+                  <span style={{ fontSize: '13px', color: '#64748B', fontWeight: 600 }}>Loading departments...</span>
                 </div>
               ) : error ? (
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px', gap: '12px' }}>
@@ -351,7 +325,7 @@ export default function UserManagement({ setActiveNav }) {
                   <div style={{ textAlign: 'center' }}>
                     <p style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>{error}</p>
                     <button
-                      onClick={fetchUsers}
+                      onClick={fetchData}
                       style={{
                         marginTop: '10px', padding: '6px 14px', borderRadius: '6px',
                         border: 'none', backgroundColor: '#2563EB', color: '#fff',
@@ -364,8 +338,8 @@ export default function UserManagement({ setActiveNav }) {
                 </div>
               ) : filtered.length === 0 ? (
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px', color: '#94A3B8' }}>
-                  <Users size={32} color="#CBD5E1" style={{ marginBottom: '8px' }} />
-                  <span style={{ fontSize: '13px', fontWeight: 600 }}>No users match the search filters.</span>
+                  <Home size={32} color="#CBD5E1" style={{ marginBottom: '8px' }} />
+                  <span style={{ fontSize: '13px', fontWeight: 600 }}>No departments found.</span>
                 </div>
               ) : (
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -374,7 +348,7 @@ export default function UserManagement({ setActiveNav }) {
                       <th style={{ width: '34px', padding: '9px 13px' }}>
                         <input type="checkbox" style={{ cursor: 'pointer' }} />
                       </th>
-                      {['USER','ROLE','DEPARTMENT','EMPLOYEE ID','PHONE','STATUS'].map(col => (
+                      {['DEPT','HOD / CHAIRPERSON','ESTABLISHED','STUDENTS','BATCHES','STATUS'].map(col => (
                         <th key={col} style={{
                           padding: '9px 10px', textAlign: 'left',
                           fontSize: '9.5px', fontWeight: 800, color: '#94A3B8',
@@ -384,13 +358,13 @@ export default function UserManagement({ setActiveNav }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.slice((currentPage-1)*12, currentPage*12).map((u, i) => {
-                      const isSel = selected.includes(u.id) || editingUserId === u.id;
-                      const ss    = STATUS_STYLE[u.status] || STATUS_STYLE.Active;
+                    {filtered.slice((currentPage-1)*12, currentPage*12).map((d, i) => {
+                      const isSel = selected.includes(d.id) || editingDeptId === d.id;
+                      const ss    = STATUS_STYLE[d.status] || STATUS_STYLE.Active;
                       return (
                         <tr
-                          key={u.id}
-                          onClick={() => handleRowClick(u)}
+                          key={d.id}
+                          onClick={() => handleRowClick(d)}
                           style={{
                             borderTop: '1px solid #F1F5F9',
                             backgroundColor: isSel ? '#EFF6FF' : (i % 2 === 0 ? '#FFFFFF' : '#FAFAFA'),
@@ -401,39 +375,33 @@ export default function UserManagement({ setActiveNav }) {
                           onMouseLeave={e => { if (!isSel) e.currentTarget.style.backgroundColor = i % 2 === 0 ? '#FFFFFF' : '#FAFAFA'; }}
                         >
                           <td style={{ padding: '9px 13px' }} onClick={e => e.stopPropagation()}>
-                            <input type="checkbox" checked={selected.includes(u.id)} onChange={() => toggleRow(u.id)} style={{ cursor: 'pointer' }} />
+                            <input type="checkbox" checked={selected.includes(d.id)} onChange={() => toggleRow(d.id)} style={{ cursor: 'pointer' }} />
                           </td>
                           <td style={{ padding: '9px 10px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
                               <div style={{
                                 width: '32px', height: '32px', borderRadius: '7px',
-                                backgroundColor: u.color, flexShrink: 0,
+                                backgroundColor: d.color, flexShrink: 0,
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                fontSize: '10px', fontWeight: 700, color: '#fff', letterSpacing: '0.3px'
-                              }}>{u.initials}</div>
+                                fontSize: '11px', fontWeight: 800, color: '#fff', letterSpacing: '0.3px'
+                              }}>{d.code}</div>
                               <div>
-                                <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, color: '#1E293B' }}>{u.name}</p>
-                                <p style={{ margin: 0, fontSize: '10px', color: '#94A3B8' }}>{u.email}</p>
+                                <p style={{ margin: 0, fontSize: '12.5px', fontWeight: 700, color: '#1E293B' }}>{d.name}</p>
+                                <p style={{ margin: 0, fontSize: '10px', color: '#94A3B8' }}>{d.code} Department</p>
                               </div>
                             </div>
                           </td>
-                          <td style={{ padding: '9px 10px' }}>
-                            <span style={{
-                              padding: '2px 8px', borderRadius: '5px',
-                              backgroundColor: '#F1F5F9', border: '1px solid #E2E8F0',
-                              fontSize: '10px', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap'
-                            }}>{u.role}</span>
-                          </td>
-                          <td style={{ padding: '9px 10px', fontSize: '11px', color: '#374151' }}>{u.dept || '—'}</td>
-                          <td style={{ padding: '9px 10px', fontSize: '11px', color: '#374151' }}>{u.employeeId || '—'}</td>
-                          <td style={{ padding: '9px 10px', fontSize: '11px', color: '#374151' }}>{u.phone || '—'}</td>
+                          <td style={{ padding: '9px 10px', fontSize: '12px', fontWeight: 600, color: '#334155' }}>{d.hod}</td>
+                          <td style={{ padding: '9px 10px', fontSize: '12px', color: '#475569' }}>{d.established}</td>
+                          <td style={{ padding: '9px 10px', fontSize: '12.5px', fontWeight: 700, color: '#1E293B' }}>{d.students}</td>
+                          <td style={{ padding: '9px 10px', fontSize: '12px', fontWeight: 600, color: '#475569' }}>{d.batches} Batches</td>
                           <td style={{ padding: '9px 10px' }}>
                             <span style={{
                               padding: '2px 9px', borderRadius: '18px',
                               fontSize: '10px', fontWeight: 700,
                               backgroundColor: ss.bg, color: ss.color,
                               border: `1px solid ${ss.border}`, whiteSpace: 'nowrap'
-                            }}>{u.status}</span>
+                            }}>{d.status}</span>
                           </td>
                         </tr>
                       );
@@ -449,7 +417,7 @@ export default function UserManagement({ setActiveNav }) {
               display: 'flex', alignItems: 'center', justifyContent: 'space-between'
             }}>
               <span style={{ fontSize: '11px', color: '#94A3B8' }}>
-                Showing {filtered.length === 0 ? 0 : (currentPage-1)*12 + 1}–{Math.min(currentPage*12, filtered.length)} of {filtered.length} users
+                Showing {filtered.length === 0 ? 0 : (currentPage-1)*12 + 1}–{Math.min(currentPage*12, filtered.length)} of {filtered.length} departments
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <button onClick={() => setPage(p => Math.max(1, p-1))}
@@ -470,10 +438,10 @@ export default function UserManagement({ setActiveNav }) {
             </div>
           </div>
 
-          {/* ── Right panel: Creation / Modification Form ── */}
+          {/* ── Right panel: Config form ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%' }}>
 
-            {/* Config panel */}
+            {/* Department Form */}
             <div style={{
               backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0',
               borderRadius: '13px', padding: '16px',
@@ -482,10 +450,10 @@ export default function UserManagement({ setActiveNav }) {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '13px' }}>
                 <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  {editingUserId ? <Shield size={13} color="#7C3AED" /> : <Plus size={13} color="#2563EB" />} 
-                  {editingUserId ? 'Modify User Profile' : 'Create User Account'}
+                  {editingDeptId ? <BookOpen size={13} color="#7C3AED" /> : <Plus size={13} color="#2563EB" />}
+                  {editingDeptId ? 'Modify Department' : 'Create Department'}
                 </h3>
-                {editingUserId && (
+                {editingDeptId && (
                   <button 
                     onClick={handleClearForm}
                     style={{ border: 'none', backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#94A3B8' }}
@@ -517,7 +485,19 @@ export default function UserManagement({ setActiveNav }) {
 
               <form onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
                 <div>
-                  <label style={labelStyle}>Full Name</label>
+                  <label style={labelStyle}>Department Code (e.g. CS)</label>
+                  <input
+                    type="text"
+                    required
+                    disabled={editingDeptId ? true : false}
+                    value={form.code}
+                    onChange={e => setForm(p => ({ ...p, code: e.target.value }))}
+                    style={{ ...inputStyle, textTransform: 'uppercase', backgroundColor: editingDeptId ? '#F1F5F9' : '#FFFFFF' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={labelStyle}>Full Department Name</label>
                   <input
                     type="text"
                     required
@@ -528,146 +508,78 @@ export default function UserManagement({ setActiveNav }) {
                 </div>
 
                 <div>
-                  <label style={labelStyle}>Institutional Email</label>
+                  <label style={labelStyle}>Chairperson / HOD</label>
+                  <div style={{ position: 'relative' }}>
+                    <select
+                      value={form.hod}
+                      onChange={e => setForm(p => ({ ...p, hod: e.target.value }))}
+                      style={selectStyle}
+                    >
+                      <option value="Unassigned">Unassigned</option>
+                      {hodCandidates.map(c => (
+                        <option key={c.id} value={c.name}>{c.name}</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={12} color="#94A3B8" style={{ position: 'absolute', right: '9px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={labelStyle}>Established Year</label>
                   <input
-                    type="email"
+                    type="number"
                     required
-                    value={form.email}
-                    onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+                    value={form.established}
+                    onChange={e => setForm(p => ({ ...p, established: Number(e.target.value) }))}
                     style={inputStyle}
                   />
                 </div>
 
                 <div>
-                  <label style={labelStyle}>Employee ID</label>
-                  <input
-                    type="text"
-                    value={form.employeeId}
-                    onChange={e => setForm(p => ({ ...p, employeeId: e.target.value }))}
-                    style={inputStyle}
-                  />
-                </div>
-
-                <div>
-                  <label style={labelStyle}>{editingUserId ? 'Change Password' : 'Password'}</label>
-                  <div style={{ position: 'relative' }}>
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      required={!editingUserId}
-                      placeholder={editingUserId ? '••••••••' : 'e.g. password123'}
-                      value={form.password}
-                      onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
-                      style={{ ...inputStyle, paddingRight: '36px' }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(p => !p)}
-                      style={{
-                        position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
-                        border: 'none', backgroundColor: 'transparent', cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', color: '#94A3B8'
-                      }}
-                    >
-                      {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label style={labelStyle}>Phone Number</label>
-                  <input
-                    type="tel"
-                    value={form.phone}
-                    onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
-                    style={inputStyle}
-                  />
-                </div>
-
-                <div>
-                  <label style={labelStyle}>Role Assignment</label>
+                  <label style={labelStyle}>Status</label>
                   <div style={{ position: 'relative' }}>
                     <select
-                      value={form.role}
-                      onChange={e => setForm(p => ({ ...p, role: e.target.value }))}
+                      value={form.status}
+                      onChange={e => setForm(p => ({ ...p, status: e.target.value }))}
                       style={selectStyle}
                     >
-                      {ROLE_OPTIONS.slice(1).map(o => <option key={o}>{o}</option>)}
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
                     </select>
                     <ChevronDown size={12} color="#94A3B8" style={{ position: 'absolute', right: '9px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
                   </div>
                 </div>
 
                 <div>
-                  <label style={labelStyle}>Department</label>
-                  <div style={{ position: 'relative' }}>
-                    <select
-                      value={form.dept}
-                      onChange={e => setForm(p => ({ ...p, dept: e.target.value }))}
-                      style={selectStyle}
-                      disabled={departments.length === 0}
-                    >
-                      {departments.length === 0 ? (
-                        <option value="">No departments available — create one first</option>
-                      ) : (
-                        departments.map(d => (
-                          <option key={d.id} value={d.name}>{d.name} ({d.code})</option>
-                        ))
-                      )}
-                    </select>
-                    <ChevronDown size={12} color="#94A3B8" style={{ position: 'absolute', right: '9px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-                  </div>
+                  <label style={labelStyle}>Visual Accent Color</label>
+                  <input
+                    type="color"
+                    value={form.color}
+                    onChange={e => setForm(p => ({ ...p, color: e.target.value }))}
+                    style={{ width: '100%', height: '36px', padding: '2px', border: '1px solid #E2E8F0', borderRadius: '7px', cursor: 'pointer', boxSizing: 'border-box' }}
+                  />
                 </div>
-
-                {editingUserId && (
-                  <div>
-                    <label style={labelStyle}>Account Status</label>
-                    <div style={{ position: 'relative' }}>
-                      <select
-                        value={form.status}
-                        onChange={e => setForm(p => ({ ...p, status: e.target.value }))}
-                        style={selectStyle}
-                      >
-                        {STATUS_OPTIONS.slice(1).map(o => <option key={o}>{o}</option>)}
-                      </select>
-                      <ChevronDown size={12} color="#94A3B8" style={{ position: 'absolute', right: '9px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-                    </div>
-                  </div>
-                )}
-
-                {departments.length === 0 && (
-                  <div style={{
-                    padding: '8px 10px', marginTop: '4px', borderRadius: '6px',
-                    backgroundColor: '#FFFBEB', border: '1px solid #FDE68A',
-                    color: '#B45309', fontSize: '11px', fontWeight: 600,
-                    display: 'flex', alignItems: 'center', gap: '6px'
-                  }}>
-                    <AlertTriangle size={12} />
-                    Please create at least one department first.
-                  </div>
-                )}
 
                 <button
                   type="submit"
-                  disabled={departments.length === 0}
                   style={{
                     width: '100%', marginTop: '6px', padding: '9px',
                     borderRadius: '8px', border: 'none',
-                    backgroundColor: departments.length === 0 ? '#CBD5E1' : (editingUserId ? '#7C3AED' : '#2563EB'),
-                    color: departments.length === 0 ? '#94A3B8' : '#fff',
-                    fontSize: '12px', fontWeight: 700, cursor: departments.length === 0 ? 'not-allowed' : 'pointer',
+                    backgroundColor: editingDeptId ? '#7C3AED' : '#2563EB', color: '#fff',
+                    fontSize: '12px', fontWeight: 700, cursor: 'pointer',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
                     fontFamily: 'inherit', transition: 'filter 0.15s'
                   }}
-                  onMouseEnter={e => { if (departments.length > 0) e.currentTarget.style.filter = 'brightness(90%)'; }}
-                  onMouseLeave={e => { if (departments.length > 0) e.currentTarget.style.filter = 'brightness(100%)'; }}
+                  onMouseEnter={e => e.currentTarget.style.filter = 'brightness(90%)'}
+                  onMouseLeave={e => e.currentTarget.style.filter = 'brightness(100%)'}
                 >
-                  <Check size={13} /> {editingUserId ? 'Save User Changes' : 'Create User Account'}
+                  <Check size={13} /> {editingDeptId ? 'Save Changes' : 'Create Department'}
                 </button>
               </form>
 
-              {editingUserId && (
+              {editingDeptId && (
                 <button
-                  onClick={() => handleDeleteUser(editingUserId)}
+                  onClick={() => handleDeleteDept(editingDeptId)}
                   style={{
                     width: '100%', marginTop: '8px', padding: '8px',
                     borderRadius: '8px', border: '1px solid #FCA5A5',
@@ -679,40 +591,32 @@ export default function UserManagement({ setActiveNav }) {
                   onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#FEE2E2'; }}
                   onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#FFF5F5'; }}
                 >
-                  <Trash2 size={12} /> Delete User Account
+                  <Trash2 size={12} /> Delete Department
                 </button>
               )}
             </div>
 
-            {/* Role Distribution */}
+            {/* Quick Helper */}
             <div style={{
               backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0',
               borderRadius: '13px', padding: '16px',
               boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
               flex: 1, display: 'flex', flexDirection: 'column'
             }}>
-              <h3 style={{ margin: '0 0 13px', fontSize: '13px', fontWeight: 700, color: '#0F172A', flexShrink: 0 }}>
-                Role Distribution
+              <h3 style={{ margin: '0 0 10px', fontSize: '13px', fontWeight: 700, color: '#0F172A', flexShrink: 0 }}>
+                HOD Directory
               </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '11px', flex: 1, overflowY: 'auto' }}>
-                {roleDistribution.map((r, i) => {
-                  const pct = users.length > 0 ? (r.count / users.length) * 100 : 0;
-                  return (
-                    <div key={i}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 600, color: '#374151' }}>{r.label}</span>
-                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748B' }}>{r.count} / {users.length}</span>
-                      </div>
-                      <div style={{ height: '5px', backgroundColor: '#F1F5F9', borderRadius: '3px', overflow: 'hidden' }}>
-                        <div style={{
-                          height: '100%', borderRadius: '3px',
-                          backgroundColor: r.color,
-                          width: `${pct}%`
-                        }} />
-                      </div>
+              <p style={{ margin: '0 0 14px', fontSize: '11.5px', color: '#94A3B8' }}>List of current academic leadership candidates in the system.</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflowY: 'auto' }}>
+                {hodCandidates.map((c, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', borderRadius: '8px', border: '1px solid #F1F5F9' }}>
+                    <div style={{ width: '26px', height: '26px', borderRadius: '5px', backgroundColor: c.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, color: '#fff' }}>{c.initials}</div>
+                    <div>
+                      <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, color: '#1E293B' }}>{c.name}</p>
+                      <p style={{ margin: 0, fontSize: '9.5px', color: '#94A3B8' }}>{c.role} • {c.dept}</p>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             </div>
 

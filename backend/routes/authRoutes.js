@@ -11,6 +11,6 @@ router.post('/logout', logout);
 router.get('/check-email', checkEmail);
 router.post('/setup-super-admin', setupSuperAdmin);
 router.get('/me', protect, getMe);
-router.get('/audit-logs', protect, restrictTo('admin', 'advisor'), getAuditLogs);
+router.get('/audit-logs', protect, getAuditLogs);
 
 export default router;

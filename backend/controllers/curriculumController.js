@@ -1,14 +1,20 @@
 import Curriculum from '../models/curriculum.js';
-import AuditLog from '../models/auditLog.js';
+import User from '../models/user.js';
+import { logAudit as sharedLogAudit } from '../utils/logger.js';
 
 // Helper to log audit actions
-const logAudit = async (userId, userEmail, action, description) => {
+const logAudit = async (userId, userEmail, action, description, dept = '', batch = '') => {
   try {
-    await AuditLog.create({
-      userId,
-      userEmail,
+    const user = userId ? await User.findById(userId) : null;
+    const actorRole = user ? user.role : 'advisor';
+    await sharedLogAudit({
+      actorId: userId,
+      actorRole,
       action,
-      description,
+      targetType: 'Curriculum',
+      departmentId: dept || (user ? user.dept : ''),
+      batchId: batch,
+      metadata: { description }
     });
   } catch (err) {
     console.error('Audit logging failed inside curriculumController:', err);
@@ -64,7 +70,9 @@ export const createOrUpdateCurriculumMap = async (req, res) => {
       updaterId,
       updaterEmail,
       'CURRICULUM_UPDATED',
-      `Updated course curriculum map for ${department} - Batch ${batch} (Semester ${semester}) containing ${courses.length} courses.`
+      `Updated course curriculum map for ${department} - Batch ${batch} (Semester ${semester}) containing ${courses.length} courses.`,
+      department,
+      batch
     );
 
     res.status(200).json({

@@ -24,6 +24,23 @@ const userSchema = new mongoose.Schema({
     enum: ['admin', 'advisor', 'academic_admin', 'super_admin'],
     default: 'advisor',
   },
+  dept: {
+    type: String,
+    default: 'All Departments'
+  },
+  status: {
+    type: String,
+    enum: ['Active', 'Pending', 'Inactive'],
+    default: 'Active'
+  },
+  phone: {
+    type: String,
+    trim: true
+  },
+  employeeId: {
+    type: String,
+    trim: true
+  },
   createdAt: {
     type: Date,
     default: Date.now,

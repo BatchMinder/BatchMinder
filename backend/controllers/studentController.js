@@ -1,19 +1,25 @@
 import Student from '../models/student.js';
 import Curriculum from '../models/curriculum.js';
-import AuditLog from '../models/auditLog.js';
+import User from '../models/user.js';
+import { logAudit as sharedLogAudit, logNotification } from '../utils/logger.js';
 import csv from 'csv-parser';
 import { Readable } from 'stream';
 import { uploadToCloudinary } from '../utils/cloudinary.js';
 import mongoose from 'mongoose';
 
 // Helper to log audit actions
-const logAudit = async (userId, userEmail, action, description) => {
+const logAudit = async (userId, userEmail, action, description, dept = '', batch = '') => {
   try {
-    await AuditLog.create({
-      userId,
-      userEmail,
+    const user = userId ? await User.findById(userId) : null;
+    const actorRole = user ? user.role : 'advisor';
+    await sharedLogAudit({
+      actorId: userId,
+      actorRole,
       action,
-      description,
+      targetType: 'Student',
+      departmentId: dept || (user ? user.dept : ''),
+      batchId: batch,
+      metadata: { description }
     });
   } catch (err) {
     console.error('Audit logging failed inside studentController:', err);
@@ -118,8 +124,20 @@ export const createStudent = async (req, res) => {
       actorId,
       actorEmail,
       'STUDENT_CREATED',
-      `Manually enrolled student: ${student.name} (Roll: ${student.rollNumber}) in department: ${student.department}`
+      `Manually enrolled student: ${student.name} (Roll: ${student.rollNumber}) in department: ${student.department}`,
+      student.department,
+      student.batch
     );
+
+    if (student.cgpa < 2.0) {
+      await logNotification({
+        recipientRole: 'advisor',
+        type: 'critical',
+        message: `CGPA Breach: Student ${student.name} (${student.rollNumber}) has critical CGPA ${student.cgpa} in batch ${student.batch}`,
+        departmentId: student.department,
+        batchId: student.batch
+      });
+    }
 
     res.status(201).json({
       status: 'success',
@@ -156,8 +174,20 @@ export const updateStudent = async (req, res) => {
       actorId,
       actorEmail,
       'STUDENT_UPDATED',
-      `Updated student profile for roll number: ${student.rollNumber}`
+      `Updated student profile for roll number: ${student.rollNumber}`,
+      student.department,
+      student.batch
     );
+
+    if (student.cgpa < 2.0) {
+      await logNotification({
+        recipientRole: 'advisor',
+        type: 'critical',
+        message: `CGPA Breach: Student ${student.name} (${student.rollNumber}) has critical CGPA ${student.cgpa} in batch ${student.batch}`,
+        departmentId: student.department,
+        batchId: student.batch
+      });
+    }
 
     res.status(200).json({
       status: 'success',
@@ -191,7 +221,9 @@ export const deleteStudent = async (req, res) => {
       actorId,
       actorEmail,
       'STUDENT_DELETED',
-      `Deleted student: ${student.name} (Roll: ${student.rollNumber})`
+      `Deleted student: ${student.name} (Roll: ${student.rollNumber})`,
+      student.department,
+      student.batch
     );
 
     res.status(200).json({
@@ -355,6 +387,16 @@ export const syncLmsRecords = async (req, res) => {
         student.status = student.cgpa < 2.0 ? 'critical' : student.cgpa < 2.5 ? 'warning' : 'good_standing';
       }
 
+      if (student.cgpa < 2.0) {
+        await logNotification({
+          recipientRole: 'advisor',
+          type: 'critical',
+          message: `CGPA Breach: Student ${student.name} (${student.rollNumber}) has critical CGPA ${student.cgpa} in batch ${student.batch}`,
+          departmentId: student.department,
+          batchId: student.batch
+        });
+      }
+
       await student.save();
     }
 
@@ -365,7 +407,9 @@ export const syncLmsRecords = async (req, res) => {
       actorId,
       actorEmail,
       'LMS_SYNCED',
-      `Synchronized academic records from LMS feed for ${department} (Batch: ${batch}). Updated ${updatedCount} profiles.`
+      `Synchronized academic records from LMS feed for ${department} (Batch: ${batch}). Updated ${updatedCount} profiles.`,
+      department,
+      batch
     );
 
     res.status(200).json({
@@ -442,7 +486,9 @@ export const promoteSemester = async (req, res) => {
       actorId,
       actorEmail,
       'BATCH_MIGRATED',
-      `Promoted batch: ${batch} (Department: ${department}) to semester level. Successful migrations: ${successfulPromotions}`
+      `Promoted batch: ${batch} (Department: ${department}) to semester level. Successful migrations: ${successfulPromotions}`,
+      department,
+      batch
     );
 
     res.status(200).json({

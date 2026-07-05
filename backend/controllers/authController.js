@@ -1,6 +1,8 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/user.js';
 import AuditLog from '../models/auditLog.js';
+import { scopeQueryToRole } from '../middleware/scopeMiddleware.js';
+import { logAudit as sharedLogAudit } from '../utils/logger.js';
 
 const signAccessToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -36,16 +38,25 @@ const sendTokenCookies = (res, userId) => {
   });
 };
 
-const logAudit = async (userId, userEmail, action, description) => {
+const logAudit = async (userId, userEmail, action, description, role = '') => {
   try {
-    await AuditLog.create({
-      userId,
-      userEmail,
+    let actorRole = role;
+    if (userId && !actorRole) {
+      const user = await User.findById(userId);
+      if (user) actorRole = user.role;
+    }
+    await sharedLogAudit({
+      actorId: userId || null,
+      actorRole: actorRole || 'system',
       action,
-      description,
+      targetType: 'Auth',
+      metadata: { 
+        description,
+        email: userEmail
+      }
     });
   } catch (err) {
-    console.error('Audit logging failed:', err);
+    console.error('Audit logging failed inside authController:', err);
   }
 };
 
@@ -61,7 +72,7 @@ export const register = async (req, res) => {
     const targetRole = role || 'advisor';
     const existingUser = await User.findOne({ email: email.toLowerCase().trim(), role: targetRole });
     if (existingUser) {
-      await logAudit(null, email, 'REGISTER_FAILED', `Attempted signup with already registered email: ${email} for role: ${targetRole}`);
+      await logAudit(null, email, 'REGISTER_FAILED', `Attempted signup with already registered email: ${email} for role: ${targetRole}`, targetRole);
       return res.status(400).json({ message: `User with this email and role (${targetRole}) already exists` });
     }
 
@@ -103,14 +114,14 @@ export const login = async (req, res) => {
     const user = await User.findOne({ email: email.toLowerCase().trim(), role }).select('+password');
 
     if (!user || !(await user.comparePassword(password, user.password))) {
-      await logAudit(null, email, 'LOGIN_FAILED', `Attempted login to role: ${role} with invalid credentials.`);
+      await logAudit(null, email, 'LOGIN_FAILED', `Attempted login to role: ${role} with invalid credentials.`, role);
       return res.status(401).json({ message: 'Incorrect email, password, or role' });
     }
 
     sendTokenCookies(res, user._id);
 
     // Log action
-    await logAudit(user._id, user.email, 'USER_LOGGED_IN', 'User logged in successfully.');
+    await logAudit(user._id, user.email, 'USER_LOGGED_IN', 'User logged in successfully.', user.role);
 
     // Hide password
     user.password = undefined;
@@ -185,10 +196,24 @@ export const getMe = async (req, res) => {
 
 export const getAuditLogs = async (req, res) => {
   try {
-    const logs = await AuditLog.find()
+    const scopeFilter = await scopeQueryToRole(req.user);
+    let filter = { ...scopeFilter };
+
+    // SuperAdmin can filter by query params
+    if (req.user.role === 'super_admin') {
+      if (req.query.departmentId && req.query.departmentId !== 'All Departments') {
+        filter.departmentId = req.query.departmentId;
+      }
+      if (req.query.batchId && req.query.batchId !== 'All Batches') {
+        filter.batchId = req.query.batchId;
+      }
+    }
+
+    const logs = await AuditLog.find(filter)
+      .populate('actorId', 'name email role')
       .populate('userId', 'name email role')
       .sort({ timestamp: -1 })
-      .limit(100);
+      .limit(200);
 
     res.status(200).json({
       status: 'success',

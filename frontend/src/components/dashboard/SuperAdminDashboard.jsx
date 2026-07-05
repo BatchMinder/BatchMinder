@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import UserManagement from './UserManagement';
+import DepartmentManagement from './DepartmentManagement';
+import BatchAllocation from './BatchAllocation';
+import RolesPermissions from './RolesPermissions';
+import NotificationsPage from './NotificationsPage';
+import AuditLogsPage from './AuditLogsPage';
 import {
   Layers,
   GraduationCap,
@@ -29,17 +34,98 @@ export default function SuperAdminDashboard({ onLogout }) {
   const { user } = useAuth();
   const [currentDate, setCurrentDate] = useState('');
   const [activeNav, setActiveNav] = useState('dashboard');
+  const [showBellDropdown, setShowBellDropdown] = useState(false);
+
+  // Live stats & notifications states
+  const [dashboardData, setDashboardData] = useState(null);
+  const [notifications, setNotifications] = useState([]);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [statsError, setStatsError] = useState(null);
+
+  const fetchDashboardStats = async () => {
+    setStatsLoading(true);
+    setStatsError(null);
+    try {
+      const response = await fetch('/api/dashboard/stats');
+      const data = await response.json();
+      if (response.ok && data.status === 'success') {
+        setDashboardData(data.data);
+      } else {
+        setStatsError(data.message || 'Failed to fetch dashboard statistics.');
+      }
+    } catch (err) {
+      setStatsError('Connection error: Failed to retrieve server metrics.');
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
+  const fetchHeaderNotifications = async () => {
+    try {
+      const response = await fetch('/api/notifications');
+      const data = await response.json();
+      if (response.ok && data.status === 'success') {
+        setNotifications(data.data.slice(0, 5)); // show top 5
+      }
+    } catch (err) {
+      console.error('Failed to load header alerts:', err);
+    }
+  };
 
   useEffect(() => {
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     setCurrentDate(new Date().toLocaleDateString('en-US', options));
   }, []);
 
+  // Listen to popstate event (browser back/forward) & set initial activeNav
+  useEffect(() => {
+    const handleUrlChange = () => {
+      const path = window.location.pathname;
+      if (path === '/dashboard' || path === '/dashboard/') {
+        setActiveNav('dashboard');
+      } else if (path.startsWith('/dashboard/')) {
+        const subPage = path.substring('/dashboard/'.length);
+        const validPages = ['users', 'departments', 'batches', 'roles', 'notifications'];
+        if (validPages.includes(subPage)) {
+          setActiveNav(subPage);
+        } else {
+          setActiveNav('dashboard');
+        }
+      }
+    };
+
+    handleUrlChange();
+    window.addEventListener('popstate', handleUrlChange);
+    return () => {
+      window.removeEventListener('popstate', handleUrlChange);
+    };
+  }, []);
+
+  // Sync state changes to browser URL path
+  useEffect(() => {
+    const currentPath = window.location.pathname;
+    const targetPath = activeNav === 'dashboard' ? '/dashboard' : `/dashboard/${activeNav}`;
+    if (currentPath !== targetPath) {
+      window.history.pushState(null, '', targetPath);
+    }
+  }, [activeNav]);
+
+  useEffect(() => {
+    fetchDashboardStats();
+    fetchHeaderNotifications();
+  }, [activeNav]);
+
+  const totalStudents = dashboardData ? dashboardData.students.total : 0;
+  const activeUsersVal = dashboardData ? dashboardData.users.active : 0;
+  const activeDeptsVal = dashboardData ? dashboardData.departments.length : 0;
+  const activeBatchesVal = dashboardData ? dashboardData.batches.total : 0;
+  const atRiskStudents = dashboardData ? (dashboardData.students.warning + dashboardData.students.critical) : 0;
+
   const metrics = [
     {
       title: 'Total Registered Students',
-      value: '2,847',
-      footer: '↑ +143 this semester',
+      value: statsLoading ? '...' : totalStudents.toLocaleString(),
+      footer: 'Live MongoDB count',
       footerColor: '#15803D',
       icon: Users,
       iconBg: '#EFF6FF',
@@ -47,8 +133,8 @@ export default function SuperAdminDashboard({ onLogout }) {
     },
     {
       title: 'Active System Users',
-      value: '38',
-      footer: 'Advisors, HODs, Admins',
+      value: statsLoading ? '...' : activeUsersVal,
+      footer: 'Staff & admin log-ins',
       footerColor: '#64748B',
       icon: Activity,
       iconBg: '#FFFBEB',
@@ -56,8 +142,8 @@ export default function SuperAdminDashboard({ onLogout }) {
     },
     {
       title: 'Active Departments',
-      value: '6',
-      footer: '↑ 1 added this year',
+      value: statsLoading ? '...' : activeDeptsVal,
+      footer: 'Managed campuses & depts',
       footerColor: '#15803D',
       icon: Home,
       iconBg: '#F8FAFC',
@@ -65,7 +151,7 @@ export default function SuperAdminDashboard({ onLogout }) {
     },
     {
       title: 'Active Batches',
-      value: '24',
+      value: statsLoading ? '...' : activeBatchesVal,
       footer: 'Across all departments',
       footerColor: '#64748B',
       icon: FolderOpen,
@@ -74,26 +160,26 @@ export default function SuperAdminDashboard({ onLogout }) {
     },
     {
       title: 'System Uptime (30 Days)',
-      value: '99.2%',
-      footer: 'All services operational',
+      value: '99.9%',
+      footer: 'All microservices active',
       footerColor: '#15803D',
       icon: CheckCircle,
       iconBg: '#F0FDF4',
       iconColor: '#16A34A'
     },
     {
-      title: 'Pending Approvals',
-      value: '47',
-      footer: '↑ +12 requires attention',
-      footerColor: '#B45309',
+      title: 'Pending Broadcasts',
+      value: '0',
+      footer: 'No alerts in queue',
+      footerColor: '#64748B',
       icon: Clock,
       iconBg: '#FFFBEB',
       iconColor: '#D97706'
     },
     {
       title: 'Migration Requests',
-      value: '18',
-      footer: 'Awaiting processing',
+      value: '0',
+      footer: 'Awaiting sync confirmation',
       footerColor: '#64748B',
       icon: ArrowRightLeft,
       iconBg: '#EEF2FF',
@@ -101,46 +187,24 @@ export default function SuperAdminDashboard({ onLogout }) {
     },
     {
       title: 'At-Risk Students',
-      value: '63',
-      footer: '↑ +8 from last month',
-      footerColor: '#B91C1C',
+      value: statsLoading ? '...' : atRiskStudents,
+      footer: 'Academic warnings active',
+      footerColor: atRiskStudents > 0 ? '#B91C1C' : '#15803D',
       icon: AlertTriangle,
       iconBg: '#FFF1F2',
       iconColor: '#E11D48'
     }
   ];
 
-  const depts = [
-    {
-      name: 'Computer Science (CS)',
-      students: '847',
-      stats: '8 Batches · 12 Advisors · 4 HODs',
-      color: '#2563EB',
-      pct: 100
-    },
-    {
-      name: 'Software Engineering (SE)',
-      students: '634',
-      stats: '6 Batches · 9 Advisors · 3 HODs',
-      color: '#10B981',
-      pct: 75
-    },
-    {
-      name: 'Electrical Engineering (EE)',
-      students: '512',
-      stats: '5 Batches · 8 Advisors · 3 HODs',
-      color: '#6366F1',
-      pct: 60
-    }
-  ];
+  const depts = dashboardData ? dashboardData.departments : [];
 
   const quickActions = [
-    { title: 'Add New User', icon: Plus, iconColor: '#2563EB', bg: '#EFF6FF' },
-    { title: 'Add Department', icon: Home, iconColor: '#4F46E5', bg: '#EEF2FF' },
-    { title: 'Create Batch', icon: FolderOpen, iconColor: '#475569', bg: '#F1F5F9' },
-    { title: 'Setup Curriculum', icon: BookOpen, iconColor: '#16A34A', bg: '#F0FDF4' },
-    { title: 'Assign Roles', icon: Shield, iconColor: '#7C3AED', bg: '#F5F3FF' },
-    { title: 'View Reports', icon: BarChart2, iconColor: '#0F172A', bg: '#F8FAFC' }
+    { title: 'Add New User', icon: Plus, iconColor: '#2563EB', bg: '#EFF6FF', navId: 'users' },
+    { title: 'Add Department', icon: Home, iconColor: '#4F46E5', bg: '#EEF2FF', navId: 'departments' },
+    { title: 'Create Batch', icon: FolderOpen, iconColor: '#475569', bg: '#F1F5F9', navId: 'batches' },
+    { title: 'System Broadcast', icon: Bell, iconColor: '#16A34A', bg: '#F0FDF4', navId: 'notifications' },
+    { title: 'Assign Roles', icon: Shield, iconColor: '#7C3AED', bg: '#F5F3FF', navId: 'roles' },
+    { title: 'View Logs', icon: BarChart2, iconColor: '#0F172A', bg: '#F8FAFC', navId: 'notifications' }
   ];
 
   const navItems = {
@@ -150,12 +214,12 @@ export default function SuperAdminDashboard({ onLogout }) {
     management: [
       { id: 'users', label: 'User Management', icon: Users },
       { id: 'departments', label: 'Departments', icon: Home },
-      { id: 'batches', label: 'Batch Allocation', icon: Layers },
-      { id: 'curriculum', label: 'Curriculum Setup', icon: BookOpen }
+      { id: 'batches', label: 'Batch Allocation', icon: Layers }
     ],
     system: [
       { id: 'roles', label: 'Roles & Permissions', icon: Shield },
-      { id: 'notifications', label: 'Notifications', icon: Bell }
+      { id: 'notifications', label: 'Notifications', icon: Bell },
+      { id: 'audits', label: 'Audit Logs', icon: BarChart2 }
     ]
   };
 
@@ -358,7 +422,17 @@ export default function SuperAdminDashboard({ onLogout }) {
         flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden'
       }}>
         {activeNav === 'users' ? (
-          <UserManagement />
+          <UserManagement setActiveNav={setActiveNav} />
+        ) : activeNav === 'departments' ? (
+          <DepartmentManagement setActiveNav={setActiveNav} />
+        ) : activeNav === 'batches' ? (
+          <BatchAllocation setActiveNav={setActiveNav} />
+        ) : activeNav === 'roles' ? (
+          <RolesPermissions setActiveNav={setActiveNav} />
+        ) : activeNav === 'notifications' ? (
+          <NotificationsPage setActiveNav={setActiveNav} />
+        ) : activeNav === 'audits' ? (
+          <AuditLogsPage setActiveNav={setActiveNav} />
         ) : (
           <div style={{ flex: 1, overflowY: 'auto', backgroundColor: '#F8FAFC', display: 'flex', flexDirection: 'column' }}>
         {/* Top Header */}
@@ -390,21 +464,78 @@ export default function SuperAdminDashboard({ onLogout }) {
             </div>
 
             {/* Bell */}
-            <button style={{
-              position: 'relative', width: '38px', height: '38px', borderRadius: '10px',
-              backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', color: '#64748B'
-            }}>
-              <Bell size={17} />
-              <span style={{
-                position: 'absolute', top: '4px', right: '4px',
-                width: '18px', height: '18px', borderRadius: '50%',
-                backgroundColor: '#EF4444', border: '2px solid #fff',
-                fontSize: '9px', fontWeight: 800, color: '#fff',
-                display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}>7</span>
-            </button>
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setShowBellDropdown(o => !o)}
+                style={{
+                  position: 'relative', width: '38px', height: '38px', borderRadius: '10px',
+                  backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', color: '#64748B', fontFamily: 'inherit'
+                }}
+              >
+                <Bell size={17} />
+                {notifications.filter(n => n.status === 'Unread').length > 0 && (
+                  <span style={{
+                    position: 'absolute', top: '4px', right: '4px',
+                    width: '18px', height: '18px', borderRadius: '50%',
+                    backgroundColor: '#EF4444', border: '2px solid #fff',
+                    fontSize: '9px', fontWeight: 800, color: '#fff',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>{notifications.filter(n => n.status === 'Unread').length}</span>
+                )}
+              </button>
+              {showBellDropdown && (
+                <div style={{
+                  position: 'absolute', top: '100%', right: 0, zIndex: 100,
+                  marginTop: '8px', width: '280px', borderRadius: '12px',
+                  backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0',
+                  boxShadow: '0 10px 30px rgba(0,0,0,0.1)', overflow: 'hidden',
+                  textAlign: 'left'
+                }}>
+                  <div style={{ padding: '12px 16px', borderBottom: '1px solid #F1F5F9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#0F172A' }}>Recent Alerts</span>
+                    <span style={{ fontSize: '10px', fontWeight: 700, color: '#EF4444', backgroundColor: '#FEE2E2', padding: '2px 6px', borderRadius: '10px' }}>
+                      {notifications.filter(n => n.status === 'Unread').length} Unread
+                    </span>
+                  </div>
+                  <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
+                    {notifications.length === 0 ? (
+                      <div style={{ padding: '20px', textAlign: 'center', color: '#94A3B8', fontSize: '12px' }}>
+                        No new notifications
+                      </div>
+                    ) : (
+                      notifications.map(alert => (
+                        <div key={alert.id} style={{ padding: '10px 16px', borderBottom: '1px solid #F1F5F9', display: 'flex', flexDirection: 'column', gap: '2px' }}
+                          onMouseEnter={e => e.currentTarget.style.backgroundColor = '#F8FAFC'}
+                          onMouseLeave={e => e.currentTarget.style.backgroundColor = '#FFFFFF'}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <div style={{
+                              width: '6px', height: '6px', borderRadius: '50%',
+                              backgroundColor: alert.type === 'critical' ? '#EF4444' : alert.type === 'warning' ? '#F59E0B' : '#3B82F6',
+                              flexShrink: 0
+                            }} />
+                            <span style={{ fontSize: '11px', fontWeight: 600, color: '#1E293B', whiteSpace: 'normal' }}>{alert.title}</span>
+                          </div>
+                          <span style={{ fontSize: '9.5px', color: '#94A3B8', marginLeft: '12px' }}>
+                            {new Date(alert.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <div style={{ padding: '8px', textAlign: 'center', backgroundColor: '#FAFAFA' }}>
+                    <button
+                      onClick={() => { setActiveNav('notifications'); setShowBellDropdown(false); }}
+                      style={{ border: 'none', backgroundColor: 'transparent', fontSize: '11px', fontWeight: 700, color: '#2563EB', cursor: 'pointer', fontFamily: 'inherit' }}
+                    >
+                      View All Notifications
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Live */}
             <div style={{
@@ -492,13 +623,15 @@ export default function SuperAdminDashboard({ onLogout }) {
                   <Home size={17} color="#64748B" />
                   <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Department Overview</h3>
                 </div>
-                <button style={{
-                  display: 'flex', alignItems: 'center', gap: '6px',
-                  padding: '7px 14px', borderRadius: '8px',
-                  backgroundColor: '#0F172A', border: 'none',
-                  color: '#fff', fontSize: '12px', fontWeight: 600,
-                  cursor: 'pointer', transition: 'background 0.15s'
-                }}
+                <button
+                  onClick={() => setActiveNav('departments')}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    padding: '7px 14px', borderRadius: '8px',
+                    backgroundColor: '#0F172A', border: 'none',
+                    color: '#fff', fontSize: '12px', fontWeight: 600,
+                    cursor: 'pointer', transition: 'background 0.15s'
+                  }}
                   onMouseEnter={e => e.currentTarget.style.backgroundColor = '#1E293B'}
                   onMouseLeave={e => e.currentTarget.style.backgroundColor = '#0F172A'}
                 >
@@ -545,6 +678,7 @@ export default function SuperAdminDashboard({ onLogout }) {
                   return (
                     <button
                       key={i}
+                      onClick={() => { if (action.navId) setActiveNav(action.navId); }}
                       style={{
                         display: 'flex', flexDirection: 'column',
                         alignItems: 'center', justifyContent: 'center', gap: '10px',
