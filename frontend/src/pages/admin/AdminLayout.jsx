@@ -20,22 +20,22 @@ const SYSTEM_NAV_ITEMS = [
   { id: 'settings', label: 'Profile Settings', icon: Settings },
 ];
 
-export default function AdminLayout({ 
-  activeNav, 
-  onNavigate, 
-  children, 
-  departments = [], 
-  selectedDept, 
-  onDeptChange = () => {},
+export default function AdminLayout({
+  activeNav,
+  onNavigate,
+  children,
+  departments = [],
+  selectedDept,
+  onDeptChange = () => { },
   batches = [],
   selectedBatch = 'all',
-  onBatchChange = () => {}
+  onBatchChange = () => { }
 }) {
   const { user, logout } = useAuth();
   const [showDeptDropdown, setShowDeptDropdown] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [currentDate, setCurrentDate] = useState('');
-  
+
   // Notification states in Layout
   const [showBellDropdown, setShowBellDropdown] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -100,7 +100,7 @@ export default function AdminLayout({
   useEffect(() => {
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     setCurrentDate(new Date().toLocaleDateString('en-US', options));
-    
+
     fetchHeaderNotifications();
     const interval = setInterval(fetchHeaderNotifications, 30000);
     return () => clearInterval(interval);
@@ -110,19 +110,36 @@ export default function AdminLayout({
     ? 'All Departments'
     : departments.find(d => d._id === selectedDept)?.name || 'Select Department';
 
+  const isHOD = user?.role === 'admin';
+
   const advisorNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'students', label: 'Student Profiles', icon: Users },
   ];
-  
-  const currentCoreNavItems = isAdvisor ? advisorNavItems : CORE_NAV_ITEMS;
-  const currentSystemNavItems = isAdvisor 
+
+  const hodNavItems = [
+    { id: 'dashboard', label: 'Approvals Queue', icon: LayoutDashboard },
+    { id: 'history', label: 'Decision History', icon: Clock },
+  ];
+
+  const currentCoreNavItems = isAdvisor
+    ? advisorNavItems
+    : (isHOD ? hodNavItems : CORE_NAV_ITEMS);
+
+  const currentSystemNavItems = (isAdvisor || isHOD)
     ? [{ id: 'settings', label: 'Profile Settings', icon: Settings }]
     : SYSTEM_NAV_ITEMS;
 
   const activeNavItem = [...currentCoreNavItems, ...currentSystemNavItems].find(item => item.id === activeNav);
   const activeNavLabel = activeNavItem ? activeNavItem.label : 'Dashboard';
   const unreadCount = notifications.filter(n => n.status === 'Unread').length;
+
+  const badgeConfig = isAdvisor
+    ? { color: '#3B82F6', label: 'Batch Advisor', bg: 'rgba(59,130,246,0.1)', border: 'rgba(59,130,246,0.25)' }
+    : (isHOD
+      ? { color: '#7C3AED', label: 'HOD', bg: 'rgba(124,58,237,0.1)', border: 'rgba(124,58,237,0.25)' }
+      : { color: '#10B981', label: 'Administrator', bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.25)' }
+    );
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: "'Inter', sans-serif", width: '100vw' }}>
@@ -152,13 +169,13 @@ export default function AdminLayout({
         <div style={{ padding: '16px 20px' }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
-            backgroundColor: isAdvisor ? 'rgba(59,130,246,0.1)' : 'rgba(16,185,129,0.1)', 
-            border: isAdvisor ? '1px solid rgba(59,130,246,0.25)' : '1px solid rgba(16,185,129,0.25)',
+            backgroundColor: badgeConfig.bg,
+            border: `1px solid ${badgeConfig.border}`,
             borderRadius: 20, padding: '3px 10px', marginBottom: 12
           }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: isAdvisor ? '#3B82F6' : '#10B981' }} />
-            <span style={{ fontSize: 10, fontWeight: 800, color: isAdvisor ? '#3B82F6' : '#10B981', letterSpacing: '1px', textTransform: 'uppercase' }}>
-              {isAdvisor ? 'Batch Advisor' : 'Administrator'}
+            <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: badgeConfig.color }} />
+            <span style={{ fontSize: 10, fontWeight: 800, color: badgeConfig.color, letterSpacing: '1px', textTransform: 'uppercase' }}>
+              {badgeConfig.label}
             </span>
           </div>
 
@@ -348,7 +365,7 @@ export default function AdminLayout({
 
       {/* Main */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden', backgroundColor: '#F8FAFC' }}>
-        
+
         {/* Top Header */}
         <div style={{
           backgroundColor: '#FFFFFF', borderBottom: '1px solid #E2E8F0',
@@ -469,7 +486,7 @@ export default function AdminLayout({
                       </div>
                     ) : (
                       notifications.map(alert => (
-                        <div key={alert.id} 
+                        <div key={alert.id}
                           onClick={() => handleNotificationClick(alert)}
                           style={{
                             padding: '10px 16px', borderBottom: '1px solid #F1F5F9',

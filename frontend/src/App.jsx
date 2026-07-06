@@ -26,6 +26,11 @@ import AuditLogsPage from './components/dashboard/AuditLogsPage';
 import ProfileSettingsPage from './components/dashboard/ProfileSettingsPage';
 import AdvisorDashboard from './components/dashboard/AdvisorDashboard';
 import AdvisorStudents from './components/dashboard/AdvisorStudents';
+import HODQueue from './pages/hod/HODQueue';
+import RequestHistory from './pages/hod/RequestHistory';
+import TimetableGenerator from './pages/scheduling/TimetableGenerator';
+import DatesheetGenerator from './pages/scheduling/DatesheetGenerator';
+import ScheduleOverride from './pages/scheduling/ScheduleOverride';
 import Footer from './components/Footer';
 import {
   Layers,
@@ -72,6 +77,7 @@ function App() {
 
   // Advisor layout nav and batch switcher states
   const [advisorActiveNav, setAdvisorActiveNav] = useState('dashboard');
+  const [hodActiveNav, setHodActiveNav] = useState('dashboard');
   const [advisorBatches, setAdvisorBatches] = useState([]);
   const [selectedAdvisorBatch, setSelectedAdvisorBatch] = useState('all');
 
@@ -236,6 +242,9 @@ function App() {
         migrations: <MigrationRecords />,
         curriculum: <CurriculumSetup />,
         batches: <Batches />,
+        timetable: <TimetableGenerator />,
+        datesheet: <DatesheetGenerator />,
+        override: <ScheduleOverride />,
         audit_logs: <AuditLogsPage setActiveNav={setAdminActiveNav} />,
         settings: <ProfileSettingsPage />,
       };
@@ -257,6 +266,23 @@ function App() {
           onBatchChange={setSelectedAdvisorBatch}
         >
           {pages[advisorActiveNav] || <AdvisorDashboard selectedBatch={selectedAdvisorBatch} />}
+        </AdminLayout>
+      );
+    }
+
+    // HOD  Dashboard Layout
+    if (user.role === 'admin') {
+      const pages = {
+        dashboard: <HODQueue />,
+        history: <RequestHistory />,
+        settings: <ProfileSettingsPage />,
+      };
+      return (
+        <AdminLayout
+          activeNav={hodActiveNav}
+          onNavigate={setHodActiveNav}
+        >
+          {pages[hodActiveNav] || <HODQueue />}
         </AdminLayout>
       );
     }
@@ -312,7 +338,7 @@ function App() {
         <main className="max-w-7xl mx-auto px-6 py-8 flex-1 w-full z-10 animate-fade-in">
           {activeTab === 'overview' && (
             <div className="grid lg:grid-cols-12 gap-8">
-              
+
               {/* Left Panel: Welcome and Module Status */}
               <div className="lg:col-span-6 space-y-6">
                 <div className="p-6 rounded-2xl bg-white border border-slate-200/80 shadow-sm relative overflow-hidden">
