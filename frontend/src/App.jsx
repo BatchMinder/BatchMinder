@@ -28,6 +28,9 @@ import AdvisorDashboard from './components/dashboard/AdvisorDashboard';
 import AdvisorStudents from './components/dashboard/AdvisorStudents';
 import HODQueue from './pages/hod/HODQueue';
 import RequestHistory from './pages/hod/RequestHistory';
+import TimetableGenerator from './pages/scheduling/TimetableGenerator';
+import DatesheetGenerator from './pages/scheduling/DatesheetGenerator';
+import ScheduleOverride from './pages/scheduling/ScheduleOverride';
 import Footer from './components/Footer';
 import {
   Layers,
@@ -239,6 +242,9 @@ function App() {
         migrations: <MigrationRecords />,
         curriculum: <CurriculumSetup />,
         batches: <Batches />,
+        timetable: <TimetableGenerator />,
+        datesheet: <DatesheetGenerator />,
+        override: <ScheduleOverride />,
         audit_logs: <AuditLogsPage setActiveNav={setAdminActiveNav} />,
         settings: <ProfileSettingsPage />,
       };

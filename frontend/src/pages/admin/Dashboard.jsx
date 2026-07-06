@@ -4,6 +4,38 @@ import { Users, AlertTriangle, BookOpen, Activity } from 'lucide-react';
 
 const COLORS = { good: '#10B981', warning: '#F59E0B', critical: '#EF4444' };
 
+const RADIAN = Math.PI / 180;
+const renderCustomizedLabel = (props) => {
+  const { cx, cy, midAngle, innerRadius, outerRadius, value, name } = props;
+  const sin = Math.sin(-RADIAN * midAngle);
+  const cos = Math.cos(-RADIAN * midAngle);
+  const sx = cx + (outerRadius + 5) * cos;
+  const sy = cy + (outerRadius + 5) * sin;
+  const mx = cx + (outerRadius + 15) * cos;
+  const my = cy + (outerRadius + 15) * sin;
+  
+  let offsetY = 0;
+  if (value === 0) {
+    if (name.toLowerCase() === 'warning') offsetY = -12;
+    if (name.toLowerCase() === 'critical') offsetY = 12;
+  }
+  
+  const ex = mx + (cos >= 0 ? 1 : -1) * 22;
+  const ey = my + offsetY;
+  const textAnchor = cos >= 0 ? 'start' : 'end';
+  const color = COLORS[name.toLowerCase()] || '#94A3B8';
+
+  return (
+    <g>
+      <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={color} strokeWidth={1} fill="none" />
+      <circle cx={ex} cy={ey} r={2.5} fill={color} />
+      <text x={ex + (cos >= 0 ? 1 : -1) * 8} y={ey} fill={color} textAnchor={textAnchor} dominantBaseline="central" fontSize={11} fontWeight={600}>
+        {`${name}: ${value}`}
+      </text>
+    </g>
+  );
+};
+
 export default function Dashboard({ departments, selectedDept }) {
   const [stats, setStats] = useState(null);
   const [cgpaDist, setCgpaDist] = useState(null);
@@ -97,7 +129,7 @@ export default function Dashboard({ departments, selectedDept }) {
           {pieData.length > 0 ? (
             <ResponsiveContainer width="100%" height={260}>
               <PieChart>
-                <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>
+                <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} dataKey="value" label={renderCustomizedLabel}>
                   {pieData.map((entry) => (
                     <Cell key={entry.name} fill={COLORS[entry.name.toLowerCase()] || '#94A3B8'} />
                   ))}

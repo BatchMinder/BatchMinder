@@ -13,6 +13,9 @@ const CORE_NAV_ITEMS = [
   { id: 'migrations', label: 'Migration Records', icon: ArrowRightLeft },
   { id: 'curriculum', label: 'Curriculum Setup', icon: BookOpen },
   { id: 'batches', label: 'Batches', icon: Layers },
+  { id: 'timetable', label: 'Timetable Generator', icon: Calendar },
+  { id: 'datesheet', label: 'Exam Datesheet', icon: Calendar },
+  { id: 'override', label: 'Schedule Overrides', icon: Settings },
 ];
 
 const SYSTEM_NAV_ITEMS = [
