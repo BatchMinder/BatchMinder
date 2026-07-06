@@ -1,78 +1,98 @@
 import Curriculum from '../models/curriculum.js';
-import AuditLog from '../models/auditLog.js';
+import { scopeToUserDepartments } from '../middleware/scopeMiddleware.js';
+import { logAudit } from '../utils/logger.js';
 
-// Helper to log audit actions
-const logAudit = async (userId, userEmail, action, description) => {
+export const getCurriculumByBatch = async (req, res) => {
   try {
-    await AuditLog.create({
-      userId,
-      userEmail,
-      action,
-      description,
-    });
-  } catch (err) {
-    console.error('Audit logging failed inside curriculumController:', err);
-  }
-};
-
-export const getCurriculumMap = async (req, res) => {
-  try {
-    const { department, batch, semester } = req.query;
-    
-    if (!department || !batch) {
-      return res.status(400).json({ message: 'Please provide department and batch parameters' });
+    const scope = scopeToUserDepartments(req);
+    if (scope._id === null) {
+      return res.status(200).json({ status: 'success', data: { curriculum: null } });
     }
 
-    const query = { department, batch };
-    if (semester) {
-      query.semester = Number(semester);
+    const { batchId } = req.params;
+
+    const curriculum = await Curriculum.findOne({
+      batchId,
+      departmentId: scope.departmentId,
+      status: 'active',
+    }).populate('departmentId', 'name code').populate('batchId', 'code');
+
+    if (!curriculum) {
+      return res.status(404).json({ message: 'No active curriculum found for this batch' });
     }
 
-    const curriculum = await Curriculum.find(query);
-    
-    res.status(200).json({
-      status: 'success',
-      results: curriculum.length,
-      data: {
-        curriculum,
-      },
-    });
+    res.status(200).json({ status: 'success', data: { curriculum } });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-export const createOrUpdateCurriculumMap = async (req, res) => {
+export const createOrUpdateCurriculum = async (req, res) => {
   try {
-    const { department, batch, semester, courses } = req.body;
-
-    if (!department || !batch || !semester || !courses || !Array.isArray(courses)) {
-      return res.status(400).json({ message: 'Please provide department, batch, semester, and courses array' });
+    const scope = scopeToUserDepartments(req);
+    if (scope._id === null) {
+      return res.status(403).json({ message: 'Access denied' });
     }
 
-    // Upsert the curriculum maps
+    const { batchId, departmentId, version, courses } = req.body;
+
+    if (!batchId || !departmentId || !courses) {
+      return res.status(400).json({ message: 'Please provide batchId, departmentId, and courses' });
+    }
+
+    if (scope.departmentId && scope.departmentId.$in) {
+      if (!scope.departmentId.$in.includes(departmentId)) {
+        return res.status(403).json({ message: 'Department not in your scope' });
+      }
+    }
+
+    const semesterCreditMap = {};
+    for (const c of courses) {
+      if (!c.semester) {
+        return res.status(400).json({ message: 'Each course must have a semester' });
+      }
+      semesterCreditMap[c.semester] = (semesterCreditMap[c.semester] || 0) + (c.creditHours || 0);
+    }
+
+    for (const [sem, total] of Object.entries(semesterCreditMap)) {
+      if (total > 21) {
+        return res.status(400).json({
+          message: `Semester ${sem} exceeds maximum credit hour limit of 21 (got ${total})`,
+        });
+      }
+    }
+
+    if (courses.length > 0) {
+      const prereqIds = courses.flatMap(c => c.prerequisiteCourseIds || []).filter(Boolean);
+      if (prereqIds.length > 0) {
+        const validIds = courses.map(c => c._id || null).filter(Boolean);
+        for (const pid of prereqIds) {
+          if (!validIds.some(v => v && v.toString() === pid.toString())) {
+            return res.status(400).json({
+              message: `Prerequisite ${pid} not found in course list`,
+            });
+          }
+        }
+      }
+    }
+
     const curriculum = await Curriculum.findOneAndUpdate(
-      { department, batch, semester: Number(semester) },
-      { department, batch, semester: Number(semester), courses },
+      { batchId, departmentId, status: 'active' },
+      { batchId, departmentId, version: version || '1.0', courses, status: 'active' },
       { new: true, upsert: true, runValidators: true }
     );
 
-    // Log this action to the audit logs
-    const updaterEmail = req.user ? req.user.email : 'system@batchminder.local';
-    const updaterId = req.user ? req.user._id : null;
-    await logAudit(
-      updaterId,
-      updaterEmail,
-      'CURRICULUM_UPDATED',
-      `Updated course curriculum map for ${department} - Batch ${batch} (Semester ${semester}) containing ${courses.length} courses.`
-    );
-
-    res.status(200).json({
-      status: 'success',
-      data: {
-        curriculum,
-      },
+    await logAudit({
+      actorId: req.user._id,
+      actorRole: req.user.role,
+      action: 'CURRICULUM_UPDATED',
+      targetType: 'Curriculum',
+      targetId: curriculum._id.toString(),
+      departmentId: departmentId.toString(),
+      metadata: { description: `Updated curriculum for batch ${batchId} with ${courses.length} courses` },
     });
+
+    res.status(200).json({ status: 'success', data: { curriculum } });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

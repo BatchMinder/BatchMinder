@@ -1,14 +1,13 @@
 import express from 'express';
-import { getCurriculumMap, createOrUpdateCurriculumMap } from '../controllers/curriculumController.js';
+import { getCurriculumByBatch, createOrUpdateCurriculum } from '../controllers/curriculumController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { restrictTo } from '../middleware/roleMiddleware.js';
 
 const router = express.Router();
 
-// Both advisors and admins can get curriculum maps
-router.get('/', protect, getCurriculumMap);
+router.use(protect);
 
-// Only admins can upload/modify curriculum structures
-router.post('/', protect, restrictTo('admin'), createOrUpdateCurriculumMap);
+router.get('/batch/:batchId', restrictTo('super_admin', 'academic_admin', 'admin'), getCurriculumByBatch);
+router.post('/', restrictTo('super_admin', 'academic_admin'), createOrUpdateCurriculum);
 
 export default router;

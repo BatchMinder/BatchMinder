@@ -1,26 +1,56 @@
 import mongoose from 'mongoose';
 
 const auditLogSchema = new mongoose.Schema({
+  actorId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: false
+  },
+  actorRole: {
+    type: String,
+    required: false
+  },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: false, // can be null for anonymous actions (failed logins)
+    required: false
   },
   userEmail: {
     type: String,
-    required: false,
+    required: false
   },
   action: {
     type: String,
-    required: [true, 'Please provide an action name'],
+    required: [true, 'Please provide an action name']
   },
   description: {
     type: String,
+    required: false
+  },
+  targetType: {
+    type: String,
+    required: false
+  },
+  targetId: {
+    type: String,
+    required: false
+  },
+  departmentId: {
+    type: String,
+    required: false
+  },
+  batchId: {
+    type: String,
+    required: false
   },
   timestamp: {
     type: Date,
-    default: Date.now,
+    default: Date.now
   },
+  metadata: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
+  }
 });
 
 const AuditLog = mongoose.model('AuditLog', auditLogSchema);
