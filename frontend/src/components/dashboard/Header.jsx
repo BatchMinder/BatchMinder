@@ -39,6 +39,34 @@ export default function Header({ title, subtitle, setActiveNav }) {
     }
   };
 
+  const handleNotificationClick = async (alert) => {
+    try {
+      if (alert.status === 'Unread') {
+        const response = await fetch(`/api/notifications/${alert.id}/read`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (response.ok) {
+          fetchHeaderNotifications();
+        }
+      }
+      if (alert.deepLinkUrl) {
+        if (alert.deepLinkUrl.includes('migrations') && setActiveNav) {
+          setActiveNav('migrations');
+        } else if ((alert.deepLinkUrl.includes('csv-upload') || alert.deepLinkUrl.includes('upload')) && setActiveNav) {
+          setActiveNav('upload');
+        } else if (alert.deepLinkUrl.includes('students') && setActiveNav) {
+          setActiveNav('students');
+        } else {
+          window.location.href = alert.deepLinkUrl;
+        }
+      }
+      setShowBellDropdown(false);
+    } catch (err) {
+      console.error('Failed to handle notification click:', err);
+    }
+  };
+
   useEffect(() => {
     formatCurrentDate();
     fetchHeaderNotifications();
@@ -134,11 +162,14 @@ export default function Header({ title, subtitle, setActiveNav }) {
                   </div>
                 ) : (
                   notifications.map(alert => (
-                    <div key={alert.id} style={{
-                      padding: '10px 16px', borderBottom: '1px solid #F1F5F9',
-                      display: 'flex', flexDirection: 'column', gap: '2px',
-                      backgroundColor: alert.status === 'Unread' ? 'rgba(37,99,235,0.02)' : '#FFFFFF'
-                    }}
+                    <div key={alert.id} 
+                      onClick={() => handleNotificationClick(alert)}
+                      style={{
+                        padding: '10px 16px', borderBottom: '1px solid #F1F5F9',
+                        display: 'flex', flexDirection: 'column', gap: '2px',
+                        cursor: 'pointer',
+                        backgroundColor: alert.status === 'Unread' ? 'rgba(37,99,235,0.02)' : '#FFFFFF'
+                      }}
                       onMouseEnter={e => e.currentTarget.style.backgroundColor = '#F8FAFC'}
                       onMouseLeave={e => e.currentTarget.style.backgroundColor = alert.status === 'Unread' ? 'rgba(37,99,235,0.02)' : '#FFFFFF'}
                     >

@@ -1,13 +1,15 @@
 import mongoose from 'mongoose';
 
 const courseSchema = new mongoose.Schema({
-  courseCode: {
+  code: {
     type: String,
     required: true,
+    trim: true,
   },
   title: {
     type: String,
     required: true,
+    trim: true,
   },
   creditHours: {
     type: Number,
@@ -15,25 +17,39 @@ const courseSchema = new mongoose.Schema({
     min: 1,
     max: 6,
   },
-  prerequisites: [String], // Array of course codes
+  semester: {
+    type: Number,
+    required: true,
+    min: 1,
+    max: 12,
+  },
+  prerequisiteCourseIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Curriculum.courses', // logical ref — validated in controller
+  }],
 });
 
 const curriculumSchema = new mongoose.Schema({
-  department: {
-    type: String,
+  departmentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Department',
     required: [true, 'Please specify department'],
-    trim: true,
   },
-  batch: {
-    type: String,
+  batchId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Batch',
     required: [true, 'Please specify batch'],
-    trim: true,
   },
-  semester: {
-    type: Number,
-    required: [true, 'Please specify semester'],
-    min: 1,
-    max: 12,
+  version: {
+    type: String,
+    required: [true, 'Please specify curriculum version'],
+    trim: true,
+    default: '1.0',
+  },
+  status: {
+    type: String,
+    enum: ['active', 'archived'],
+    default: 'active',
   },
   courses: [courseSchema],
   createdAt: {
@@ -42,8 +58,8 @@ const curriculumSchema = new mongoose.Schema({
   }
 });
 
-// Composite unique index ensures only one curriculum map exists per department/batch/semester
-curriculumSchema.index({ department: 1, batch: 1, semester: 1 }, { unique: true });
+// One active curriculum per department+batch
+curriculumSchema.index({ departmentId: 1, batchId: 1, version: 1 }, { unique: true });
 
 const Curriculum = mongoose.model('Curriculum', curriculumSchema);
 export default Curriculum;

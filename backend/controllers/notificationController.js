@@ -17,20 +17,40 @@ export const getAllNotifications = async (req, res, next) => {
       };
     }
 
-    const notifications = await Notification.find(filter).sort({ createdAt: -1 });
+    const { isRead, page = 1, limit = 50 } = req.query;
+
+    if (isRead !== undefined) {
+      filter.isRead = isRead === 'true';
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const notifications = await Notification.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(Number(limit));
+
+    const total = await Notification.countDocuments(filter);
 
     const results = notifications.map(n => ({
       id: n._id,
       title: n.message,
+      message: n.message,
       type: n.type,
       status: n.isRead ? 'Read' : 'Unread',
+      isRead: n.isRead,
       time: n.createdAt,
-      target: n.recipientRole || 'All Users'
+      createdAt: n.createdAt,
+      target: n.recipientRole || 'All Users',
+      deepLinkUrl: n.deepLinkUrl || null
     }));
 
     res.status(200).json({
       status: 'success',
       results: results.length,
+      total,
+      currentPage: Number(page),
+      totalPages: Math.ceil(total / Number(limit)),
       data: results
     });
   } catch (err) {
@@ -122,10 +142,14 @@ export const markAsRead = async (req, res, next) => {
       data: {
         id: n._id,
         title: n.message,
+        message: n.message,
         type: n.type,
         status: n.isRead ? 'Read' : 'Unread',
+        isRead: n.isRead,
         time: n.createdAt,
-        target: n.recipientRole || 'All Users'
+        createdAt: n.createdAt,
+        target: n.recipientRole || 'All Users',
+        deepLinkUrl: n.deepLinkUrl || null
       }
     });
   } catch (err) {

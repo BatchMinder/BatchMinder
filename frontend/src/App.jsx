@@ -15,6 +15,17 @@ import RecordsDirectory from './pages/students/RecordsDirectory';
 import DataIngestionHub from './pages/ingestion/DataIngestionHub';
 import CurriculumBoard from './pages/curriculum/CurriculumBoard';
 import MigrationManager from './pages/migration/MigrationManager';
+import AdminLayout from './pages/admin/AdminLayout';
+import Dashboard from './pages/admin/Dashboard';
+import StudentRecords from './pages/admin/StudentRecords';
+import CsvUpload from './pages/admin/CsvUpload';
+import MigrationRecords from './pages/admin/MigrationRecords';
+import CurriculumSetup from './pages/admin/CurriculumSetup';
+import Batches from './pages/admin/Batches';
+import AuditLogsPage from './components/dashboard/AuditLogsPage';
+import ProfileSettingsPage from './components/dashboard/ProfileSettingsPage';
+import AdvisorDashboard from './components/dashboard/AdvisorDashboard';
+import AdvisorStudents from './components/dashboard/AdvisorStudents';
 import Footer from './components/Footer';
 import {
   Layers,
@@ -55,6 +66,31 @@ function App() {
 
   // Logout modal state
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  // Admin layout nav state (must be at top level — not inside conditional)
+  const [adminActiveNav, setAdminActiveNav] = useState('dashboard');
+
+  // Advisor layout nav and batch switcher states
+  const [advisorActiveNav, setAdvisorActiveNav] = useState('dashboard');
+  const [advisorBatches, setAdvisorBatches] = useState([]);
+  const [selectedAdvisorBatch, setSelectedAdvisorBatch] = useState('all');
+
+  useEffect(() => {
+    if (user && user.role === 'advisor') {
+      const fetchBatches = async () => {
+        try {
+          const res = await fetch('/api/advisor/dashboard-summary');
+          const data = await res.json();
+          if (res.ok && data.status === 'success') {
+            setAdvisorBatches(data.data.batches || []);
+          }
+        } catch (err) {
+          console.error('Failed to fetch advisor batches:', err);
+        }
+      };
+      fetchBatches();
+    }
+  }, [user]);
 
   // Unified data key states (lowercased 'cgpa' and default 'batch' appended)
   const [students, setStudents] = useState([
@@ -192,16 +228,47 @@ function App() {
       );
     }
 
+    if (user.role === 'academic_admin') {
+      const pages = {
+        dashboard: <Dashboard />,
+        students: <StudentRecords />,
+        upload: <CsvUpload />,
+        migrations: <MigrationRecords />,
+        curriculum: <CurriculumSetup />,
+        batches: <Batches />,
+        audit_logs: <AuditLogsPage setActiveNav={setAdminActiveNav} />,
+        settings: <ProfileSettingsPage />,
+      };
+      return <AdminLayout activeNav={adminActiveNav} onNavigate={setAdminActiveNav}>{pages[adminActiveNav] || <Dashboard />}</AdminLayout>;
+    }
+
+    if (user.role === 'advisor') {
+      const pages = {
+        dashboard: <AdvisorDashboard selectedBatch={selectedAdvisorBatch} />,
+        students: <AdvisorStudents selectedBatch={selectedAdvisorBatch} />,
+        settings: <ProfileSettingsPage />,
+      };
+      return (
+        <AdminLayout
+          activeNav={advisorActiveNav}
+          onNavigate={setAdvisorActiveNav}
+          batches={advisorBatches}
+          selectedBatch={selectedAdvisorBatch}
+          onBatchChange={setSelectedAdvisorBatch}
+        >
+          {pages[advisorActiveNav] || <AdvisorDashboard selectedBatch={selectedAdvisorBatch} />}
+        </AdminLayout>
+      );
+    }
+
     const roleColors = {
       admin: 'text-brandNavy bg-brandNavy/5 border-brandNavy/20',
       advisor: 'text-brandAccent bg-brandAccent/5 border-brandAccent/20',
-      academic_admin: 'text-alertGood bg-alertGood/5 border-alertGood/20'
     };
 
     const roleLabels = {
       admin: 'HOD / Admin',
       advisor: 'Batch Advisor',
-      academic_admin: 'Academic Admin'
     };
 
     return (

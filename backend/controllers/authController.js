@@ -193,39 +193,7 @@ export const getMe = async (req, res) => {
     },
   });
 };
-
-export const getAuditLogs = async (req, res) => {
-  try {
-    const scopeFilter = await scopeQueryToRole(req.user);
-    let filter = { ...scopeFilter };
-
-    // SuperAdmin can filter by query params
-    if (req.user.role === 'super_admin') {
-      if (req.query.departmentId && req.query.departmentId !== 'All Departments') {
-        filter.departmentId = req.query.departmentId;
-      }
-      if (req.query.batchId && req.query.batchId !== 'All Batches') {
-        filter.batchId = req.query.batchId;
-      }
-    }
-
-    const logs = await AuditLog.find(filter)
-      .populate('actorId', 'name email role')
-      .populate('userId', 'name email role')
-      .sort({ timestamp: -1 })
-      .limit(200);
-
-    res.status(200).json({
-      status: 'success',
-      results: logs.length,
-      data: {
-        logs,
-      },
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
+// getAuditLogs has been moved to auditLogController.js
 
 export const checkEmail = async (req, res) => {
   try {

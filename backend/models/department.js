@@ -13,6 +13,13 @@ const departmentSchema = new mongoose.Schema({
     required: [true, 'Please provide department name'],
     trim: true,
   },
+  // ObjectId ref to User (HOD) — nullable, assigned after department creation
+  hodId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null,
+  },
+  // Legacy string kept for Module 1 backward compat
   hod: {
     type: String,
     default: 'Unassigned',

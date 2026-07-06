@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Search, ChevronRight, Check, X, ShieldAlert,
+  Search, ChevronRight, ChevronDown, Check, X, ShieldAlert,
   ShieldCheck, Lock, Activity, Users, Shield, Bell, Calendar
 } from 'lucide-react';
 import Header from './Header';
@@ -150,7 +150,7 @@ export default function RolesPermissions({ setActiveNav }) {
 
   const filteredUsers = usersList.filter(u => {
     const q = searchQuery.toLowerCase();
-    return !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.dept.toLowerCase().includes(q) || u.role.toLowerCase().includes(q);
+    return !q || (u.name || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q) || (u.dept || '').toLowerCase().includes(q) || (u.role || '').toLowerCase().includes(q);
   });
 
   const labelStyle  = {

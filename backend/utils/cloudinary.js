@@ -22,4 +22,8 @@ export const uploadToCloudinary = (fileBuffer, folder = 'batchminder') => {
   });
 };
 
+export const deleteFromCloudinary = async (publicId) => {
+  return await cloudinary.uploader.destroy(publicId);
+};
+
 export default cloudinary;

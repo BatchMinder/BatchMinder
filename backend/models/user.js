@@ -21,9 +21,15 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['admin', 'advisor', 'academic_admin', 'super_admin'],
+    enum: ['super_admin', 'academic_admin', 'admin', 'advisor'],
     default: 'advisor',
   },
+  // ObjectId array — populated for academic_admin (Administrator), single for admin (HOD)
+  departmentIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Department'
+  }],
+  // Legacy string field kept for backward compat with Module 1 SuperAdmin UI
   dept: {
     type: String,
     default: 'All Departments'
@@ -45,11 +51,22 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  profilePictureUrl: {
+    type: String,
+    default: null
+  },
+  profilePictureCloudinaryId: {
+    type: String,
+    default: null
+  },
+  assignedBatchIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Batch'
+  }]
 });
 
 // Composite unique index for email + role combination
 userSchema.index({ email: 1, role: 1 }, { unique: true });
-
 
 // Hash password before saving
 userSchema.pre('save', async function (next) {

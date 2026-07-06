@@ -1,5 +1,5 @@
 import express from 'express';
-import { getAllBatches, createBatch, updateBatch, deleteBatch } from '../controllers/batchController.js';
+import { getAllBatches, getBatchById, createBatch, updateBatch, deleteBatch } from '../controllers/batchController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { restrictTo } from '../middleware/roleMiddleware.js';
 
@@ -8,10 +8,11 @@ const router = express.Router();
 router.use(protect);
 
 router.route('/')
-  .get(getAllBatches)
+  .get(restrictTo('super_admin', 'academic_admin', 'admin', 'advisor'), getAllBatches)
   .post(restrictTo('super_admin', 'academic_admin'), createBatch);
 
 router.route('/:id')
+  .get(restrictTo('super_admin', 'academic_admin', 'admin', 'advisor'), getBatchById)
   .patch(restrictTo('super_admin', 'academic_admin'), updateBatch)
   .delete(restrictTo('super_admin', 'academic_admin'), deleteBatch);
 

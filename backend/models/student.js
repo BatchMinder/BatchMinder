@@ -17,7 +17,7 @@ const courseEnrollmentSchema = new mongoose.Schema({
     type: String,
     default: 'IP', // IP = In Progress, or A, B+, C, F, etc.
   },
-  status: {
+  enrollmentStatus: {
     type: String,
     enum: ['enrolled', 'completed', 'failed'],
     default: 'enrolled',
@@ -29,6 +29,16 @@ const courseEnrollmentSchema = new mongoose.Schema({
     default: 100,
   }
 });
+
+// Thresholds for cgpaStatus computation
+// critical: cgpa < 2.0
+// warning:  cgpa <= 2.1 (and >= 2.0)
+// good:     cgpa > 2.1
+function computeCgpaStatus(cgpa) {
+  if (cgpa < 2.0) return 'critical';
+  if (cgpa <= 2.1) return 'warning';
+  return 'good';
+}
 
 const studentSchema = new mongoose.Schema({
   rollNumber: {
@@ -47,19 +57,21 @@ const studentSchema = new mongoose.Schema({
     lowercase: true,
     trim: true,
   },
-  batch: {
-    type: String,
-    required: [true, 'Please specify student batch (e.g. 2022)'],
-    trim: true,
-  },
-  department: {
-    type: String,
+  departmentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Department',
     required: [true, 'Please specify department'],
-    trim: true,
+  },
+  batchId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Batch',
+    required: [true, 'Please specify batch'],
   },
   currentSemester: {
     type: Number,
     default: 1,
+    min: 1,
+    max: 12,
   },
   cgpa: {
     type: Number,
@@ -67,17 +79,52 @@ const studentSchema = new mongoose.Schema({
     min: 0.0,
     max: 4.0,
   },
+  // Computed server-side from cgpa thresholds — never set directly by frontend
+  cgpaStatus: {
+    type: String,
+    enum: ['good', 'warning', 'critical'],
+    default: 'good',
+  },
+  // Enrollment status — independent of academic performance
   status: {
     type: String,
-    enum: ['good_standing', 'warning', 'critical'],
-    default: 'good_standing',
+    enum: ['active', 'inactive'],
+    default: 'active',
   },
   courses: [courseEnrollmentSchema],
+  enrolledAt: {
+    type: Date,
+    default: Date.now,
+  },
   createdAt: {
     type: Date,
     default: Date.now,
   }
 });
+
+// Auto-compute cgpaStatus before every save
+studentSchema.pre('save', function (next) {
+  this.cgpaStatus = computeCgpaStatus(this.cgpa);
+  next();
+});
+
+// Auto-compute cgpaStatus on findOneAndUpdate / updateOne
+studentSchema.pre('findOneAndUpdate', function (next) {
+  const update = this.getUpdate();
+  if (update && (update.cgpa !== undefined || update.$set?.cgpa !== undefined)) {
+    const newCgpa = update.cgpa !== undefined ? update.cgpa : update.$set.cgpa;
+    const status = computeCgpaStatus(newCgpa);
+    if (update.$set) {
+      update.$set.cgpaStatus = status;
+    } else {
+      update.cgpaStatus = status;
+    }
+  }
+  next();
+});
+
+// Export the compute function for use in controllers
+studentSchema.statics.computeCgpaStatus = computeCgpaStatus;
 
 const Student = mongoose.model('Student', studentSchema);
 export default Student;

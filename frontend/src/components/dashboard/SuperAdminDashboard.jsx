@@ -115,11 +115,11 @@ export default function SuperAdminDashboard({ onLogout }) {
     fetchHeaderNotifications();
   }, [activeNav]);
 
-  const totalStudents = dashboardData ? dashboardData.students.total : 0;
-  const activeUsersVal = dashboardData ? dashboardData.users.active : 0;
-  const activeDeptsVal = dashboardData ? dashboardData.departments.length : 0;
-  const activeBatchesVal = dashboardData ? dashboardData.batches.total : 0;
-  const atRiskStudents = dashboardData ? (dashboardData.students.warning + dashboardData.students.critical) : 0;
+  const totalStudents = dashboardData ? (dashboardData.totalStudents || dashboardData.students?.total || 0) : 0;
+  const activeUsersVal = dashboardData ? (dashboardData.activeStudents || dashboardData.users?.active || 0) : 0;
+  const activeDeptsVal = dashboardData ? (dashboardData.departments?.length || 0) : 0;
+  const activeBatchesVal = dashboardData ? (dashboardData.totalBatches || dashboardData.batches?.total || 0) : 0;
+  const atRiskStudents = dashboardData ? (dashboardData.atRiskStudents || (dashboardData.students?.warning || 0) + (dashboardData.students?.critical || 0)) : 0;
 
   const metrics = [
     {
@@ -196,7 +196,7 @@ export default function SuperAdminDashboard({ onLogout }) {
     }
   ];
 
-  const depts = dashboardData ? dashboardData.departments : [];
+  const depts = dashboardData?.departments || [];
 
   const quickActions = [
     { title: 'Add New User', icon: Plus, iconColor: '#2563EB', bg: '#EFF6FF', navId: 'users' },

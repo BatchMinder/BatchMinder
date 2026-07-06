@@ -8,15 +8,29 @@ const batchSchema = new mongoose.Schema({
     trim: true,
     uppercase: true,
   },
-  dept: {
-    type: String,
+  departmentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Department',
     required: [true, 'Please specify department'],
-    trim: true,
+  },
+  startYear: {
+    type: Number,
+    required: [true, 'Please specify start year'],
+  },
+  curriculumVersionId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Curriculum',
+    default: null,
   },
   advisor: {
     type: String,
     default: 'Unassigned',
     trim: true,
+  },
+  advisorId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null,
   },
   status: {
     type: String,

@@ -52,13 +52,18 @@ export default function AuditLogsPage({ setActiveNav }) {
   const [error, setError] = useState(null);
   const [selectedAudit, setSelectedAudit] = useState(null);
 
-  // Filters (SuperAdmin only)
+  // Filters
   const [deptFilter, setDeptFilter] = useState('All Departments');
   const [batchFilter, setBatchFilter] = useState('All Batches');
   const [batches, setBatches] = useState([]);
+  const [actionFilter, setActionFilter] = useState('');
+  const [startDateFilter, setStartDateFilter] = useState('');
+  const [endDateFilter, setEndDateFilter] = useState('');
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalLogs, setTotalLogs] = useState(0);
   const itemsPerPage = 25;
 
   // Load batches for dropdown filter (SuperAdmin only)
@@ -79,7 +84,7 @@ export default function AuditLogsPage({ setActiveNav }) {
     setLoading(true);
     setError(null);
     try {
-      let url = '/api/auth/audit-logs';
+      let url = '/api/audit-logs';
       const params = new URLSearchParams();
       
       if (user?.role === 'super_admin') {
@@ -90,6 +95,19 @@ export default function AuditLogsPage({ setActiveNav }) {
           params.append('batchId', batchFilter);
         }
       }
+
+      if (actionFilter) {
+        params.append('action', actionFilter);
+      }
+      if (startDateFilter) {
+        params.append('startDate', startDateFilter);
+      }
+      if (endDateFilter) {
+        params.append('endDate', endDateFilter);
+      }
+
+      params.append('page', currentPage);
+      params.append('limit', itemsPerPage);
       
       const queryStr = params.toString();
       if (queryStr) {
@@ -100,6 +118,8 @@ export default function AuditLogsPage({ setActiveNav }) {
       const data = await response.json();
       if (response.ok && data.status === 'success') {
         setLogs(data.data.logs || []);
+        setTotalLogs(data.total || 0);
+        setTotalPages(data.totalPages || 1);
       } else {
         setError(data.message || 'Failed to retrieve system logs.');
       }
@@ -116,12 +136,9 @@ export default function AuditLogsPage({ setActiveNav }) {
 
   useEffect(() => {
     fetchLogs();
-    setCurrentPage(1);
-  }, [deptFilter, batchFilter]);
+  }, [currentPage, deptFilter, batchFilter, actionFilter, startDateFilter, endDateFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(logs.length / itemsPerPage));
-  const currentLogs = logs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
+  const currentLogs = logs;
   const isSuperAdmin = user?.role === 'super_admin';
 
   // Styling helper
@@ -162,63 +179,126 @@ export default function AuditLogsPage({ setActiveNav }) {
       {/* Main Content Area */}
       <div style={{ flex: 1, padding: '24px 32px', display: 'flex', flexDirection: 'column', gap: '16px', minHeight: 0 }}>
         
-        {/* Filters Panel (Visible for Super Admin only) */}
-        {isSuperAdmin && (
-          <div style={{
-            backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0',
-            borderRadius: '12px', padding: '14px 20px',
-            display: 'flex', alignItems: 'center', gap: '16px',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
-          }}>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Filter Scopes:
-            </span>
+        {/* Filters Panel */}
+        <div style={{
+          backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0',
+          borderRadius: '12px', padding: '14px 20px',
+          display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '16px',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+        }}>
+          <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            Filters:
+          </span>
 
-            {/* Department Filter */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '11.5px', color: '#64748B', fontWeight: 500 }}>Department:</span>
-              <div style={{ position: 'relative' }}>
-                <select
-                  value={deptFilter}
-                  onChange={e => setDeptFilter(e.target.value)}
-                  style={{
-                    padding: '5px 24px 5px 10px', borderRadius: '6px', border: '1px solid #CBD5E1',
-                    fontSize: '11.5px', fontWeight: 600, color: '#1E293B', outline: 'none',
-                    backgroundColor: '#FAFAFA', appearance: 'none', cursor: 'pointer', fontFamily: 'inherit'
-                  }}
-                >
-                  <option value="All Departments">All Departments</option>
-                  {departments.map(d => (
-                    <option key={d.id} value={d.name}>{d.name}</option>
-                  ))}
-                </select>
-                <ChevronDown size={11} color="#64748B" style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+          {isSuperAdmin && (
+            <>
+              {/* Department Filter */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '11.5px', color: '#64748B', fontWeight: 500 }}>Department:</span>
+                <div style={{ position: 'relative' }}>
+                  <select
+                    value={deptFilter}
+                    onChange={e => { setDeptFilter(e.target.value); setCurrentPage(1); }}
+                    style={{
+                      padding: '5px 24px 5px 10px', borderRadius: '6px', border: '1px solid #CBD5E1',
+                      fontSize: '11.5px', fontWeight: 600, color: '#1E293B', outline: 'none',
+                      backgroundColor: '#FAFAFA', appearance: 'none', cursor: 'pointer', fontFamily: 'inherit'
+                    }}
+                  >
+                    <option value="All Departments">All Departments</option>
+                    {departments.map(d => (
+                      <option key={d.id} value={d.name}>{d.name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={11} color="#64748B" style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                </div>
               </div>
-            </div>
 
-            {/* Batch Filter */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '11.5px', color: '#64748B', fontWeight: 500 }}>Batch:</span>
-              <div style={{ position: 'relative' }}>
-                <select
-                  value={batchFilter}
-                  onChange={e => setBatchFilter(e.target.value)}
-                  style={{
-                    padding: '5px 24px 5px 10px', borderRadius: '6px', border: '1px solid #CBD5E1',
-                    fontSize: '11.5px', fontWeight: 600, color: '#1E293B', outline: 'none',
-                    backgroundColor: '#FAFAFA', appearance: 'none', cursor: 'pointer', fontFamily: 'inherit'
-                  }}
-                >
-                  <option value="All Batches">All Batches</option>
-                  {batches.map(b => (
-                    <option key={b.id} value={b.code}>{b.code}</option>
-                  ))}
-                </select>
-                <ChevronDown size={11} color="#64748B" style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+              {/* Batch Filter */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '11.5px', color: '#64748B', fontWeight: 500 }}>Batch:</span>
+                <div style={{ position: 'relative' }}>
+                  <select
+                    value={batchFilter}
+                    onChange={e => { setBatchFilter(e.target.value); setCurrentPage(1); }}
+                    style={{
+                      padding: '5px 24px 5px 10px', borderRadius: '6px', border: '1px solid #CBD5E1',
+                      fontSize: '11.5px', fontWeight: 600, color: '#1E293B', outline: 'none',
+                      backgroundColor: '#FAFAFA', appearance: 'none', cursor: 'pointer', fontFamily: 'inherit'
+                    }}
+                  >
+                    <option value="All Batches">All Batches</option>
+                    {batches.map(b => (
+                      <option key={b.id} value={b.code}>{b.code}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={11} color="#64748B" style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                </div>
               </div>
+            </>
+          )}
+
+          {/* Action Filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '11.5px', color: '#64748B', fontWeight: 500 }}>Action:</span>
+            <div style={{ position: 'relative' }}>
+              <select
+                value={actionFilter}
+                onChange={e => { setActionFilter(e.target.value); setCurrentPage(1); }}
+                style={{
+                  padding: '5px 24px 5px 10px', borderRadius: '6px', border: '1px solid #CBD5E1',
+                  fontSize: '11.5px', fontWeight: 600, color: '#1E293B', outline: 'none',
+                  backgroundColor: '#FAFAFA', appearance: 'none', cursor: 'pointer', fontFamily: 'inherit'
+                }}
+              >
+                <option value="">All Actions</option>
+                <option value="STUDENT_CREATED">Student Created</option>
+                <option value="STUDENT_UPDATED">Student Updated</option>
+                <option value="STUDENT_DELETED">Student Deleted</option>
+                <option value="UPLOAD_VALIDATED">CSV Upload Validated</option>
+                <option value="UPLOAD_IMPORTED">CSV Upload Imported</option>
+                <option value="CURRICULUM_UPDATED">Curriculum Updated</option>
+                <option value="MIGRATION_CREATED">Migration Created</option>
+                <option value="MIGRATION_DECIDED">Migration Decided</option>
+                <option value="BATCH_CREATED">Batch Created</option>
+                <option value="BATCH_UPDATED">Batch Updated</option>
+                <option value="PROFILE_UPDATED">Profile Updated</option>
+                <option value="PROFILE_PICTURE_UPLOADED">Profile Picture Uploaded</option>
+                <option value="PROFILE_PICTURE_DELETED">Profile Picture Deleted</option>
+              </select>
+              <ChevronDown size={11} color="#64748B" style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
             </div>
           </div>
-        )}
+
+          {/* Date Range Filters */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '11.5px', color: '#64748B', fontWeight: 500 }}>Start Date:</span>
+            <input
+              type="date"
+              value={startDateFilter}
+              onChange={e => { setStartDateFilter(e.target.value); setCurrentPage(1); }}
+              style={{
+                padding: '4px 10px', borderRadius: '6px', border: '1px solid #CBD5E1',
+                fontSize: '11.5px', color: '#1E293B', outline: 'none',
+                backgroundColor: '#FAFAFA', fontFamily: 'inherit'
+              }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '11.5px', color: '#64748B', fontWeight: 500 }}>End Date:</span>
+            <input
+              type="date"
+              value={endDateFilter}
+              onChange={e => { setEndDateFilter(e.target.value); setCurrentPage(1); }}
+              style={{
+                padding: '4px 10px', borderRadius: '6px', border: '1px solid #CBD5E1',
+                fontSize: '11.5px', color: '#1E293B', outline: 'none',
+                backgroundColor: '#FAFAFA', fontFamily: 'inherit'
+              }}
+            />
+          </div>
+        </div>
 
         {/* Table Box */}
         <div style={{
@@ -345,13 +425,13 @@ export default function AuditLogsPage({ setActiveNav }) {
           </div>
 
           {/* Pagination */}
-          {!loading && !error && logs.length > 0 && (
+          {!loading && !error && totalLogs > 0 && (
             <div style={{
               padding: '11px 16px', borderTop: '1px solid #F1F5F9',
-              display: 'flex', alignItems: 'center', justify: 'space-between'
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between'
             }}>
               <span style={{ fontSize: '11px', color: '#94A3B8' }}>
-                Showing {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, logs.length)} of {logs.length} logs
+                Showing {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, totalLogs)} of {totalLogs} logs
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <button

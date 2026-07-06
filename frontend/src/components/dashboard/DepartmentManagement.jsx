@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   Search, ChevronDown, Plus, Bell, AlertTriangle,
-  Home, Check, Calendar, Trash2, X, RefreshCw
+  Home, Check, Calendar, Trash2, X, RefreshCw,
+  Layers, Users, BookOpen
 } from 'lucide-react';
 import Header from './Header';
 

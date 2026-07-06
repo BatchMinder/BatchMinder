@@ -1,46 +1,25 @@
 import express from 'express';
-import multer from 'multer';
-import { 
-  getAllStudents, 
-  getStudentById, 
-  createStudent, 
-  updateStudent, 
-  deleteStudent, 
-  bulkUploadStudents,
-  syncLmsRecords,
-  promoteSemester,
-  getStudentTemplate,
-  getBatchOverview,
-  getCgpaAlerts,
-  getPerformanceTracking,
-  getStudentProfileAnalysis
+import {
+  getAllStudents,
+  getStudentById,
+  createStudent,
+  updateStudent,
+  deleteStudent,
 } from '../controllers/studentController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { restrictTo } from '../middleware/roleMiddleware.js';
 
 const router = express.Router();
 
-// Setup Multer for memory buffers upload parsing
-const upload = multer({ storage: multer.memoryStorage() });
-
-// Authenticate all routes
 router.use(protect);
 
-// Student profile management endpoints
-router.get('/', restrictTo('admin', 'advisor'), getAllStudents);
-router.get('/template', restrictTo('admin', 'advisor'), getStudentTemplate);
-router.get('/analytics/batch-overview', restrictTo('admin', 'advisor'), getBatchOverview);
-router.get('/analytics/cgpa-alerts', restrictTo('admin', 'advisor'), getCgpaAlerts);
-router.get('/analytics/performance-tracking', restrictTo('admin', 'advisor'), getPerformanceTracking);
-router.get('/:id/analysis', restrictTo('admin', 'advisor'), getStudentProfileAnalysis);
-router.get('/:id', restrictTo('admin', 'advisor'), getStudentById);
-router.post('/', restrictTo('admin'), createStudent);
-router.put('/:id', restrictTo('admin', 'advisor'), updateStudent);
-router.delete('/:id', restrictTo('admin'), deleteStudent);
+router.route('/')
+  .get(restrictTo('super_admin', 'academic_admin', 'admin', 'advisor'), getAllStudents)
+  .post(restrictTo('super_admin', 'academic_admin'), createStudent);
 
-// Data Ingestion, LMS Sync, and Batch Migrations
-router.post('/upload', restrictTo('admin', 'advisor'), upload.single('file'), bulkUploadStudents);
-router.post('/sync-lms', restrictTo('admin', 'advisor'), syncLmsRecords);
-router.post('/promote-batch', restrictTo('admin'), promoteSemester);
+router.route('/:id')
+  .get(restrictTo('super_admin', 'academic_admin', 'admin', 'advisor'), getStudentById)
+  .patch(restrictTo('super_admin', 'academic_admin'), updateStudent)
+  .delete(restrictTo('super_admin', 'academic_admin'), deleteStudent);
 
 export default router;

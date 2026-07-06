@@ -73,6 +73,7 @@ export default function BatchAllocation({ setActiveNav }) {
   const [deptFilter, setDept]       = useState('All Departments');
   const [allocFilter, setAlloc]     = useState('All Status');
   const [currentPage, setPage]      = useState(1);
+  const [selected, setSelected]     = useState([]);
 
   // Form State
   const [editingBatchId, setEditingBatchId] = useState(null);
@@ -224,9 +225,11 @@ export default function BatchAllocation({ setActiveNav }) {
 
   const filtered = batches.filter(b => {
     const q = search.toLowerCase();
+    const deptStr = (b.dept || '').toLowerCase();
+    const advisorStr = (b.advisor || '').toLowerCase();
     const isAllocated = b.advisor && b.advisor !== 'Unassigned';
     return (
-      (!q || b.code.toLowerCase().includes(q) || b.dept.toLowerCase().includes(q) || b.advisor.toLowerCase().includes(q)) &&
+      (!q || b.code.toLowerCase().includes(q) || deptStr.includes(q) || advisorStr.includes(q)) &&
       (deptFilter === 'All Departments' || b.dept === deptFilter) &&
       (allocFilter === 'All Status' || (allocFilter === 'Allocated' && isAllocated) || (allocFilter === 'Unassigned' && !isAllocated))
     );
