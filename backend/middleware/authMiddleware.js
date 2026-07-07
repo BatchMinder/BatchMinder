@@ -1,19 +1,35 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/user.js';
+import Department from '../models/department.js';
+
+const populateFallbackDepartments = async (user) => {
+  if (user && user.role !== 'super_admin' && (!user.departmentIds || user.departmentIds.length === 0)) {
+    if (user.dept && user.dept !== 'All Departments') {
+      const dept = await Department.findOne({ name: { $regex: new RegExp('^' + user.dept + '$', 'i') } });
+      if (dept) {
+        user.departmentIds = [dept._id];
+      }
+    } else if (user.dept === 'All Departments') {
+      const depts = await Department.find({});
+      user.departmentIds = depts.map(d => d._id);
+    }
+  }
+};
 
 export const protect = async (req, res, next) => {
   try {
     let token = req.cookies?.accessToken;
-
+ 
     if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
     }
-
+ 
     if (token) {
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const currentUser = await User.findById(decoded.id);
         if (currentUser) {
+          await populateFallbackDepartments(currentUser);
           req.user = currentUser;
           return next();
         }
@@ -36,6 +52,8 @@ export const protect = async (req, res, next) => {
       if (!currentUser) {
         return res.status(401).json({ message: 'The user belonging to this token no longer exists.' });
       }
+
+      await populateFallbackDepartments(currentUser);
 
       // Silent refresh: generate a new access token
       const newAccessToken = jwt.sign({ id: currentUser._id }, process.env.JWT_SECRET, {

@@ -367,7 +367,7 @@ export default function AdminLayout({
         {/* Top Header */}
         <div style={{
           backgroundColor: '#FFFFFF', borderBottom: '1px solid #E2E8F0',
-          padding: '18px 32px', display: 'flex', alignItems: 'center', justifycontent: 'space-between',
+          padding: '18px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           flexShrink: 0
         }}>
           <div>
@@ -435,7 +435,7 @@ export default function AdminLayout({
                 style={{
                   position: 'relative', width: '38px', height: '38px', borderRadius: '10px',
                   backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0',
-                  display: 'flex', alignItems: 'center', justifycontent: 'center',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
                   cursor: 'pointer', color: '#64748B', fontFamily: 'inherit'
                 }}
               >
@@ -446,7 +446,7 @@ export default function AdminLayout({
                     width: '18px', height: '18px', borderRadius: '50%',
                     backgroundColor: '#EF4444', border: '2px solid #fff',
                     fontSize: '9px', fontWeight: 800, color: '#fff',
-                    display: 'flex', alignItems: 'center', justifycontent: 'center'
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
                   }}>{unreadCount}</span>
                 )}
               </button>
@@ -459,7 +459,7 @@ export default function AdminLayout({
                   boxShadow: '0 10px 30px rgba(0,0,0,0.1)', overflow: 'hidden',
                   textAlign: 'left'
                 }}>
-                  <div style={{ padding: '12px 16px', borderBottom: '1px solid #F1F5F9', display: 'flex', justifycontent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ padding: '12px 16px', borderBottom: '1px solid #F1F5F9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '12px', fontWeight: 700, color: '#0F172A' }}>Recent Alerts</span>
                     {unreadCount > 0 ? (
                       <button
@@ -551,7 +551,7 @@ export default function AdminLayout({
       {showLogoutModal && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 1000,
-          display: 'flex', alignItems: 'center', justifycontent: 'center',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
           backgroundColor: 'rgba(0,0,0,0.5)'
         }}>
           <div style={{
@@ -560,7 +560,7 @@ export default function AdminLayout({
           }}>
             <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700, color: '#1B3A6B' }}>Confirm Log Out</h3>
             <p style={{ margin: '0 0 20px', fontSize: 14, color: '#64748B' }}>Are you sure you want to end your session?</p>
-            <div style={{ display: 'flex', gap: 8, justifycontent: 'flex-end' }}>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button
                 onClick={() => setShowLogoutModal(false)}
                 style={{ padding: '8px 20px', borderRadius: 12, border: '1px solid #E2E8F0', backgroundColor: '#fff', color: '#64748B', fontWeight: 600, cursor: 'pointer', fontSize: 14 }}
