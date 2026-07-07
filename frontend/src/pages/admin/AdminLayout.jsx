@@ -13,12 +13,15 @@ const CORE_NAV_ITEMS = [
   { id: 'migrations', label: 'Migration Records', icon: ArrowRightLeft },
   { id: 'curriculum', label: 'Curriculum Setup', icon: BookOpen },
   { id: 'batches', label: 'Batches', icon: Layers },
-  { id: 'timetable', label: 'Timetable Generator', icon: Calendar },
-  { id: 'datesheet', label: 'Exam Datesheet', icon: Calendar },
-  { id: 'override', label: 'Schedule Overrides', icon: Settings },
+
+  // 🗓️ MODULE 5 CORE SCHEDULING ITEMS ADDED HERE PERMANENTLY
+  { id: 'timetable_generator', label: 'Timetable Generator', icon: Calendar },
+  { id: 'datesheet_generator', label: 'Datesheet Generator', icon: BookOpen },
 ];
 
 const SYSTEM_NAV_ITEMS = [
+  // 🗓️ MODULE 5 OVERRIDE OPERATION CONFIG LINK ADDED HERE
+  { id: 'schedule_override', label: 'Schedule Override', icon: Clock },
   { id: 'audit_logs', label: 'System Audit Logs', icon: BarChart2 },
   { id: 'settings', label: 'Profile Settings', icon: Settings },
 ];
@@ -120,16 +123,8 @@ export default function AdminLayout({
     { id: 'students', label: 'Student Profiles', icon: Users },
   ];
 
-  const hodNavItems = [
-    { id: 'dashboard', label: 'Approvals Queue', icon: LayoutDashboard },
-    { id: 'history', label: 'Decision History', icon: Clock },
-  ];
-
-  const currentCoreNavItems = isAdvisor
-    ? advisorNavItems
-    : (isHOD ? hodNavItems : CORE_NAV_ITEMS);
-
-  const currentSystemNavItems = (isAdvisor || isHOD)
+  const currentCoreNavItems = isAdvisor ? advisorNavItems : CORE_NAV_ITEMS;
+  const currentSystemNavItems = isAdvisor
     ? [{ id: 'settings', label: 'Profile Settings', icon: Settings }]
     : SYSTEM_NAV_ITEMS;
 
@@ -172,8 +167,8 @@ export default function AdminLayout({
         <div style={{ padding: '16px 20px' }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
-            backgroundColor: badgeConfig.bg,
-            border: `1px solid ${badgeConfig.border}`,
+            backgroundColor: isAdvisor ? 'rgba(59,130,246,0.1)' : 'rgba(16,185,129,0.1)',
+            border: isAdvisor ? '1px solid rgba(59,130,246,0.25)' : '1px solid rgba(16,185,129,0.25)',
             borderRadius: 20, padding: '3px 10px', marginBottom: 12
           }}>
             <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: badgeConfig.color }} />
@@ -366,13 +361,13 @@ export default function AdminLayout({
         </div>
       </aside>
 
-      {/* Main */}
+      {/* Main Content Pane */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden', backgroundColor: '#F8FAFC' }}>
 
         {/* Top Header */}
         <div style={{
           backgroundColor: '#FFFFFF', borderBottom: '1px solid #E2E8F0',
-          padding: '18px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '18px 32px', display: 'flex', alignItems: 'center', justifycontent: 'space-between',
           flexShrink: 0
         }}>
           <div>
@@ -440,7 +435,7 @@ export default function AdminLayout({
                 style={{
                   position: 'relative', width: '38px', height: '38px', borderRadius: '10px',
                   backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  display: 'flex', alignItems: 'center', justifycontent: 'center',
                   cursor: 'pointer', color: '#64748B', fontFamily: 'inherit'
                 }}
               >
@@ -451,7 +446,7 @@ export default function AdminLayout({
                     width: '18px', height: '18px', borderRadius: '50%',
                     backgroundColor: '#EF4444', border: '2px solid #fff',
                     fontSize: '9px', fontWeight: 800, color: '#fff',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    display: 'flex', alignItems: 'center', justifycontent: 'center'
                   }}>{unreadCount}</span>
                 )}
               </button>
@@ -464,7 +459,7 @@ export default function AdminLayout({
                   boxShadow: '0 10px 30px rgba(0,0,0,0.1)', overflow: 'hidden',
                   textAlign: 'left'
                 }}>
-                  <div style={{ padding: '12px 16px', borderBottom: '1px solid #F1F5F9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ padding: '12px 16px', borderBottom: '1px solid #F1F5F9', display: 'flex', justifycontent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '12px', fontWeight: 700, color: '#0F172A' }}>Recent Alerts</span>
                     {unreadCount > 0 ? (
                       <button
@@ -556,7 +551,7 @@ export default function AdminLayout({
       {showLogoutModal && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 1000,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          display: 'flex', alignItems: 'center', justifycontent: 'center',
           backgroundColor: 'rgba(0,0,0,0.5)'
         }}>
           <div style={{
@@ -565,7 +560,7 @@ export default function AdminLayout({
           }}>
             <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700, color: '#1B3A6B' }}>Confirm Log Out</h3>
             <p style={{ margin: '0 0 20px', fontSize: 14, color: '#64748B' }}>Are you sure you want to end your session?</p>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', gap: 8, justifycontent: 'flex-end' }}>
               <button
                 onClick={() => setShowLogoutModal(false)}
                 style={{ padding: '8px 20px', borderRadius: 12, border: '1px solid #E2E8F0', backgroundColor: '#fff', color: '#64748B', fontWeight: 600, cursor: 'pointer', fontSize: 14 }}
