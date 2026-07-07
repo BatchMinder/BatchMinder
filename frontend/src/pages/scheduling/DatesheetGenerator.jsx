@@ -77,13 +77,14 @@ function DatesheetGenerator() {
     fetchExistingDatesheet();
   }, []);
 
-  const fetchExistingDatesheet = () => {
+  const fetchExistingDatesheet = async () => {
     setLoading(true);
     try {
-      const stored = localStorage.getItem("batchminder_datesheet_entries");
-      if (stored) {
-        const data = JSON.parse(stored);
-        if (data && data.length > 0) {
+      const dateRes = await fetch("/api/scheduling/datesheet");
+      if (dateRes.ok) {
+        const dateData = await dateRes.json();
+        const data = dateData.data?.entries || [];
+        if (data.length > 0) {
           setEntries(data);
           setHasData(true);
           setConflicts(detectDatesheetConflicts(data));
@@ -167,22 +168,21 @@ function DatesheetGenerator() {
         }
       }
 
-      localStorage.setItem("batchminder_datesheet_entries", JSON.stringify(generatedEntries));
-
-      const oldLogsStr = localStorage.getItem("batchminder_audit_logs");
-      const logs = oldLogsStr ? JSON.parse(oldLogsStr) : [];
-      logs.push({
-        id: `audit-${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        action: "DATESHEET_COMPILED",
-        actor: { name: user?.name || "System", email: user?.email || "system@stmu.edu.pk" },
-        description: `Compiled new exam datesheet dynamically for ${batches.length} cohorts.`
+      const saveRes = await fetch("/api/scheduling/datesheet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entries: generatedEntries })
       });
-      localStorage.setItem("batchminder_audit_logs", JSON.stringify(logs));
+      
+      let savedEntries = generatedEntries;
+      if (saveRes.ok) {
+        const saveResult = await saveRes.json();
+        savedEntries = saveResult.data?.entries || generatedEntries;
+      }
 
-      setEntries(generatedEntries);
-      setHasData(generatedEntries.length > 0);
-      setConflicts(detectDatesheetConflicts(generatedEntries));
+      setEntries(savedEntries);
+      setHasData(savedEntries.length > 0);
+      setConflicts(detectDatesheetConflicts(savedEntries));
     } catch (err) {
       console.error("Failed to compile datesheet:", err);
     } finally {

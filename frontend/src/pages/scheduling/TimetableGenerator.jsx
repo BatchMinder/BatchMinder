@@ -113,10 +113,11 @@ function TimetableGenerator() {
       }
       setBatchSizes(sizeMap);
 
-      const stored = localStorage.getItem("batchminder_timetable_entries");
-      if (stored) {
-        const data = JSON.parse(stored);
-        if (data && data.length > 0) {
+      const timeRes = await fetch("/api/scheduling/timetable");
+      if (timeRes.ok) {
+        const timeData = await timeRes.json();
+        const data = timeData.data?.entries || [];
+        if (data.length > 0) {
           setEntries(data);
           setHasData(true);
           setConflicts(detectTimetableConflicts(data, sizeMap));
@@ -199,22 +200,21 @@ function TimetableGenerator() {
         }
       }
 
-      localStorage.setItem("batchminder_timetable_entries", JSON.stringify(generatedEntries));
-
-      const oldLogsStr = localStorage.getItem("batchminder_audit_logs");
-      const logs = oldLogsStr ? JSON.parse(oldLogsStr) : [];
-      logs.push({
-        id: `audit-${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        action: "TIMETABLE_GENERATED",
-        actor: { name: user?.name || "System", email: user?.email || "system@stmu.edu.pk" },
-        description: `Generated weekly class timetable dynamically for ${batches.length} batches.`
+      const saveRes = await fetch("/api/scheduling/timetable", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entries: generatedEntries })
       });
-      localStorage.setItem("batchminder_audit_logs", JSON.stringify(logs));
+      
+      let savedEntries = generatedEntries;
+      if (saveRes.ok) {
+        const saveResult = await saveRes.json();
+        savedEntries = saveResult.data?.entries || generatedEntries;
+      }
 
-      setEntries(generatedEntries);
-      setHasData(generatedEntries.length > 0);
-      setConflicts(detectTimetableConflicts(generatedEntries, batchSizes));
+      setEntries(savedEntries);
+      setHasData(savedEntries.length > 0);
+      setConflicts(detectTimetableConflicts(savedEntries, batchSizes));
     } catch (err) {
       console.error("Failed to generate timetable:", err);
     } finally {

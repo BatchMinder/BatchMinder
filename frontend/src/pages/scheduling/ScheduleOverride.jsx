@@ -188,11 +188,12 @@ function ScheduleOverride() {
       }
       setBatchSizes(sizeMap);
 
-      const key = tab === "timetable" ? "batchminder_timetable_entries" : "batchminder_datesheet_entries";
-      const stored = localStorage.getItem(key);
-      if (stored) {
-        const data = JSON.parse(stored);
-        if (data && data.length > 0) {
+      const endpoint = tab === "timetable" ? "/api/scheduling/timetable" : "/api/scheduling/datesheet";
+      const dataRes = await fetch(endpoint);
+      if (dataRes.ok) {
+        const result = await dataRes.json();
+        const data = result.data?.entries || [];
+        if (data.length > 0) {
           setEntries(data);
           setHasData(true);
           setConflicts(
@@ -218,18 +219,27 @@ function ScheduleOverride() {
     }
   };
 
-  const loadAuditLogs = (tab) => {
+  const loadAuditLogs = async (tab) => {
     try {
-      const stored = localStorage.getItem("batchminder_audit_logs");
-      const list = stored ? JSON.parse(stored) : [];
-      const filtered = list.filter(log => {
-        if (tab === 'timetable') {
-          return log.action.startsWith("TIMETABLE_");
-        } else {
-          return log.action.startsWith("DATESHEET_");
-        }
-      }).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-      setAuditLogs(filtered);
+      const res = await fetch("/api/audit-logs?limit=100");
+      if (res.ok) {
+        const result = await res.json();
+        const list = result.data?.logs || [];
+        const filtered = list.filter(log => {
+          if (tab === 'timetable') {
+            return log.action.includes("TIMETABLE_") || log.action === "SCHEDULE_OVERRIDE";
+          } else {
+            return log.action.includes("DATESHEET_") || log.action === "SCHEDULE_OVERRIDE";
+          }
+        }).map(log => ({
+          id: log._id,
+          timestamp: log.timestamp || log.createdAt,
+          action: log.action,
+          actor: { name: log.actorId?.name || "System", email: log.actorId?.email || "system@stmu.edu.pk" },
+          description: log.metadata?.description || `${log.action} performed`
+        })).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        setAuditLogs(filtered);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -274,15 +284,17 @@ function ScheduleOverride() {
       return;
     }
 
-    const key = activeTab === "timetable" ? "batchminder_timetable_entries" : "batchminder_datesheet_entries";
-    const stored = localStorage.getItem(key);
-    let list = stored ? JSON.parse(stored) : [];
+    // Fetch current entries from DB first
+    const fetchEndpoint = activeTab === "timetable" ? "/api/scheduling/timetable" : "/api/scheduling/datesheet";
+    const dataRes = await fetch(fetchEndpoint);
+    let list = [];
+    if (dataRes.ok) {
+      const result = await dataRes.json();
+      list = result.data?.entries || [];
+    }
 
     const slotId = selectedSlot._id || selectedSlot.id;
     const index = slotId ? list.findIndex(e => e._id === slotId || e.id === slotId) : -1;
-
-    const oldLogsStr = localStorage.getItem("batchminder_audit_logs");
-    const logs = oldLogsStr ? JSON.parse(oldLogsStr) : [];
 
     let logDescription = "";
 
@@ -291,6 +303,7 @@ function ScheduleOverride() {
       courseName: courseName.trim(),
       room: room.trim(),
       batch: batch.trim(),
+      departmentId: selectedSlot.departmentId || "60f1e03a9f1a2c3a4f89d311" // fallback departmentId
     };
 
     if (activeTab === "timetable") {
@@ -311,38 +324,31 @@ function ScheduleOverride() {
       logDescription = activeTab === "timetable"
         ? `Modified timetable slot for ${updated.courseCode} (${updated.batch}) to ${updated.day} ${updated.timeSlot} (${updated.room})`
         : `Modified exam datesheet slot for ${updated.courseCode} (${updated.batch}) to ${updated.date} ${updated.examSlot} (${updated.room})`;
-
-      logs.push({
-        id: `audit-${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        action: activeTab === "timetable" ? "TIMETABLE_OVERRIDE" : "DATESHEET_OVERRIDE",
-        actor: { name: user?.name || "System", email: user?.email || "system@stmu.edu.pk" },
-        description: logDescription,
-        metadata: { overrideReason, scope: activeTab }
-      });
     } else {
       const newEntry = {
-        ...payload,
-        _id: `${activeTab.substring(0, 1)}-new-${Date.now()}`
+        ...payload
       };
+      // Try to fetch target batch's departmentId
+      const batchRes = await fetch(`/api/batches`);
+      if (batchRes.ok) {
+        const batchData = await batchRes.json();
+        const found = (batchData.data || []).find(b => b.code.toLowerCase() === batch.trim().toLowerCase());
+        if (found) newEntry.departmentId = found.departmentId;
+      }
       list.push(newEntry);
 
       logDescription = activeTab === "timetable"
         ? `Manually mapped class slot for ${newEntry.courseCode} (${newEntry.batch}) on ${newEntry.day} at ${newEntry.timeSlot}`
         : `Manually mapped exam slot for ${newEntry.courseCode} (${newEntry.batch}) on ${newEntry.date} at ${newEntry.examSlot}`;
-
-      logs.push({
-        id: `audit-${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        action: activeTab === "timetable" ? "TIMETABLE_OVERRIDE" : "DATESHEET_OVERRIDE",
-        actor: { name: user?.name || "System", email: user?.email || "system@stmu.edu.pk" },
-        description: logDescription,
-        metadata: { overrideReason, scope: activeTab }
-      });
     }
 
-    localStorage.setItem(key, JSON.stringify(list));
-    localStorage.setItem("batchminder_audit_logs", JSON.stringify(logs));
+    // Save override to backend database
+    await fetch("/api/scheduling/override", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: activeTab, entries: list })
+    });
+
     setModalOpen(false);
     setRefreshTrigger(prev => prev + 1);
   };
@@ -352,32 +358,24 @@ function ScheduleOverride() {
     if (!slotId) return;
 
     if (window.confirm("Are you sure you want to delete this schedule slot?")) {
-      const key = activeTab === "timetable" ? "batchminder_timetable_entries" : "batchminder_datesheet_entries";
-      const stored = localStorage.getItem(key);
-      let list = stored ? JSON.parse(stored) : [];
+      const fetchEndpoint = activeTab === "timetable" ? "/api/scheduling/timetable" : "/api/scheduling/datesheet";
+      const dataRes = await fetch(fetchEndpoint);
+      let list = [];
+      if (dataRes.ok) {
+        const result = await dataRes.json();
+        list = result.data?.entries || [];
+      }
 
       const index = list.findIndex(e => e._id === slotId || e.id === slotId);
       if (index > -1) {
-        const removed = list[index];
         list.splice(index, 1);
 
-        const oldLogsStr = localStorage.getItem("batchminder_audit_logs");
-        const logs = oldLogsStr ? JSON.parse(oldLogsStr) : [];
-        const logDescription = activeTab === "timetable"
-          ? `Deleted class timetable slot for ${removed.courseCode} (${removed.batch}) on ${removed.day} at ${removed.timeSlot}`
-          : `Deleted exam datesheet slot for ${removed.courseCode} (${removed.batch}) on ${removed.date} at ${removed.examSlot}`;
-
-        logs.push({
-          id: `audit-${Date.now()}`,
-          timestamp: new Date().toISOString(),
-          action: activeTab === "timetable" ? "TIMETABLE_OVERRIDE_DELETE" : "DATESHEET_OVERRIDE_DELETE",
-          actor: { name: user?.name || "System", email: user?.email || "system@stmu.edu.pk" },
-          description: logDescription,
-          metadata: { reason: "Manual deletion", scope: activeTab }
+        // Save override back to database (wipes/inserts remainder)
+        await fetch("/api/scheduling/override", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: activeTab, entries: list })
         });
-
-        localStorage.setItem(key, JSON.stringify(list));
-        localStorage.setItem("batchminder_audit_logs", JSON.stringify(logs));
       }
 
       setModalOpen(false);
