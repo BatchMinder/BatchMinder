@@ -121,12 +121,25 @@ export default function AdminLayout({
   const advisorNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'students', label: 'Student Profiles', icon: Users },
+    { id: 'workflowQueue', label: 'Workflow Queue', icon: Clock },
   ];
 
-  const currentCoreNavItems = isAdvisor ? advisorNavItems : CORE_NAV_ITEMS;
+  const hodNavItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'history', label: 'Request History', icon: Clock },
+  ];
+
+  const currentCoreNavItems = isAdvisor
+    ? advisorNavItems
+    : isHOD
+      ? hodNavItems
+      : CORE_NAV_ITEMS;
+
   const currentSystemNavItems = isAdvisor
     ? [{ id: 'settings', label: 'Profile Settings', icon: Settings }]
-    : SYSTEM_NAV_ITEMS;
+    : isHOD
+      ? [{ id: 'settings', label: 'Profile Settings', icon: Settings }]
+      : SYSTEM_NAV_ITEMS;
 
   const activeNavItem = [...currentCoreNavItems, ...currentSystemNavItems].find(item => item.id === activeNav);
   const activeNavLabel = activeNavItem ? activeNavItem.label : 'Dashboard';
@@ -167,8 +180,8 @@ export default function AdminLayout({
         <div style={{ padding: '16px 20px' }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
-            backgroundColor: isAdvisor ? 'rgba(59,130,246,0.1)' : 'rgba(16,185,129,0.1)',
-            border: isAdvisor ? '1px solid rgba(59,130,246,0.25)' : '1px solid rgba(16,185,129,0.25)',
+            backgroundColor: badgeConfig.bg,
+            border: `1px solid ${badgeConfig.border}`,
             borderRadius: 20, padding: '3px 10px', marginBottom: 12
           }}>
             <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: badgeConfig.color }} />

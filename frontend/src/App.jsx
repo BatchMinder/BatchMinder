@@ -309,9 +309,9 @@ function App() {
         settings: <ProfileSettingsPage />,
 
         // 🗓️ Switched paths to load their individual separate view screens!
-        timetable_generator: <EmptySchedulingDashboard />,
-        datesheet_generator: <EmptyDatesheetDashboard />,
-        schedule_override: <EmptyOverrideDashboard />,
+        timetable_generator: <TimetableGenerator />,
+        datesheet_generator: <DatesheetGenerator />,
+        schedule_override: <ScheduleOverride />,
       };
       return <AdminLayout activeNav={adminActiveNav} onNavigate={setAdminActiveNav}>{pages[adminActiveNav] || <Dashboard />}</AdminLayout>;
     }
@@ -319,7 +319,7 @@ function App() {
     if (user.role === 'advisor') {
       const pages = {
         dashboard: <AdvisorDashboard selectedBatch={selectedAdvisorBatch} />,
-        students: <AdvisorQueue />,
+        students: <AdvisorStudents selectedBatch={selectedAdvisorBatch} />,
         workflowQueue: <AdvisorQueue />,
         settings: <ProfileSettingsPage />,
       };

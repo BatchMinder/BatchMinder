@@ -124,7 +124,7 @@ export default function SpecialPermissionForm({ onClose, onSuccess }) {
             borderBottom: '1px solid #F1F5F9',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'between',
+            justifyContent: 'space-between',
           }}
         >
           <div style={{ flex: 1 }}>
@@ -171,7 +171,7 @@ export default function SpecialPermissionForm({ onClose, onSuccess }) {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'between',
+                  justifyContent: 'space-between',
                   padding: '12px 16px',
                   backgroundColor: '#ECFDF5',
                   border: '1px solid #A7F3D0',

@@ -19,6 +19,52 @@ const DATES = [
   '2026-07-24'
 ];
 
+function detectDatesheetConflicts(entries) {
+  const conflicts = [];
+
+  for (let i = 0; i < entries.length; i++) {
+    for (let j = i + 1; j < entries.length; j++) {
+      const e1 = entries[i];
+      const e2 = entries[j];
+
+      // Must be on the same date and exam slot to overlap
+      if (e1.date === e2.date && e1.examSlot === e2.examSlot) {
+        const id1 = e1._id || e1.id;
+        const id2 = e2._id || e2.id;
+
+        // Room Overlap
+        if (e1.room === e2.room) {
+          conflicts.push({
+            type: 'ROOM_OVERLAP',
+            description: `Room clash in ${e1.room}: Exam for ${e1.courseCode} (${e1.batch}) and ${e2.courseCode} (${e2.batch}) are both assigned here.`,
+            cellIds: [id1, id2]
+          });
+        }
+
+        // Invigilator Overlap
+        if (e1.invigilator && e2.invigilator && e1.invigilator === e2.invigilator) {
+          conflicts.push({
+            type: 'INVIGILATOR_OVERLAP',
+            description: `Invigilator clash: ${e1.invigilator} is assigned to invigilate both ${e1.courseCode} (${e1.batch}) and ${e2.courseCode} (${e2.batch}).`,
+            cellIds: [id1, id2]
+          });
+        }
+
+        // Cohort/Batch Overlap
+        if (e1.batch === e2.batch) {
+          conflicts.push({
+            type: 'COHORT_OVERLAP',
+            description: `Cohort clash: Batch ${e1.batch} has exams for both ${e1.courseCode} and ${e2.courseCode} scheduled at the same time.`,
+            cellIds: [id1, id2]
+          });
+        }
+      }
+    }
+  }
+
+  return conflicts;
+}
+
 function DatesheetGenerator() {
   const { user } = useAuth();
   const [entries, setEntries] = useState([]);

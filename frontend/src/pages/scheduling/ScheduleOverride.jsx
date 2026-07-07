@@ -20,6 +20,126 @@ const DATES = [
 ];
 const ROOMS = ['Room 101', 'Room 102', 'Room 201', 'Room 202', 'Exam Hall', 'Lab A', 'Lab B'];
 
+function detectTimetableConflicts(entries, batchSizes = {}) {
+  const conflicts = [];
+  const roomCapacities = {
+    'Room 101': 40,
+    'Room 102': 50,
+    'Room 201': 40,
+    'Room 202': 40,
+    'Room 204': 60,
+    'Lab A': 30,
+    'Lab B': 30,
+    'Lab 3 (Block B)': 50,
+    'Exam Hall': 120,
+    'Main Auditorium': 150
+  };
+
+  // 1. Capacity Violation Check
+  for (const entry of entries) {
+    const batchCode = entry.batch;
+    const studentCount = batchSizes[batchCode] || 0;
+    const room = entry.room;
+    const roomCapacity = roomCapacities[room] || 40; // Default capacity
+    if (studentCount > roomCapacity) {
+      conflicts.push({
+        type: 'CAPACITY_VIOLATION',
+        description: `Seating capacity overflow in ${room} for ${entry.courseCode} (${batchCode}): Enrolled (${studentCount}) > Capacity (${roomCapacity})`,
+        cellIds: [entry._id || entry.id]
+      });
+    }
+  }
+
+  // 2. Overlap Checks (Room, Instructor, Cohort/Batch)
+  for (let i = 0; i < entries.length; i++) {
+    for (let j = i + 1; j < entries.length; j++) {
+      const e1 = entries[i];
+      const e2 = entries[j];
+
+      // Must be on the same day and time slot to overlap
+      if (e1.day === e2.day && e1.timeSlot === e2.timeSlot) {
+        const id1 = e1._id || e1.id;
+        const id2 = e2._id || e2.id;
+
+        // Room Overlap
+        if (e1.room === e2.room) {
+          conflicts.push({
+            type: 'ROOM_OVERLAP',
+            description: `Room clash in ${e1.room}: ${e1.courseCode} (${e1.batch}) and ${e2.courseCode} (${e2.batch}) are both assigned here.`,
+            cellIds: [id1, id2]
+          });
+        }
+
+        // Instructor Overlap
+        if (e1.instructor && e2.instructor && e1.instructor === e2.instructor) {
+          conflicts.push({
+            type: 'INSTRUCTOR_OVERLAP',
+            description: `Faculty double booking: ${e1.instructor} is assigned to both ${e1.courseCode} (${e1.batch}) and ${e2.courseCode} (${e2.batch}).`,
+            cellIds: [id1, id2]
+          });
+        }
+
+        // Cohort/Batch Overlap
+        if (e1.batch === e2.batch) {
+          conflicts.push({
+            type: 'COHORT_OVERLAP',
+            description: `Cohort clash: Batch ${e1.batch} is scheduled for both ${e1.courseCode} and ${e2.courseCode} simultaneously.`,
+            cellIds: [id1, id2]
+          });
+        }
+      }
+    }
+  }
+
+  return conflicts;
+}
+
+function detectDatesheetConflicts(entries) {
+  const conflicts = [];
+
+  for (let i = 0; i < entries.length; i++) {
+    for (let j = i + 1; j < entries.length; j++) {
+      const e1 = entries[i];
+      const e2 = entries[j];
+
+      // Must be on the same date and exam slot to overlap
+      if (e1.date === e2.date && e1.examSlot === e2.examSlot) {
+        const id1 = e1._id || e1.id;
+        const id2 = e2._id || e2.id;
+
+        // Room Overlap
+        if (e1.room === e2.room) {
+          conflicts.push({
+            type: 'ROOM_OVERLAP',
+            description: `Room clash in ${e1.room}: Exam for ${e1.courseCode} (${e1.batch}) and ${e2.courseCode} (${e2.batch}) are both assigned here.`,
+            cellIds: [id1, id2]
+          });
+        }
+
+        // Invigilator Overlap
+        if (e1.invigilator && e2.invigilator && e1.invigilator === e2.invigilator) {
+          conflicts.push({
+            type: 'INVIGILATOR_OVERLAP',
+            description: `Invigilator clash: ${e1.invigilator} is assigned to invigilate both ${e1.courseCode} (${e1.batch}) and ${e2.courseCode} (${e2.batch}).`,
+            cellIds: [id1, id2]
+          });
+        }
+
+        // Cohort/Batch Overlap
+        if (e1.batch === e2.batch) {
+          conflicts.push({
+            type: 'COHORT_OVERLAP',
+            description: `Cohort clash: Batch ${e1.batch} has exams for both ${e1.courseCode} and ${e2.courseCode} scheduled at the same time.`,
+            cellIds: [id1, id2]
+          });
+        }
+      }
+    }
+  }
+
+  return conflicts;
+}
+
 function ScheduleOverride() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("timetable"); // "timetable" | "datesheet"

@@ -47,7 +47,7 @@ export default function RequestDetail({ request, userRole = 'hod', onClose, onAc
             borderBottom: '1px solid #F1F5F9',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'between',
+            justifyContent: 'space-between',
           }}
         >
           <div style={{ flex: 1 }}>
@@ -252,7 +252,7 @@ export default function RequestDetail({ request, userRole = 'hod', onClose, onAc
                   color: '#1E3A8A',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'between', alignItems: 'center', marginBottom: '4px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                   <span style={{ fontWeight: 700, fontSize: '12px' }}>{advisor.name || 'Batch Advisor'}</span>
                   <span style={{ fontSize: '11px', color: '#3B82F6' }}>{advisor.email}</span>
                 </div>

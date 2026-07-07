@@ -7,6 +7,7 @@ import Batch from './models/batch.js';
 import Student from './models/student.js';
 import Curriculum from './models/curriculum.js';
 import Migration from './models/migration.js';
+import ApprovalRequest from './models/approvalRequest.js';
 
 dotenv.config();
 
@@ -21,6 +22,7 @@ async function seed() {
       Batch.deleteMany({}),
       Student.deleteMany({}),
       Migration.deleteMany({}),
+      ApprovalRequest.deleteMany({}),
     ]);
 
     // Remove old curriculum indexes that reference old schema field names
@@ -217,6 +219,50 @@ async function seed() {
         ],
       });
       console.log('  1 migration record');
+    }
+
+    // ── Approval Requests ──
+    const csStudents = await Student.find({ departmentId: cs }).limit(5);
+    const csAdvisor = users.find(u => u.email === 'advisor.ahmed@stmu.edu.pk');
+    
+    if (csStudents.length >= 2) {
+      await ApprovalRequest.insertMany([
+        {
+          studentId: csStudents[0]._id,
+          advisorId: csAdvisor._id,
+          departmentId: cs,
+          batchId: csStudents[0].batchId,
+          courseCode: 'CS201',
+          courseTitle: 'Data Structures',
+          creditHours: 3,
+          requestType: 'add',
+          justification: 'Want to catch up with degree roadmap early.',
+          status: 'advisor_approved',
+          currentApproverRole: 'hod',
+          submittedBy: csAdvisor._id,
+          advisorRemarks: 'Student has a strong CGPA, recommended for approval.',
+          prereqCheck: 'Passed',
+          duplicateWarning: ''
+        },
+        {
+          studentId: csStudents[1]._id,
+          advisorId: csAdvisor._id,
+          departmentId: cs,
+          batchId: csStudents[1].batchId,
+          courseCode: 'CS202',
+          courseTitle: 'Database Systems',
+          creditHours: 3,
+          requestType: 'add',
+          justification: 'Required for internship prerequisite.',
+          status: 'pending',
+          currentApproverRole: 'advisor',
+          submittedBy: csAdvisor._id,
+          advisorRemarks: '',
+          prereqCheck: 'Passed',
+          duplicateWarning: ''
+        }
+      ]);
+      console.log('  2 approval requests');
     }
 
     console.log('\nSeeding complete!');
