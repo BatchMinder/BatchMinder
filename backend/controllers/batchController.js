@@ -25,6 +25,23 @@ const syncAdvisorBatches = async (batchId, oldAdvisorId, newAdvisorId) => {
   }
 };
 
+// Helper to extract start year from batch code
+const extractStartYear = (code) => {
+  if (!code) return null;
+  // Match 4 digits: e.g. 2023, 2024
+  const fourDigitMatch = code.match(/\b(19|20)\d{2}\b/) || code.match(/(19|20)\d{2}/);
+  if (fourDigitMatch) {
+    return parseInt(fourDigitMatch[0], 10);
+  }
+  // Match 2 digits at the end: e.g. BSCS22, BSCS23
+  const twoDigitMatch = code.match(/\d{2}$/);
+  if (twoDigitMatch) {
+    const yr = parseInt(twoDigitMatch[0], 10);
+    return yr < 50 ? 2000 + yr : 1900 + yr;
+  }
+  return null;
+};
+
 // Helper to resolve advisor name and ID
 const resolveAdvisor = async (advisor, advisorId) => {
   let resolvedId = null;
@@ -187,11 +204,13 @@ export const createBatch = async (req, res) => {
     // Resolve advisor and advisorId
     const resolved = await resolveAdvisor(advisor, advisorId);
 
+    const parsedStartYear = parseInt(startYear, 10) || extractStartYear(code) || new Date().getFullYear();
+
     const batch = await Batch.create({
       code: code.toUpperCase(),
       dept: deptName,
       departmentId: resolvedDeptId,
-      startYear: startYear || null,
+      startYear: parsedStartYear,
       advisor: resolved.advisor,
       advisorId: resolved.advisorId,
       status: resolved.advisor && resolved.advisor !== 'Unassigned' ? 'Allocated' : 'Unassigned',
@@ -231,6 +250,9 @@ export const updateBatch = async (req, res) => {
 
     // Resolve both fields if one is provided
     let updateFields = { ...rest };
+    if (updateFields.startYear !== undefined) {
+      updateFields.startYear = parseInt(updateFields.startYear, 10) || extractStartYear(existingBatch.code) || new Date().getFullYear();
+    }
     if (dept) {
       updateFields.dept = dept;
       if (!departmentId) {

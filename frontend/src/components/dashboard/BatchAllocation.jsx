@@ -80,6 +80,7 @@ export default function BatchAllocation({ setActiveNav }) {
   const [form, setForm] = useState({
     code: '',
     dept: '',
+    startYear: new Date().getFullYear(),
     advisor: 'Unassigned',
     status: 'Unassigned',
   });
@@ -131,6 +132,7 @@ export default function BatchAllocation({ setActiveNav }) {
     setForm({
       code: b.code || '',
       dept: b.dept || '',
+      startYear: b.startYear || new Date().getFullYear(),
       advisor: b.advisor || 'Unassigned',
       status: b.status || 'Unassigned',
     });
@@ -143,6 +145,7 @@ export default function BatchAllocation({ setActiveNav }) {
     setForm({
       code: '',
       dept: departments.length > 0 ? departments[0].name : '',
+      startYear: new Date().getFullYear(),
       advisor: 'Unassigned',
       status: 'Unassigned',
     });
@@ -529,6 +532,17 @@ export default function BatchAllocation({ setActiveNav }) {
                     value={form.code}
                     onChange={e => setForm(p => ({ ...p, code: e.target.value }))}
                     style={{ ...inputStyle, textTransform: 'uppercase', backgroundColor: editingBatchId ? '#F1F5F9' : '#FFFFFF' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={labelStyle}>Start Year</label>
+                  <input
+                    type="number"
+                    required
+                    value={form.startYear}
+                    onChange={e => setForm(p => ({ ...p, startYear: parseInt(e.target.value, 10) || '' }))}
+                    style={inputStyle}
                   />
                 </div>
 
