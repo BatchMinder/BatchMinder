@@ -116,6 +116,8 @@ export default function AdminLayout({
     ? 'All Departments'
     : departments.find(d => d._id === selectedDept)?.name || 'Select Department';
 
+  const isHOD = user?.role === 'admin';
+
   const advisorNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'students', label: 'Student Profiles', icon: Users },
@@ -129,6 +131,13 @@ export default function AdminLayout({
   const activeNavItem = [...currentCoreNavItems, ...currentSystemNavItems].find(item => item.id === activeNav);
   const activeNavLabel = activeNavItem ? activeNavItem.label : 'Dashboard';
   const unreadCount = notifications.filter(n => n.status === 'Unread').length;
+
+  const badgeConfig = isAdvisor
+    ? { color: '#3B82F6', label: 'Batch Advisor', bg: 'rgba(59,130,246,0.1)', border: 'rgba(59,130,246,0.25)' }
+    : (isHOD
+      ? { color: '#7C3AED', label: 'HOD', bg: 'rgba(124,58,237,0.1)', border: 'rgba(124,58,237,0.25)' }
+      : { color: '#10B981', label: 'Administrator', bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.25)' }
+    );
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: "'Inter', sans-serif", width: '100vw' }}>
@@ -162,9 +171,9 @@ export default function AdminLayout({
             border: isAdvisor ? '1px solid rgba(59,130,246,0.25)' : '1px solid rgba(16,185,129,0.25)',
             borderRadius: 20, padding: '3px 10px', marginBottom: 12
           }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: isAdvisor ? '#3B82F6' : '#10B981' }} />
-            <span style={{ fontSize: 10, fontWeight: 800, color: isAdvisor ? '#3B82F6' : '#10B981', letterSpacing: '1px', textTransform: 'uppercase' }}>
-              {isAdvisor ? 'Batch Advisor' : 'Administrator'}
+            <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: badgeConfig.color }} />
+            <span style={{ fontSize: 10, fontWeight: 800, color: badgeConfig.color, letterSpacing: '1px', textTransform: 'uppercase' }}>
+              {badgeConfig.label}
             </span>
           </div>
 

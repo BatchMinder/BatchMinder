@@ -26,6 +26,11 @@ import AuditLogsPage from './components/dashboard/AuditLogsPage';
 import ProfileSettingsPage from './components/dashboard/ProfileSettingsPage';
 import AdvisorDashboard from './components/dashboard/AdvisorDashboard';
 import AdvisorStudents from './components/dashboard/AdvisorStudents';
+import HODQueue from './pages/hod/HODQueue';
+import RequestHistory from './pages/hod/RequestHistory';
+import TimetableGenerator from './pages/scheduling/TimetableGenerator';
+import DatesheetGenerator from './pages/scheduling/DatesheetGenerator';
+import ScheduleOverride from './pages/scheduling/ScheduleOverride';
 import Footer from './components/Footer';
 
 // 💻 YOUR TEAMMATE'S MODULE 4 BATCH ADVISOR PAGE IMPORT
@@ -73,6 +78,7 @@ function App() {
   const [adminActiveNav, setAdminActiveNav] = useState('timetable_generator');
 
   const [advisorActiveNav, setAdvisorActiveNav] = useState('dashboard');
+  const [hodActiveNav, setHodActiveNav] = useState('dashboard');
   const [advisorBatches, setAdvisorBatches] = useState([]);
   const [selectedAdvisorBatch, setSelectedAdvisorBatch] = useState('all');
 
@@ -296,6 +302,9 @@ function App() {
         migrations: <MigrationRecords />,
         curriculum: <CurriculumSetup />,
         batches: <Batches />,
+        timetable: <TimetableGenerator />,
+        datesheet: <DatesheetGenerator />,
+        override: <ScheduleOverride />,
         audit_logs: <AuditLogsPage setActiveNav={setAdminActiveNav} />,
         settings: <ProfileSettingsPage />,
 
@@ -323,6 +332,23 @@ function App() {
           onBatchChange={setSelectedAdvisorBatch}
         >
           {pages[advisorActiveNav] || <AdvisorDashboard selectedBatch={selectedAdvisorBatch} />}
+        </AdminLayout>
+      );
+    }
+
+    // HOD  Dashboard Layout
+    if (user.role === 'admin') {
+      const pages = {
+        dashboard: <HODQueue />,
+        history: <RequestHistory />,
+        settings: <ProfileSettingsPage />,
+      };
+      return (
+        <AdminLayout
+          activeNav={hodActiveNav}
+          onNavigate={setHodActiveNav}
+        >
+          {pages[hodActiveNav] || <HODQueue />}
         </AdminLayout>
       );
     }
