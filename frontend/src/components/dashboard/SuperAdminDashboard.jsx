@@ -186,7 +186,7 @@ export default function SuperAdminDashboard({ onLogout }) {
     },
     {
       title: 'Migration Requests',
-      value: '0',
+      value: statsLoading ? '...' : (dashboardData?.pendingMigrations || 0),
       footer: 'Awaiting sync confirmation',
       footerColor: '#64748B',
       icon: ArrowRightLeft,

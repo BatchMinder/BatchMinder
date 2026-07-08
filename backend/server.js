@@ -16,6 +16,7 @@ import auditLogRoutes from './routes/auditLogRoutes.js';
 import advisorRoutes from './routes/advisorRoutes.js';
 import hodRoutes from './routes/hodRoutes.js';
 import schedulingRoutes from './routes/schedulingRoutes.js';
+import attendanceRoutes from './routes/attendanceRoutes.js';
 import connectDB from './utils/db.js';
 
 dotenv.config();
@@ -46,6 +47,7 @@ app.use('/api/audit-logs', auditLogRoutes);
 app.use('/api/advisor', advisorRoutes);
 app.use('/api/hod', hodRoutes);
 app.use('/api/scheduling', schedulingRoutes);
+app.use('/api/attendance', attendanceRoutes);
 
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to the BatchMinder API' });
@@ -67,6 +69,10 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
+}
+
+export default app;

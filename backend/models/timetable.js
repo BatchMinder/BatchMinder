@@ -8,6 +8,7 @@ const timetableSchema = new mongoose.Schema({
   room: { type: String, required: true },
   instructor: { type: String, required: true },
   batch: { type: String, required: true },
+  semester: { type: Number },
   departmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Department', required: true }
 }, { timestamps: true });
 

@@ -5,7 +5,9 @@ import {
   getDatesheet,
   saveDatesheet,
   saveOverride,
-  checkTimetableClash
+  checkTimetableClash,
+  autoGenerateTimetable,
+  validateRoomCapacity
 } from '../controllers/schedulingController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { restrictTo } from '../middleware/roleMiddleware.js';
@@ -18,6 +20,8 @@ router.use(protect);
 router.get('/timetable', getTimetable);
 router.get('/datesheet', getDatesheet);
 router.post('/timetable/check-clash', checkTimetableClash);
+router.post('/auto-generate', restrictTo('academic_admin', 'super_admin', 'advisor'), autoGenerateTimetable);
+router.post('/validate-capacity', validateRoomCapacity);
 
 // Writing/Mutating schedules requires academic admin or super admin privileges
 router.post('/timetable', restrictTo('academic_admin', 'super_admin'), saveTimetable);

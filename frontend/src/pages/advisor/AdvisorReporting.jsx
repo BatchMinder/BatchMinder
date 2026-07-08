@@ -3,6 +3,11 @@ import {
   BarChart2, TrendingUp, Users, AlertTriangle, Download,
   RefreshCw, Filter, BookOpen, CheckCircle, Layers, FileText
 } from 'lucide-react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
+  PieChart, Pie, Cell, LineChart, Line
+} from 'recharts';
+
 
 export default function AdvisorReporting() {
   const [stats, setStats] = useState(null);
@@ -82,7 +87,7 @@ export default function AdvisorReporting() {
       ['Overview', 'Total Batches', stats?.batches || 0],
       ['Overview', 'At-Risk Students', stats?.atRisk || 0],
       ...studentsByBatch.map(b => ['Batch', b.batchCode, b.total]),
-      ...cgpaDist.map((d, i) => ['CGPA Distribution', cgpaBands[i]?.label || `Band ${i + 1}`, d.count || d])
+      ...cgpaDist.map((d, i) => ['CGPA Distribution', cgpaBands[i]?.label || `Band ${i + 1}`, d.count !== undefined ? d.count : 0])
     ];
     const csv = rows.map(r => r.join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -182,21 +187,19 @@ export default function AdvisorReporting() {
         ) : filteredBatchData.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '32px', color: '#94A3B8', fontSize: '12px' }}>No enrollment data available</div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {filteredBatchData.map(b => {
-              const pct = Math.round(((b.total || 0) / maxBatchStudents) * 100);
-              return (
-                <div key={b.batchCode}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>{b.batchCode}</span>
-                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#64748B' }}>{b.total} students</span>
-                  </div>
-                  <div style={{ height: '8px', backgroundColor: '#F1F5F9', borderRadius: '6px', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${pct}%`, background: 'linear-gradient(90deg, #2563EB, #7C3AED)', borderRadius: '6px', transition: 'width 0.6s ease' }} />
-                  </div>
-                </div>
-              );
-            })}
+          <div style={{ height: '300px', width: '100%', marginTop: '20px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={filteredBatchData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                <XAxis dataKey="batchCode" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} />
+                <RechartsTooltip cursor={{ fill: '#F8FAFC' }} contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '20px' }} />
+                <Bar dataKey="total" name="Total Students" fill="#2563EB" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="active" name="Active Students" fill="#10B981" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="atRisk" name="At-Risk Students" fill="#EF4444" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         )}
       </div>
@@ -215,39 +218,40 @@ export default function AdvisorReporting() {
           ) : cgpaDist.length === 0 ? (
             <p style={{ textAlign: 'center', color: '#94A3B8', fontSize: '12px', padding: '16px 0' }}>No distribution data</p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {cgpaDist.map((band, i) => {
-                const count = band.count ?? 0;
-                const label = band.label || `Band ${i + 1}`;
-                const total = cgpaDist.reduce((s, b) => s + (b.count ?? 0), 0);
-                const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-                // Map label to display name + color
-                const displayMap = {
-                  good: { display: 'Good Standing (≥2.5)', color: '#10B981' },
-                  warning: { display: 'Warning (2.0–2.49)', color: '#F59E0B' },
-                  critical: { display: 'Critical (<2.0)', color: '#EF4444' }
-                };
-                const cfg = displayMap[label] || { display: label, color: '#94A3B8' };
-                return (
-                  <div key={i}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#334155' }}>{cfg.display}</span>
-                      <span style={{ fontSize: '11px', fontWeight: 800, color: cfg.color }}>{count} ({pct}%)</span>
-                    </div>
-                    <div style={{ height: '7px', backgroundColor: '#F1F5F9', borderRadius: '5px', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${pct}%`, backgroundColor: cfg.color, borderRadius: '5px', transition: 'width 0.6s ease' }} />
-                    </div>
-                  </div>
-                );
-              })}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px', paddingTop: '12px', borderTop: '1px solid #F1F5F9' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <div style={{ height: '220px', width: '100%' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={cgpaDist.map((d, i) => {
+                        const displayMap = {
+                          good: { display: 'Good Standing (≥2.5)', color: '#10B981' },
+                          warning: { display: 'Warning (2.0–2.49)', color: '#F59E0B' },
+                          critical: { display: 'Critical (<2.0)', color: '#EF4444' }
+                        };
+                        const cfg = displayMap[d.label] || { display: d.label, color: '#94A3B8' };
+                        return { name: cfg.display, value: d.count ?? 0, color: cfg.color };
+                      })}
+                      cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5}
+                      dataKey="value" stroke="none"
+                    >
+                      {cgpaDist.map((entry, index) => {
+                        const displayMap = { good: '#10B981', warning: '#F59E0B', critical: '#EF4444' };
+                        return <Cell key={`cell-${index}`} fill={displayMap[entry.label] || '#94A3B8'} />;
+                      })}
+                    </Pie>
+                    <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '12px', marginTop: '10px' }}>
                 {cgpaDist.map((band, i) => {
                   const displayMap = { good: '#10B981', warning: '#F59E0B', critical: '#EF4444' };
                   const color = displayMap[band.label] || '#94A3B8';
                   return (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: color }} />
-                      <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 600 }}>{band.label}</span>
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: color }} />
+                      <span style={{ fontSize: '11px', color: '#475569', fontWeight: 600 }}>{band.label.charAt(0).toUpperCase() + band.label.slice(1)}</span>
                     </div>
                   );
                 })}
@@ -267,21 +271,16 @@ export default function AdvisorReporting() {
           ) : atRiskTrend.length === 0 ? (
             <p style={{ textAlign: 'center', color: '#94A3B8', fontSize: '12px', padding: '16px 0' }}>No trend data available</p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {atRiskTrend.map((point, i) => {
-                const pct = Math.round(((point.count || 0) / maxTrend) * 100);
-                return (
-                  <div key={i}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#334155' }}>{point.label || point.semester || `Period ${i + 1}`}</span>
-                      <span style={{ fontSize: '11px', fontWeight: 800, color: '#EF4444' }}>{point.count} at-risk</span>
-                    </div>
-                    <div style={{ height: '7px', backgroundColor: '#FEE2E2', borderRadius: '5px', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${pct}%`, backgroundColor: '#EF4444', borderRadius: '5px', transition: 'width 0.6s ease' }} />
-                    </div>
-                  </div>
-                );
-              })}
+            <div style={{ height: '240px', width: '100%', marginTop: '10px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={atRiskTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                  <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748B' }} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748B' }} />
+                  <RechartsTooltip contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
+                  <Line type="monotone" dataKey="count" name="At-Risk Students" stroke="#EF4444" strokeWidth={3} dot={{ fill: '#EF4444', r: 4 }} activeDot={{ r: 6, strokeWidth: 0 }} />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           )}
         </div>

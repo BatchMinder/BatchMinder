@@ -24,6 +24,7 @@ export default function StudentRecords() {
   const [batches, setBatches] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [stats, setStats] = useState({ totalStudents: 0, activeStudents: 0, atRiskStudents: 0, graduatedStudents: 0 });
   const limit = 6; // Compact list to fit beautifully next to activities
 
 
@@ -54,9 +55,18 @@ export default function StudentRecords() {
     fetchStudents();
   }, [page, search, statusFilter]);
 
+  const fetchStats = async () => {
+    try {
+      const r = await fetch('/api/dashboard/stats');
+      const d = await r.json();
+      if (d.status === 'success' && d.data) setStats(d.data);
+    } catch (e) {}
+  };
+
   useEffect(() => {
     fetch('/api/batches').then(r => r.json()).then(d => { if (d.status === 'success') setBatches(d.data); }).catch(() => {});
     fetch('/api/departments').then(r => r.json()).then(d => { if (d.status === 'success') setDepartments(d.data); }).catch(() => {});
+    fetchStats();
   }, []);
 
   const handleSave = async (e) => {
@@ -72,7 +82,9 @@ export default function StudentRecords() {
       if (res.ok) {
         setShowForm(false);
         setFormData({ rollNumber: '', name: '', email: '', departmentId: '', batchId: '', cgpa: '' });
+        setPage(1);
         fetchStudents();
+        fetchStats();
       } else {
         alert(data.message || 'Failed to create student');
       }
@@ -182,36 +194,36 @@ export default function StudentRecords() {
         <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '12px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Students</span>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: '#2563EB', backgroundColor: '#EFF6FF', padding: '3px 8px', borderRadius: '12px' }}>+12% vs LY</span>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#2563EB', backgroundColor: '#EFF6FF', padding: '3px 8px', borderRadius: '12px' }}>Live</span>
           </div>
-          <h3 style={{ margin: 0, fontSize: '28px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>2,847</h3>
+          <h3 style={{ margin: 0, fontSize: '28px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>{stats.totalStudents}</h3>
         </div>
 
         {/* Active Students Card */}
         <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '12px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Active Students</span>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: '#16A34A', backgroundColor: '#DCFCE7', padding: '3px 8px', borderRadius: '12px' }}>Stable</span>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#16A34A', backgroundColor: '#DCFCE7', padding: '3px 8px', borderRadius: '12px' }}>Active</span>
           </div>
-          <h3 style={{ margin: 0, fontSize: '28px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>1,942</h3>
+          <h3 style={{ margin: 0, fontSize: '28px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>{stats.activeStudents}</h3>
         </div>
 
         {/* At-Risk Students Card */}
         <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '12px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>At-Risk Students</span>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: '#EF4444', backgroundColor: '#FEE2E2', padding: '3px 8px', borderRadius: '12px' }}>+4% Priority</span>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#EF4444', backgroundColor: '#FEE2E2', padding: '3px 8px', borderRadius: '12px' }}>Alert</span>
           </div>
-          <h3 style={{ margin: 0, fontSize: '28px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>743</h3>
+          <h3 style={{ margin: 0, fontSize: '28px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>{stats.atRiskStudents}</h3>
         </div>
 
         {/* Graduated Card */}
         <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '12px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Graduated</span>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748B' }}>End of Cycle</span>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748B' }}>Alumni</span>
           </div>
-          <h3 style={{ margin: 0, fontSize: '28px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>162</h3>
+          <h3 style={{ margin: 0, fontSize: '28px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>{stats.graduatedStudents}</h3>
         </div>
       </div>
 
@@ -372,16 +384,29 @@ export default function StudentRecords() {
                 >
                   <ChevronLeft size={14} />
                 </button>
-                <button style={{ width: '28px', height: '28px', borderRadius: '50%', border: 'none', backgroundColor: '#2563EB', color: '#FFFFFF', fontWeight: 700, fontSize: '11px', cursor: 'pointer' }}>1</button>
-                <button style={{ width: '28px', height: '28px', borderRadius: '50%', border: 'none', backgroundColor: 'transparent', color: '#64748B', fontWeight: 600, fontSize: '11px', cursor: 'pointer' }}>2</button>
-                <button style={{ width: '28px', height: '28px', borderRadius: '50%', border: 'none', backgroundColor: 'transparent', color: '#64748B', fontWeight: 600, fontSize: '11px', cursor: 'pointer' }}>3</button>
+                
+                {Array.from({ length: Math.ceil(total / limit) || 1 }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === Math.ceil(total / limit) || Math.abs(p - page) <= 1)
+                  .map((p, idx, arr) => (
+                    <React.Fragment key={p}>
+                      {idx > 0 && arr[idx - 1] !== p - 1 && <span style={{ color: '#94A3B8' }}>...</span>}
+                      <button
+                        onClick={() => setPage(p)}
+                        style={{ width: '28px', height: '28px', borderRadius: '50%', border: 'none', backgroundColor: page === p ? '#2563EB' : 'transparent', color: page === p ? '#FFFFFF' : '#64748B', fontWeight: page === p ? 700 : 600, fontSize: '11px', cursor: 'pointer' }}
+                      >
+                        {p}
+                      </button>
+                    </React.Fragment>
+                  ))
+                }
+
                 <button
-                  disabled={students.length < limit}
+                  disabled={page >= Math.ceil(total / limit)}
                   onClick={() => setPage(p => p + 1)}
                   style={{
                     padding: '6px 10px', borderRadius: '8px', border: '1px solid #E2E8F0',
-                    backgroundColor: '#FFFFFF', color: '#64748B', cursor: students.length === limit ? 'pointer' : 'not-allowed',
-                    opacity: students.length === limit ? 1 : 0.5, display: 'flex', alignItems: 'center'
+                    backgroundColor: '#FFFFFF', color: '#64748B', cursor: page < Math.ceil(total / limit) ? 'pointer' : 'not-allowed',
+                    opacity: page < Math.ceil(total / limit) ? 1 : 0.5, display: 'flex', alignItems: 'center'
                   }}
                 >
                   <ChevronRight size={14} />

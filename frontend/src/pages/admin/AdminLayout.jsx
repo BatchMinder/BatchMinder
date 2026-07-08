@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Upload, ArrowRightLeft, BookOpen, Layers,
   LogOut, GraduationCap, ChevronDown, ChevronUp, Building2, Calendar,
   BarChart2, Settings, Bell, Clock, Plus, Search, CalendarCheck, FileText,
-  AlertTriangle, HelpCircle
+  AlertTriangle, HelpCircle, CheckCircle
 } from 'lucide-react';
 
 const CORE_NAV_ITEMS = [
@@ -12,7 +12,6 @@ const CORE_NAV_ITEMS = [
   { id: 'students', label: 'Students', icon: Users },
   { id: 'batches', label: 'Batches', icon: Layers },
   { id: 'attendance', label: 'Attendance', icon: CalendarCheck },
-  { id: 'reports', label: 'Reports', icon: FileText },
 ];
 
 const advisorGroups = {
@@ -476,26 +475,6 @@ export default function AdminLayout({
 
           {/* Spacing & Bottom Actions Container */}
           <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 2, padding: '16px 0 8px' }}>
-            {!isAdvisor && !isHOD && (
-              <button
-                onClick={() => onNavigate('batches')}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%',
-                  padding: '10px 16px', borderRadius: 12,
-                  backgroundColor: '#2563EB', border: 'none',
-                  color: '#FFFFFF', fontSize: 13, fontWeight: 600,
-                  cursor: 'pointer', transition: 'all 0.2s',
-                  boxShadow: '0 4px 12px rgba(37,99,235,0.2)',
-                  marginBottom: '8px'
-                }}
-                onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#1D4ED8'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-                onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#2563EB'; e.currentTarget.style.transform = 'none'; }}
-              >
-                <Plus size={16} />
-                <span>New Batch</span>
-              </button>
-            )}
-
             {/* System Settings (Profile Settings) */}
             {!isAdvisor && currentSystemNavItems.map(item => {
               const Icon = item.icon;

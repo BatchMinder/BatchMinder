@@ -167,7 +167,7 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
   const atRiskStudents = students.filter(s => s.cgpaStatus === 'warning' || s.cgpaStatus === 'critical');
   const displayAtRisk = atRiskStudents.slice(0, 5);
 
-  const pendingRequests = requests.filter(r => r.status === 'pending' || r.status === 'Pending');
+  const pendingRequests = requests.filter(r => r.status === 'pending' || r.status === 'Pending' || r.status === 'Pending Advisor');
   const displayRequests = pendingRequests.slice(0, 5);
 
   // Semester Trend — real data derived from students (grouped by semester)
@@ -471,26 +471,34 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
                 </tr>
               </thead>
               <tbody>
-                {displayAtRisk.map((s, i) => {
-                  const isHigh = s.cgpaStatus === 'critical' || (s.cgpa && s.cgpa < 2.0);
-                  return (
-                    <tr key={i} style={{ borderBottom: i < displayAtRisk.length - 1 ? '1px solid #F8FAFC' : 'none' }}>
-                      <td style={{ padding: '12px 10px', fontSize: '12px', fontWeight: 700, color: '#1E293B' }}>{s.rollNumber}</td>
-                      <td style={{ padding: '12px 10px', fontSize: '12px', fontWeight: 600, color: '#475569' }}>{s.name}</td>
-                      <td style={{ padding: '12px 10px', fontSize: '12px', color: '#64748B' }}>{s.batchId?.code || 'N/A'}</td>
-                      <td style={{ padding: '12px 10px', fontSize: '12px', fontWeight: 700, color: '#1E293B' }}>{s.cgpa ? s.cgpa.toFixed(2) : '—'}</td>
-                      <td style={{ padding: '12px 10px' }}>
-                        <span style={{
-                          padding: '2px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: 700,
-                          backgroundColor: isHigh ? '#FEE2E2' : '#FEF3C7', color: isHigh ? '#EF4444' : '#D97706'
-                        }}>
-                          {isHigh ? 'High' : 'Medium'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px 10px', fontSize: '12px', color: '#64748B' }}>{s.reason || 'Low CGPA'}</td>
-                    </tr>
-                  );
-                })}
+                {displayAtRisk.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" style={{ padding: '24px 10px', textAlign: 'center', fontSize: '13px', fontWeight: 600, color: '#94A3B8' }}>
+                      No at-risk students found.
+                    </td>
+                  </tr>
+                ) : (
+                  displayAtRisk.map((s, i) => {
+                    const isHigh = s.cgpaStatus === 'critical' || (s.cgpa && s.cgpa < 2.0);
+                    return (
+                      <tr key={i} style={{ borderBottom: i < displayAtRisk.length - 1 ? '1px solid #F8FAFC' : 'none' }}>
+                        <td style={{ padding: '12px 10px', fontSize: '12px', fontWeight: 700, color: '#1E293B' }}>{s.rollNumber}</td>
+                        <td style={{ padding: '12px 10px', fontSize: '12px', fontWeight: 600, color: '#475569' }}>{s.name}</td>
+                        <td style={{ padding: '12px 10px', fontSize: '12px', color: '#64748B' }}>{s.batchId?.code || 'N/A'}</td>
+                        <td style={{ padding: '12px 10px', fontSize: '12px', fontWeight: 700, color: '#1E293B' }}>{s.cgpa ? s.cgpa.toFixed(2) : '—'}</td>
+                        <td style={{ padding: '12px 10px' }}>
+                          <span style={{
+                            padding: '2px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: 700,
+                            backgroundColor: isHigh ? '#FEE2E2' : '#FEF3C7', color: isHigh ? '#EF4444' : '#D97706'
+                          }}>
+                            {isHigh ? 'High' : 'Medium'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px 10px', fontSize: '12px', color: '#64748B' }}>{s.reason || 'Low CGPA'}</td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
@@ -607,32 +615,40 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
                 </tr>
               </thead>
               <tbody>
-                {displayRequests.map((r, i) => {
-                  const priColor = r.priority === 'High' ? { bg: '#FEE2E2', txt: '#EF4444' } : r.priority === 'Medium' ? { bg: '#FFEDD5', txt: '#EA580C' } : { bg: '#F0FDF4', txt: '#16A34A' };
-                  return (
-                    <tr key={i} style={{ borderBottom: i < displayRequests.length - 1 ? '1px solid #F8FAFC' : 'none' }}>
-                      <td style={{ padding: '12px 10px', fontSize: '12px', fontWeight: 700, color: '#1E293B' }}>{r.type}</td>
-                      <td style={{ padding: '12px 10px', fontSize: '12px', fontWeight: 600, color: '#475569' }}>
-                        {r.studentName || r.studentId?.name || 'Academic student'} <span style={{ fontSize: '10px', color: '#94A3B8', display: 'block' }}>{r.rollNumber || r.studentId?.rollNumber}</span>
-                      </td>
-                      <td style={{ padding: '12px 10px', fontSize: '11px', color: '#64748B' }}>
-                        {r.requestedOn ? r.requestedOn : new Date(r.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </td>
-                      <td style={{ padding: '12px 10px' }}>
-                        <span style={{ padding: '2px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: 700, backgroundColor: priColor.bg, color: priColor.txt }}>
-                          {r.priority}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px 10px' }}>
-                        <button onClick={() => setActiveNav('workflowQueue')} style={{
-                          padding: '4px 12px', borderRadius: '8px', border: 'none', backgroundColor: '#0F172A', color: '#fff', fontSize: '11px', fontWeight: 700, cursor: 'pointer'
-                        }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#2563EB'} onMouseLeave={e => e.currentTarget.style.backgroundColor = '#0F172A'}>
-                          Review
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {displayRequests.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" style={{ padding: '36px 10px', textAlign: 'center', fontSize: '13px', fontWeight: 600, color: '#94A3B8' }}>
+                      No pending approval requests.
+                    </td>
+                  </tr>
+                ) : (
+                  displayRequests.map((r, i) => {
+                    const priColor = r.priority === 'High' ? { bg: '#FEE2E2', txt: '#EF4444' } : r.priority === 'Medium' ? { bg: '#FFEDD5', txt: '#EA580C' } : { bg: '#F0FDF4', txt: '#16A34A' };
+                    return (
+                      <tr key={i} style={{ borderBottom: i < displayRequests.length - 1 ? '1px solid #F8FAFC' : 'none' }}>
+                        <td style={{ padding: '12px 10px', fontSize: '12px', fontWeight: 700, color: '#1E293B' }}>{r.type}</td>
+                        <td style={{ padding: '12px 10px', fontSize: '12px', fontWeight: 600, color: '#475569' }}>
+                          {r.studentName || r.studentId?.name || 'Academic student'} <span style={{ fontSize: '10px', color: '#94A3B8', display: 'block' }}>{r.rollNumber || r.studentId?.rollNumber}</span>
+                        </td>
+                        <td style={{ padding: '12px 10px', fontSize: '11px', color: '#64748B' }}>
+                          {r.requestedOn ? r.requestedOn : new Date(r.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </td>
+                        <td style={{ padding: '12px 10px' }}>
+                          <span style={{ padding: '2px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: 700, backgroundColor: priColor.bg, color: priColor.txt }}>
+                            {r.priority}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px 10px' }}>
+                          <button onClick={() => setActiveNav('workflowQueue')} style={{
+                            padding: '4px 12px', borderRadius: '8px', border: 'none', backgroundColor: '#0F172A', color: '#fff', fontSize: '11px', fontWeight: 700, cursor: 'pointer'
+                          }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#2563EB'} onMouseLeave={e => e.currentTarget.style.backgroundColor = '#0F172A'}>
+                            Review
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>

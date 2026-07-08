@@ -22,6 +22,7 @@ import CsvUpload from './pages/admin/CsvUpload';
 import MigrationRecords from './pages/admin/MigrationRecords';
 import CurriculumSetup from './pages/admin/CurriculumSetup';
 import Batches from './pages/admin/Batches';
+import NotificationsPage from './components/dashboard/NotificationsPage';
 import AuditLogsPage from './components/dashboard/AuditLogsPage';
 import ProfileSettingsPage from './components/dashboard/ProfileSettingsPage';
 import AdvisorDashboard from './components/dashboard/AdvisorDashboard';
@@ -38,6 +39,7 @@ import AdvisorQueue from './pages/advisor/AdvisorQueue';
 import AdvisorTimetable from './pages/advisor/AdvisorTimetable';
 import AdvisorReporting from './pages/advisor/AdvisorReporting';
 import AdvisorMyBatch from './pages/advisor/AdvisorMyBatch';
+import AttendanceDashboard from './pages/advisor/AttendanceDashboard';
 
 import {
   Layers,
@@ -315,6 +317,10 @@ function App() {
         timetable_generator: <TimetableGenerator />,
         datesheet_generator: <DatesheetGenerator />,
         schedule_override: <ScheduleOverride />,
+        notifications: <NotificationsPage setActiveNav={setAdminActiveNav} />,
+        attendance: <AttendanceDashboard user={user} />,
+        reports: <AdvisorReporting />,
+        special_permission: <HODQueue />,
       };
       return <AdminLayout activeNav={adminActiveNav} onNavigate={setAdminActiveNav}>{pages[adminActiveNav] || <Dashboard />}</AdminLayout>;
     }
@@ -326,8 +332,10 @@ function App() {
         students: <AdvisorStudents selectedBatch={selectedAdvisorBatch} />,
         workflowQueue: <AdvisorQueue />,
         timetable: <AdvisorTimetable />,
+        attendance: <AttendanceDashboard user={user} />,
         reporting: <AdvisorReporting />,
         settings: <ProfileSettingsPage />,
+        notifications: <NotificationsPage setActiveNav={setAdvisorActiveNav} />,
       };
       return (
         <AdminLayout
@@ -348,6 +356,7 @@ function App() {
         dashboard: <HODQueue />,
         history: <RequestHistory />,
         settings: <ProfileSettingsPage />,
+        notifications: <NotificationsPage setActiveNav={setHodActiveNav} />,
       };
       return (
         <AdminLayout

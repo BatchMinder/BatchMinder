@@ -5,6 +5,8 @@ import User from '../models/user.js';
 import AuditLog from '../models/auditLog.js';
 import { scopeToUserDepartments, scopeQueryToRole } from '../middleware/scopeMiddleware.js';
 
+import Migration from '../models/migration.js';
+
 // GET /api/dashboard/stats
 // Returns stats compatible with BOTH SuperAdmin dashboard and new Admin dashboard
 export const getDashboardStats = async (req, res) => {
@@ -26,7 +28,8 @@ export const getDashboardStats = async (req, res) => {
             studentsByStatus: { good: 0, warning: 0, critical: 0 },
             totalBatches: 0, departments: [], users: { total: 0, active: 0 },
             students: { total: 0, warning: 0, critical: 0 },
-            batches: { total: 0, allocated: 0 }
+            batches: { total: 0, allocated: 0 },
+            pendingMigrations: 0
           }
         });
       }
@@ -41,6 +44,7 @@ export const getDashboardStats = async (req, res) => {
       activeUsers,
       departments,
       recentLogs,
+      pendingMigrations,
     ] = await Promise.all([
       Student.find(studentQuery).lean(),
       Batch.countDocuments(isSuperAdmin ? {} : scopeToUserDepartments(req)),
@@ -49,6 +53,7 @@ export const getDashboardStats = async (req, res) => {
       isSuperAdmin ? User.countDocuments({ status: 'Active' }) : Promise.resolve(0),
       Department.find(isSuperAdmin ? {} : { _id: { $in: req.user.departmentIds || [] } }).lean(),
       isSuperAdmin ? AuditLog.find({}).sort({ timestamp: -1 }).limit(6).lean() : Promise.resolve([]),
+      Migration.countDocuments({ decidedAt: null })
     ]);
 
     const totalStudents = allStudents.length;
@@ -88,6 +93,7 @@ export const getDashboardStats = async (req, res) => {
         users: { total: totalUsers, active: activeUsers },
         batches: { total: totalBatches, allocated: allocatedBatches },
         departments: deptStats,
+        pendingMigrations,
         activityLogs: recentLogs.map(log => ({
           id: log._id,
           action: log.action,

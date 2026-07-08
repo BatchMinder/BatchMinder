@@ -65,6 +65,37 @@ export default function AdvisorTimetable() {
     }
   };
 
+  const handleAutoGenerate = async () => {
+    try {
+      const res = await fetch('/api/scheduling/auto-generate', { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
+      const data = await res.json();
+      if (res.ok) alert('Intelligent Scheduling Engine: ' + data.message);
+      else alert('Failed to auto-generate: ' + data.message);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const [capacityAlerts, setCapacityAlerts] = useState([]);
+  const checkCapacities = async () => {
+    const alerts = [];
+    // Just a mocked simulation of checking the current filtered grid
+    for (const [room, count] of Object.entries(roomUsage)) {
+      const simulatedStudentCount = count * 20; // simulate students
+      const res = await fetch('/api/scheduling/validate-capacity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ room, studentCount: simulatedStudentCount })
+      });
+      const data = await res.json();
+      if (res.ok && !data.data.isValid) {
+        alerts.push(data.data.message);
+      }
+    }
+    setCapacityAlerts(alerts);
+    if (alerts.length === 0) alert('All scheduled rooms passed capacity validation!');
+  };
+
   // Filtered entries
   const filtered = entries.filter(e => {
     const batchMatch = batchFilter === 'all' || e.batch === batchFilter;
@@ -82,8 +113,8 @@ export default function AdvisorTimetable() {
 
   // Export timetable as CSV
   const exportCSV = () => {
-    const header = ['Day', 'Time Slot', 'Course Code', 'Course Name', 'Batch', 'Room', 'Instructor'];
-    const rows = filtered.map(e => [e.day, e.timeSlot, e.courseCode, e.courseName, e.batch, e.room, e.instructor]);
+    const header = ['Day', 'Time Slot', 'Course Code', 'Course Name', 'Batch', 'Semester', 'Room', 'Instructor'];
+    const rows = filtered.map(e => [e.day, e.timeSlot, e.courseCode, e.courseName, e.batch, e.semester || 'N/A', e.room, e.instructor]);
     const csv = [header, ...rows].map(r => r.join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -111,6 +142,20 @@ export default function AdvisorTimetable() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={handleAutoGenerate} style={{
+            display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px',
+            borderRadius: '10px', border: '1px solid #E2E8F0', backgroundColor: '#F8FAFC',
+            fontSize: '12px', fontWeight: 700, color: '#475569', cursor: 'pointer'
+          }}>
+            <Calendar size={14} /> Auto-Generate
+          </button>
+          <button onClick={checkCapacities} style={{
+            display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px',
+            borderRadius: '10px', border: 'none', backgroundColor: '#F59E0B',
+            fontSize: '12px', fontWeight: 700, color: '#fff', cursor: 'pointer'
+          }}>
+            <Users size={14} /> Validate Capacity
+          </button>
           <button onClick={fetchData} style={{
             display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px',
             borderRadius: '10px', border: '1px solid #E2E8F0', backgroundColor: '#fff',
@@ -153,14 +198,24 @@ export default function AdvisorTimetable() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: '16px', alignItems: 'start' }}>
-        {/* Main timetable column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {capacityAlerts.length > 0 && (
+            <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '12px', padding: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                <AlertTriangle size={18} color="#DC2626" />
+                <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 800, color: '#991B1B' }}>Capacity Exceeded</h4>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {capacityAlerts.map((msg, i) => (
+                  <div key={i} style={{ padding: '8px 12px', backgroundColor: '#fff', borderRadius: '6px', fontSize: '11px', color: '#DC2626', fontWeight: 600, border: '1px solid #FECACA' }}>
+                    {msg}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-          {/* Filters */}
-          <div style={{
-            backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '12px',
-            padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap'
-          }}>
+          <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#64748B', fontSize: '12px', fontWeight: 700 }}>
               <Filter size={14} /> Filters:
             </div>

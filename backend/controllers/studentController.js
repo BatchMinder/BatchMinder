@@ -83,7 +83,8 @@ export const createStudent = async (req, res) => {
     }
 
     if (scope.departmentId && scope.departmentId.$in) {
-      if (!scope.departmentId.$in.includes(departmentId)) {
+      const allowedDepts = scope.departmentId.$in.map(id => id.toString());
+      if (!allowedDepts.includes(departmentId.toString())) {
         return res.status(403).json({ message: 'Department not in your scope' });
       }
     }
