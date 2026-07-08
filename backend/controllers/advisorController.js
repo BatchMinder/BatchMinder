@@ -1,5 +1,7 @@
 import Student from '../models/student.js';
 import Batch from '../models/batch.js';
+import Curriculum from '../models/curriculum.js';
+
 
 // GET: advisor dashboard counts of students by cgpaStatus
 export const getDashboardSummary = async (req, res, next) => {
@@ -145,6 +147,7 @@ export const getStudentById = async (req, res, next) => {
       });
     }
 
+
     res.status(200).json({
       status: 'success',
       data: {
@@ -155,3 +158,49 @@ export const getStudentById = async (req, res, next) => {
     next(err);
   }
 };
+
+// GET: eligible courses for a student (enrolled vs curriculum)
+export const getStudentEligibleCourses = async (req, res, next) => {
+  try {
+    const student = await Student.findById(req.params.id);
+    if (!student) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Student not found.'
+      });
+    }
+
+    // Security check: Verify advisor is assigned to student's batch
+    const assignedBatches = req.user.assignedBatchIds || [];
+    const hasAccess = assignedBatches.some(id => id.toString() === student.batchId.toString());
+    if (!hasAccess && req.user.role !== 'super_admin') {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Access denied: You are not assigned to this student\'s batch.'
+      });
+    }
+
+    // Fetch active curriculum courses matching student's department and batch
+    const curriculum = await Curriculum.findOne({
+      departmentId: student.departmentId,
+      batchId: student.batchId,
+      status: 'active'
+    });
+
+    const enrolledCodes = new Set((student.courses || []).map(c => c.courseCode));
+    const curriculumCourses = curriculum
+      ? curriculum.courses.filter(c => !enrolledCodes.has(c.code))
+      : [];
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        enrolledCourses: student.courses || [],
+        curriculumCourses
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+

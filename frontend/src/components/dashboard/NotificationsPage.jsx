@@ -106,13 +106,13 @@ export default function NotificationsPage({ setActiveNav }) {
       const data = await response.json();
       if (response.ok && data.status === 'success') {
         const mapped = data.data.map(n => ({
-          id: n._id,
-          title: n.message,
+          id: n.id || n._id,
+          title: n.title || n.message || 'Notification Alert',
           severity: toFeSeverity(n.type),
-          target: n.recipientRole ? `Role: ${n.recipientRole}${n.departmentId ? ` (${n.departmentId})` : ''}` : 'All Users',
-          time: new Date(n.createdAt).toLocaleTimeString(),
-          date: new Date(n.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-          status: n.isRead ? 'Read' : 'Unread'
+          target: n.target || (n.recipientRole ? `Role: ${n.recipientRole}${n.departmentId ? ` (${n.departmentId})` : ''}` : 'All Users'),
+          time: n.createdAt || n.time ? new Date(n.createdAt || n.time).toLocaleTimeString() : '—',
+          date: n.createdAt || n.time ? new Date(n.createdAt || n.time).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—',
+          status: n.status || (n.isRead ? 'Read' : 'Unread')
         }));
         setAlerts(mapped);
       } else {
@@ -195,8 +195,10 @@ export default function NotificationsPage({ setActiveNav }) {
 
   const filtered = alerts.filter(a => {
     const q = search.toLowerCase();
+    const titleVal = a.title ? a.title.toLowerCase() : '';
+    const targetVal = a.target ? a.target.toLowerCase() : '';
     return (
-      (!q || a.title.toLowerCase().includes(q) || a.target.toLowerCase().includes(q)) &&
+      (!q || titleVal.includes(q) || targetVal.includes(q)) &&
       (severityFilter === 'All Severities' || a.severity === severityFilter)
     );
   });

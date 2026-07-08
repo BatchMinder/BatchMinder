@@ -27,6 +27,11 @@ const courseEnrollmentSchema = new mongoose.Schema({
     min: 0,
     max: 100,
     default: 100,
+  },
+  semester: {
+    type: Number,
+    required: true,
+    default: 1,
   }
 });
 

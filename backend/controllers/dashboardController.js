@@ -3,7 +3,7 @@ import Batch from '../models/batch.js';
 import Department from '../models/department.js';
 import User from '../models/user.js';
 import AuditLog from '../models/auditLog.js';
-import { scopeToUserDepartments } from '../middleware/scopeMiddleware.js';
+import { scopeToUserDepartments, scopeQueryToRole } from '../middleware/scopeMiddleware.js';
 
 // GET /api/dashboard/stats
 // Returns stats compatible with BOTH SuperAdmin dashboard and new Admin dashboard
@@ -14,7 +14,10 @@ export const getDashboardStats = async (req, res) => {
     // --- Student counts (handle both old 'department' string and new 'departmentId' ObjectId) ---
     let studentQuery = {};
     if (!isSuperAdmin) {
-      const scope = scopeToUserDepartments(req);
+      // Advisors are scoped by assignedBatchIds; other roles by departmentIds
+      const scope = req.user.role === 'advisor'
+        ? scopeQueryToRole(req.user)
+        : scopeToUserDepartments(req);
       if (scope._id === null) {
         return res.status(200).json({
           status: 'success',
@@ -103,7 +106,14 @@ export const getDashboardStats = async (req, res) => {
 // GET /api/dashboard/cgpa-distribution
 export const getCgpaDistribution = async (req, res) => {
   try {
-    const scope = req.user.role === 'super_admin' ? {} : scopeToUserDepartments(req);
+    let scope;
+    if (req.user.role === 'super_admin') {
+      scope = {};
+    } else if (req.user.role === 'advisor') {
+      scope = scopeQueryToRole(req.user);
+    } else {
+      scope = scopeToUserDepartments(req);
+    }
     if (scope._id === null) {
       return res.status(200).json({ status: 'success', data: { labels: [], counts: [] } });
     }
@@ -129,12 +139,18 @@ export const getCgpaDistribution = async (req, res) => {
 // GET /api/dashboard/students-by-batch
 export const getStudentsByBatch = async (req, res) => {
   try {
-    const scope = req.user.role === 'super_admin' ? {} : scopeToUserDepartments(req);
+    let scope;
+    if (req.user.role === 'super_admin') {
+      scope = {};
+    } else if (req.user.role === 'advisor') {
+      scope = scopeQueryToRole(req.user);
+    } else {
+      scope = scopeToUserDepartments(req);
+    }
     if (scope._id === null) {
       return res.status(200).json({ status: 'success', data: [] });
     }
 
-    // Aggregate students by batchId (new) or batch (legacy string)
     const students = await Student.find(scope).populate('batchId', 'code').lean();
 
     const batchMap = {};
@@ -160,7 +176,14 @@ export const getStudentsByBatch = async (req, res) => {
 // GET /api/dashboard/at-risk-trend
 export const getAtRiskTrend = async (req, res) => {
   try {
-    const scope = req.user.role === 'super_admin' ? {} : scopeToUserDepartments(req);
+    let scope;
+    if (req.user.role === 'super_admin') {
+      scope = {};
+    } else if (req.user.role === 'advisor') {
+      scope = scopeQueryToRole(req.user);
+    } else {
+      scope = scopeToUserDepartments(req);
+    }
     if (scope._id === null) {
       return res.status(200).json({ status: 'success', data: [] });
     }

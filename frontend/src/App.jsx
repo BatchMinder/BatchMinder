@@ -35,6 +35,9 @@ import Footer from './components/Footer';
 
 // 💻 YOUR TEAMMATE'S MODULE 4 BATCH ADVISOR PAGE IMPORT
 import AdvisorQueue from './pages/advisor/AdvisorQueue';
+import AdvisorTimetable from './pages/advisor/AdvisorTimetable';
+import AdvisorReporting from './pages/advisor/AdvisorReporting';
+import AdvisorMyBatch from './pages/advisor/AdvisorMyBatch';
 
 import {
   Layers,
@@ -318,9 +321,12 @@ function App() {
 
     if (user.role === 'advisor') {
       const pages = {
-        dashboard: <AdvisorDashboard selectedBatch={selectedAdvisorBatch} />,
+        dashboard: <AdvisorDashboard selectedBatch={selectedAdvisorBatch} setActiveNav={setAdvisorActiveNav} />,
+        myBatch: <AdvisorMyBatch selectedBatch={selectedAdvisorBatch} />,
         students: <AdvisorStudents selectedBatch={selectedAdvisorBatch} />,
         workflowQueue: <AdvisorQueue />,
+        timetable: <AdvisorTimetable />,
+        reporting: <AdvisorReporting />,
         settings: <ProfileSettingsPage />,
       };
       return (
@@ -331,7 +337,7 @@ function App() {
           selectedBatch={selectedAdvisorBatch}
           onBatchChange={setSelectedAdvisorBatch}
         >
-          {pages[advisorActiveNav] || <AdvisorDashboard selectedBatch={selectedAdvisorBatch} />}
+          {pages[advisorActiveNav] || <AdvisorDashboard selectedBatch={selectedAdvisorBatch} setActiveNav={setAdvisorActiveNav} />}
         </AdminLayout>
       );
     }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, Calendar, Eye, EyeOff, RefreshCw } from 'lucide-react';
 
-export default function Header({ title, subtitle, setActiveNav }) {
+export default function Header({ title, subtitle, setActiveNav, children }) {
   const [currentDate, setCurrentDate] = useState('');
   const [showBellDropdown, setShowBellDropdown] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -92,6 +92,8 @@ export default function Header({ title, subtitle, setActiveNav }) {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {children}
+
         {/* Date */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: '7px',

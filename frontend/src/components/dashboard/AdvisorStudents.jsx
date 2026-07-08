@@ -332,41 +332,128 @@ export default function AdvisorStudents({ selectedBatch }) {
                 </div>
               </div>
 
-              {/* Courses Enrollments */}
-              <div>
-                <h5 style={{ margin: '0 0 10px', fontSize: '13px', fontWeight: 800, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <BookOpen size={14} color="#64748B" /> Course Registrations
+              {/* Courses Enrollments Grouped by Semester */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <h5 style={{ margin: '0', fontSize: '13px', fontWeight: 800, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <BookOpen size={14} color="#64748B" /> Academic History & Semester Results
                 </h5>
                 {(!selectedStudent.courses || selectedStudent.courses.length === 0) ? (
                   <p style={{ margin: 0, fontSize: '13px', color: '#94A3B8', fontStyle: 'italic' }}>
                     No course records registered for this student.
                   </p>
-                ) : (
-                  <div style={{ border: '1px solid #E2E8F0', borderRadius: '8px', overflow: 'hidden' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
-                      <thead>
-                        <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
-                          <th style={{ padding: '8px 12px', fontWeight: 700, color: '#475569' }}>Code</th>
-                          <th style={{ padding: '8px 12px', fontWeight: 700, color: '#475569' }}>Course Title</th>
-                          <th style={{ padding: '8px 12px', fontWeight: 700, color: '#475569' }}>Credits</th>
-                          <th style={{ padding: '8px 12px', fontWeight: 700, color: '#475569' }}>Attendance</th>
-                          <th style={{ padding: '8px 12px', fontWeight: 700, color: '#475569' }}>Grade</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {selectedStudent.courses.map((c, idx) => (
-                          <tr key={idx} style={{ borderBottom: idx < selectedStudent.courses.length - 1 ? '1px solid #F1F5F9' : 'none' }}>
-                            <td style={{ padding: '8px 12px', fontWeight: 600, color: '#1E293B' }}>{c.courseCode}</td>
-                            <td style={{ padding: '8px 12px', color: '#334155' }}>{c.courseTitle}</td>
-                            <td style={{ padding: '8px 12px', color: '#64748B' }}>{c.creditHours} Hrs</td>
-                            <td style={{ padding: '8px 12px', color: '#64748B' }}>{c.attendance}%</td>
-                            <td style={{ padding: '8px 12px', fontWeight: 700, color: c.grade === 'F' ? '#EF4444' : '#1E293B' }}>{c.grade}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                ) : (() => {
+                  const gradePointsMap = {
+                    'A': 4.0,
+                    'B+': 3.5,
+                    'B': 3.0,
+                    'C+': 2.5,
+                    'C': 2.0,
+                    'F': 0.0
+                  };
+
+                  const calculateGPA = (semesterCourses) => {
+                    let totalCredits = 0;
+                    let totalGradePoints = 0;
+                    let hasGradedCourse = false;
+
+                    semesterCourses.forEach(c => {
+                      if (c.enrollmentStatus === 'completed' && gradePointsMap[c.grade] !== undefined) {
+                        totalCredits += c.creditHours;
+                        totalGradePoints += c.creditHours * gradePointsMap[c.grade];
+                        hasGradedCourse = true;
+                      } else if (c.enrollmentStatus === 'failed') {
+                        totalCredits += c.creditHours;
+                        totalGradePoints += c.creditHours * 0.0;
+                        hasGradedCourse = true;
+                      }
+                    });
+
+                    if (!hasGradedCourse || totalCredits === 0) return 'N/A';
+                    return (totalGradePoints / totalCredits).toFixed(2);
+                  };
+
+                  const coursesBySemester = {};
+                  selectedStudent.courses.forEach(c => {
+                    const sem = c.semester || 1;
+                    if (!coursesBySemester[sem]) {
+                      coursesBySemester[sem] = [];
+                    }
+                    coursesBySemester[sem].push(c);
+                  });
+
+                  return Object.keys(coursesBySemester)
+                    .sort((a, b) => Number(a) - Number(b))
+                    .map(sem => {
+                      const semCourses = coursesBySemester[sem];
+                      const semGpa = calculateGPA(semCourses);
+                      
+                      return (
+                        <div key={sem} style={{ display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid #E2E8F0', borderRadius: '10px', overflow: 'hidden' }}>
+                          {/* Semester Subheader */}
+                          <div style={{
+                            padding: '10px 16px',
+                            backgroundColor: '#F8FAFC',
+                            borderBottom: '1px solid #E2E8F0',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                          }}>
+                            <span style={{ fontSize: '12px', fontWeight: 800, color: '#1B3A6B' }}>
+                              SEMESTER {sem}
+                            </span>
+                            <span style={{
+                              fontSize: '11px',
+                              fontWeight: 800,
+                              padding: '2px 8px',
+                              borderRadius: '20px',
+                              backgroundColor: semGpa === 'N/A' ? '#F1F5F9' : '#EFF6FF',
+                              color: semGpa === 'N/A' ? '#64748B' : '#1E40AF',
+                              border: `1px solid ${semGpa === 'N/A' ? '#E2E8F0' : '#BFDBFE'}`
+                            }}>
+                              GPA: {semGpa}
+                            </span>
+                          </div>
+
+                          {/* Semester Table */}
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
+                            <thead>
+                              <tr style={{ borderBottom: '1px solid #F1F5F9', backgroundColor: '#FAFAFA' }}>
+                                <th style={{ padding: '6px 16px', fontWeight: 700, color: '#475569', fontSize: '11px' }}>Code</th>
+                                <th style={{ padding: '6px 16px', fontWeight: 700, color: '#475569', fontSize: '11px' }}>Course Title</th>
+                                <th style={{ padding: '6px 16px', fontWeight: 700, color: '#475569', fontSize: '11px' }}>Credits</th>
+                                <th style={{ padding: '6px 16px', fontWeight: 700, color: '#475569', fontSize: '11px' }}>Grade</th>
+                                <th style={{ padding: '6px 16px', fontWeight: 700, color: '#475569', fontSize: '11px' }}>Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {semCourses.map((c, idx) => (
+                                <tr key={idx} style={{ borderBottom: idx < semCourses.length - 1 ? '1px solid #F1F5F9' : 'none' }}>
+                                  <td style={{ padding: '8px 16px', fontWeight: 600, color: '#1E293B' }}>{c.courseCode}</td>
+                                  <td style={{ padding: '8px 16px', color: '#334155' }}>{c.courseTitle}</td>
+                                  <td style={{ padding: '8px 16px', color: '#64748B' }}>{c.creditHours} Hrs</td>
+                                  <td style={{ padding: '8px 16px', fontWeight: 700, color: c.grade === 'F' ? '#EF4444' : '#1E293B' }}>{c.grade}</td>
+                                  <td style={{ padding: '8px 16px' }}>
+                                    <span style={{
+                                      display: 'inline-block',
+                                      padding: '2px 8px',
+                                      borderRadius: '12px',
+                                      fontSize: '9px',
+                                      fontWeight: 700,
+                                      textTransform: 'uppercase',
+                                      color: c.enrollmentStatus === 'completed' ? '#047857' : c.enrollmentStatus === 'failed' ? '#B91C1C' : '#1E40AF',
+                                      backgroundColor: c.enrollmentStatus === 'completed' ? '#D1FAE5' : c.enrollmentStatus === 'failed' ? '#FEE2E2' : '#DBEAFE'
+                                    }}>
+                                      {c.enrollmentStatus}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      );
+                    });
+                })()}
               </div>
             </div>
 

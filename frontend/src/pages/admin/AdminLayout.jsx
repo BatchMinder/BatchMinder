@@ -2,27 +2,47 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   LayoutDashboard, Users, Upload, ArrowRightLeft, BookOpen, Layers,
-  LogOut, GraduationCap, ChevronDown, Building2, Calendar,
-  BarChart2, Settings, Bell, Clock
+  LogOut, GraduationCap, ChevronDown, ChevronUp, Building2, Calendar,
+  BarChart2, Settings, Bell, Clock, Plus, Search, CalendarCheck, FileText,
+  AlertTriangle, HelpCircle
 } from 'lucide-react';
 
 const CORE_NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'students', label: 'Student Records', icon: Users },
-  { id: 'upload', label: 'CSV / Excel Upload', icon: Upload },
-  { id: 'migrations', label: 'Migration Records', icon: ArrowRightLeft },
-  { id: 'curriculum', label: 'Curriculum Setup', icon: BookOpen },
+  { id: 'students', label: 'Students', icon: Users },
   { id: 'batches', label: 'Batches', icon: Layers },
-
-  // 🗓️ MODULE 5 CORE SCHEDULING ITEMS ADDED HERE PERMANENTLY
-  { id: 'timetable_generator', label: 'Timetable Generator', icon: Calendar },
-  { id: 'datesheet_generator', label: 'Datesheet Generator', icon: BookOpen },
+  { id: 'attendance', label: 'Attendance', icon: CalendarCheck },
+  { id: 'reports', label: 'Reports', icon: FileText },
 ];
 
+const advisorGroups = {
+  overview: [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'students', label: 'My Batch', icon: Users },
+    { id: 'notifications', label: 'Alerts & Notifications', icon: Bell }
+  ],
+  student_management: [
+    { id: 'students', label: 'Students', icon: Users },
+    { id: 'at_risk_monitoring', label: 'At-Risk Monitoring', icon: AlertTriangle },
+    { id: 'student_performance', label: 'Student Performance', icon: BarChart2 },
+    { id: 'workflowQueue', label: 'Approval Requests', icon: Clock }
+  ],
+  academic_management: [
+    { id: 'course_advising', label: 'Course Advising', icon: BookOpen },
+    { id: 'schedule', label: 'Schedule & Timetable', icon: Calendar },
+    { id: 'degree_plan', label: 'Degree Plan', icon: Layers }
+  ],
+  reports: [
+    { id: 'analytics', label: 'Reports & Analytics', icon: BarChart2 },
+    { id: 'advising_reports', label: 'Advising Reports', icon: FileText }
+  ],
+  system: [
+    { id: 'settings', label: 'Profile Settings', icon: Settings },
+    { id: 'help', label: 'Help & Support', icon: HelpCircle }
+  ]
+};
+
 const SYSTEM_NAV_ITEMS = [
-  // 🗓️ MODULE 5 OVERRIDE OPERATION CONFIG LINK ADDED HERE
-  { id: 'schedule_override', label: 'Schedule Override', icon: Clock },
-  { id: 'audit_logs', label: 'System Audit Logs', icon: BarChart2 },
   { id: 'settings', label: 'Profile Settings', icon: Settings },
 ];
 
@@ -41,6 +61,7 @@ export default function AdminLayout({
   const [showDeptDropdown, setShowDeptDropdown] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [currentDate, setCurrentDate] = useState('');
+  const [showAcademicTools, setShowAcademicTools] = useState(false);
 
   // Notification states in Layout
   const [showBellDropdown, setShowBellDropdown] = useState(false);
@@ -141,7 +162,22 @@ export default function AdminLayout({
       ? [{ id: 'settings', label: 'Profile Settings', icon: Settings }]
       : SYSTEM_NAV_ITEMS;
 
-  const activeNavItem = [...currentCoreNavItems, ...currentSystemNavItems].find(item => item.id === activeNav);
+
+  const advancedAcademicNavItems = [
+    { id: 'upload', label: 'CSV / Excel Upload', icon: Upload },
+    { id: 'migrations', label: 'Migration Records', icon: ArrowRightLeft },
+    { id: 'curriculum', label: 'Curriculum Setup', icon: BookOpen },
+    { id: 'timetable_generator', label: 'Timetable Generator', icon: Calendar },
+    { id: 'datesheet_generator', label: 'Datesheet Generator', icon: BookOpen },
+    { id: 'schedule_override', label: 'Schedule Override', icon: Clock },
+    { id: 'audit_logs', label: 'System Audit Logs', icon: BarChart2 },
+  ];
+
+  const activeNavItem = [
+    ...currentCoreNavItems,
+    ...currentSystemNavItems,
+    ...advancedAcademicNavItems
+  ].find(item => item.id === activeNav);
   const activeNavLabel = activeNavItem ? activeNavItem.label : 'Dashboard';
   const unreadCount = notifications.filter(n => n.status === 'Unread').length;
 
@@ -152,205 +188,340 @@ export default function AdminLayout({
       : { color: '#10B981', label: 'Administrator', bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.25)' }
     );
 
+  const displayName = user?.name === 'Admin CS Only' || user?.name === 'Admin CS+SE' ? 'Dr. Adrian Vance' : (user?.name || 'Academic Admin');
+  const isFemale = /fatima|ayesha|zainab|sana/i.test(displayName || '');
+  const profilePic = user?.name === 'Admin CS Only' || user?.name === 'Admin CS+SE'
+    ? 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'
+    : (user?.profilePictureUrl || (isFemale
+      ? 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'
+      : 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'));
+
+  const portalLabel = isAdvisor
+    ? 'Advisory Portal'
+    : isHOD
+      ? 'HOD Portal'
+      : 'Academic Portal';
+
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: "'Inter', sans-serif", width: '100vw' }}>
       {/* Sidebar */}
       <aside style={{
-        width: 256, minWidth: 256, backgroundColor: '#0F172A',
+        width: 256, minWidth: 256, backgroundColor: '#0B0F19',
         display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto', flexShrink: 0
       }}>
         {/* Logo */}
         <div style={{ padding: '24px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
-              width: 36, height: 36, borderRadius: 10,
-              background: 'linear-gradient(135deg, #2563EB, #1D4ED8)',
+              width: '36px', height: '36px', borderRadius: '10px',
+              background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: '0 4px 12px rgba(37,99,235,0.3)'
             }}>
               <GraduationCap size={18} color="#fff" />
             </div>
-            <span style={{ fontSize: 17, fontWeight: 700, color: '#F8FAFC', letterSpacing: '-0.3px' }}>
+            <span style={{ fontSize: '17px', fontWeight: 700, color: '#F8FAFC', letterSpacing: '-0.3px' }}>
               BatchMinder
             </span>
           </div>
         </div>
 
-        {/* User badge */}
+        {/* User Profile */}
         <div style={{ padding: '16px 20px' }}>
+          {/* Badge */}
           <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            backgroundColor: badgeConfig.bg,
-            border: `1px solid ${badgeConfig.border}`,
-            borderRadius: 20, padding: '3px 10px', marginBottom: 12
+            display: 'inline-flex', alignItems: 'center', gap: '6px',
+            backgroundColor: badgeConfig.bg, border: `1px solid ${badgeConfig.border}`,
+            borderRadius: '20px', padding: '3px 10px', marginBottom: '12px'
           }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: badgeConfig.color }} />
-            <span style={{ fontSize: 10, fontWeight: 800, color: badgeConfig.color, letterSpacing: '1px', textTransform: 'uppercase' }}>
+            <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: badgeConfig.color }} />
+            <span style={{ fontSize: '10px', fontWeight: 800, color: badgeConfig.color, letterSpacing: '1px', textTransform: 'uppercase' }}>
               {badgeConfig.label}
             </span>
           </div>
 
+          {/* User Card */}
           <div style={{
-            display: 'flex', alignItems: 'center', gap: 12,
-            padding: 12, borderRadius: 12,
-            backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.07)'
+            display: 'flex', alignItems: 'center', gap: '12px',
+            padding: '12px', borderRadius: '12px',
+            backgroundColor: 'rgba(255,255,255,0.05)',
+            border: '1px solid rgba(255,255,255,0.07)'
           }}>
-            {user?.profilePictureUrl ? (
-              <img
-                src={user.profilePictureUrl}
-                alt="Profile"
-                style={{
-                  width: 40, height: 40, borderRadius: 10,
-                  objectFit: 'cover', flexShrink: 0
-                }}
-              />
-            ) : (
-              <div style={{
-                width: 40, height: 40, borderRadius: 10,
-                background: 'linear-gradient(135deg, #10B981, #059669)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 14, fontWeight: 700, color: '#fff', flexShrink: 0
-              }}>
-                {user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'AD'}
-              </div>
-            )}
+            <div style={{
+              width: '40px', height: '40px', borderRadius: '10px',
+              background: 'linear-gradient(135deg, #4F46E5 0%, #6366F1 100%)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '14px', fontWeight: 700, color: '#fff', letterSpacing: '0.5px',
+              flexShrink: 0
+            }}>
+              {displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+            </div>
             <div style={{ minWidth: 0 }}>
-              <p style={{ fontSize: 13, fontWeight: 700, color: '#F1F5F9', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {user?.name || 'Administrator'}
+              <p style={{ fontSize: '13px', fontWeight: 700, color: '#F1F5F9', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {displayName}
               </p>
-              <p style={{ fontSize: 11, color: '#94A3B8', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <p style={{ fontSize: '11px', color: '#94A3B8', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {user?.email || ''}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Department Switcher */}
-        {departments.length > 0 && !isAdvisor && (
-          <div style={{ padding: '0 12px 8px' }}>
-            <div style={{ position: 'relative' }}>
+        {/* Navigation */}
+        <nav style={{ flex: 1, padding: '16px 12px 0', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {isAdvisor ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+              {/* OVERVIEW */}
+              <div>
+                <p style={{ fontSize: '10px', fontWeight: 800, color: '#475569', letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px 8px' }}>
+                  Overview
+                </p>
+                {[
+                  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+                  { id: 'myBatch', label: 'My Batch', icon: Users }
+                ].map(item => {
+                  const Icon = item.icon;
+                  const isActive = activeNav === item.id;
+                  return (
+                    <button key={item.id} onClick={() => onNavigate(item.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
+                        padding: '9px 12px', borderRadius: '9px', marginBottom: '2px',
+                        backgroundColor: isActive ? 'rgba(37,99,235,0.15)' : 'transparent',
+                        border: isActive ? '1px solid rgba(37,99,235,0.2)' : '1px solid transparent',
+                        color: isActive ? '#60A5FA' : '#94A3B8',
+                        fontSize: '13px', fontWeight: isActive ? 700 : 500,
+                        cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s'
+                      }}
+                      onMouseEnter={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#F1F5F9'; } }}
+                      onMouseLeave={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94A3B8'; } }}
+                    >
+                      <Icon size={15} /><span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* STUDENT MANAGEMENT */}
+              <div>
+                <p style={{ fontSize: '10px', fontWeight: 800, color: '#475569', letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px 8px' }}>
+                  Student Management
+                </p>
+                {[
+                  { id: 'students', label: 'Students', icon: Users },
+                  { id: 'workflowQueue', label: 'Approval Requests', icon: Clock }
+                ].map(item => {
+                  const Icon = item.icon;
+                  const isActive = activeNav === item.id;
+                  return (
+                    <button key={item.id} onClick={() => onNavigate(item.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
+                        padding: '9px 12px', borderRadius: '9px', marginBottom: '2px',
+                        backgroundColor: isActive ? 'rgba(37,99,235,0.15)' : 'transparent',
+                        border: isActive ? '1px solid rgba(37,99,235,0.2)' : '1px solid transparent',
+                        color: isActive ? '#60A5FA' : '#94A3B8',
+                        fontSize: '13px', fontWeight: isActive ? 700 : 500,
+                        cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s'
+                      }}
+                      onMouseEnter={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#F1F5F9'; } }}
+                      onMouseLeave={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94A3B8'; } }}
+                    >
+                      <Icon size={15} /><span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* ACADEMIC & REPORTS */}
+              <div>
+                <p style={{ fontSize: '10px', fontWeight: 800, color: '#475569', letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px 8px' }}>
+                  Academic
+                </p>
+                {[
+                  { id: 'timetable', label: 'Timetable Management', icon: Calendar },
+                  { id: 'reporting', label: 'Reporting Dashboard', icon: BarChart2 }
+                ].map(item => {
+                  const Icon = item.icon;
+                  const isActive = activeNav === item.id;
+                  return (
+                    <button key={item.id} onClick={() => onNavigate(item.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
+                        padding: '9px 12px', borderRadius: '9px', marginBottom: '2px',
+                        backgroundColor: isActive ? 'rgba(37,99,235,0.15)' : 'transparent',
+                        border: isActive ? '1px solid rgba(37,99,235,0.2)' : '1px solid transparent',
+                        color: isActive ? '#60A5FA' : '#94A3B8',
+                        fontSize: '13px', fontWeight: isActive ? 700 : 500,
+                        cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s'
+                      }}
+                      onMouseEnter={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#F1F5F9'; } }}
+                      onMouseLeave={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94A3B8'; } }}
+                    >
+                      <Icon size={15} /><span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* SYSTEM */}
+              <div>
+                <p style={{ fontSize: '10px', fontWeight: 800, color: '#475569', letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px 8px' }}>
+                  System
+                </p>
+                {[
+                  { id: 'settings', label: 'Profile Settings', icon: Settings }
+                ].map(item => {
+                  const Icon = item.icon;
+                  const isActive = activeNav === item.id;
+                  return (
+                    <button key={item.id} onClick={() => onNavigate(item.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
+                        padding: '9px 12px', borderRadius: '9px', marginBottom: '2px',
+                        backgroundColor: isActive ? 'rgba(37,99,235,0.15)' : 'transparent',
+                        border: isActive ? '1px solid rgba(37,99,235,0.2)' : '1px solid transparent',
+                        color: isActive ? '#60A5FA' : '#94A3B8',
+                        fontSize: '13px', fontWeight: isActive ? 700 : 500,
+                        cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s'
+                      }}
+                      onMouseEnter={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#F1F5F9'; } }}
+                      onMouseLeave={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94A3B8'; } }}
+                    >
+                      <Icon size={15} /><span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+            </div>
+
+          ) : (
+            currentCoreNavItems.map(item => {
+              const Icon = item.icon;
+              const isActive = activeNav === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => onNavigate(item.id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                    padding: '9px 12px', borderRadius: 9, marginBottom: 2,
+                    backgroundColor: isActive ? 'rgba(37,99,235,0.15)' : 'transparent',
+                    border: isActive ? '1px solid rgba(37,99,235,0.2)' : '1px solid transparent',
+                    color: isActive ? '#60A5FA' : '#94A3B8',
+                    fontSize: 13, fontWeight: isActive ? 700 : 500,
+                    cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s'
+                  }}
+                  onMouseEnter={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#F1F5F9'; } }}
+                  onMouseLeave={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94A3B8'; } }}
+                >
+                  <Icon size={16} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })
+          )}
+
+          {/* Collapsible Advanced Academic Tools for Academic Admin */}
+          {!isAdvisor && !isHOD && (
+            <div style={{ marginTop: 8 }}>
               <button
-                onClick={() => setShowDeptDropdown(!showDeptDropdown)}
+                onClick={() => setShowAcademicTools(!showAcademicTools)}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-                  padding: '8px 12px', borderRadius: 9,
-                  backgroundColor: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  color: '#CBD5E1', fontSize: 12, fontWeight: 600,
-                  cursor: 'pointer', textAlign: 'left'
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%',
+                  padding: '10px 14px', borderRadius: 10,
+                  backgroundColor: 'transparent', border: 'none',
+                  color: '#475569', fontSize: 11, fontWeight: 700,
+                  cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.5px'
                 }}
+                onMouseEnter={e => e.currentTarget.style.color = '#94A3B8'}
+                onMouseLeave={e => e.currentTarget.style.color = '#475569'}
               >
-                <Building2 size={14} />
-                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {deptName}
-                </span>
-                <ChevronDown size={14} />
+                <span>Academic Tools</span>
+                {showAcademicTools ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
               </button>
 
-              {showDeptDropdown && (
-                <div style={{
-                  position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, marginTop: 4,
-                  borderRadius: 9, backgroundColor: '#1E293B', border: '1px solid rgba(255,255,255,0.1)',
-                  boxShadow: '0 10px 30px rgba(0,0,0,0.3)', overflow: 'hidden'
-                }}>
-                  {departments.length >= 2 && (
-                    <button
-                      onClick={() => { onDeptChange('all'); setShowDeptDropdown(false); }}
-                      style={{
-                        display: 'block', width: '100%', padding: '8px 12px', border: 'none',
-                        backgroundColor: selectedDept === 'all' ? 'rgba(37,99,235,0.15)' : 'transparent',
-                        color: selectedDept === 'all' ? '#60A5FA' : '#CBD5E1',
-                        fontSize: 12, fontWeight: selectedDept === 'all' ? 700 : 500,
-                        cursor: 'pointer', textAlign: 'left'
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'}
-                      onMouseLeave={e => e.currentTarget.style.backgroundColor = selectedDept === 'all' ? 'rgba(37,99,235,0.15)' : 'transparent'}
-                    >
-                      All Departments
-                    </button>
-                  )}
-                  {departments.map(d => (
-                    <button
-                      key={d._id}
-                      onClick={() => { onDeptChange(d._id); setShowDeptDropdown(false); }}
-                      style={{
-                        display: 'block', width: '100%', padding: '8px 12px', border: 'none',
-                        backgroundColor: selectedDept === d._id ? 'rgba(37,99,235,0.15)' : 'transparent',
-                        color: selectedDept === d._id ? '#60A5FA' : '#CBD5E1',
-                        fontSize: 12, fontWeight: selectedDept === d._id ? 700 : 500,
-                        cursor: 'pointer', textAlign: 'left'
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'}
-                      onMouseLeave={e => e.currentTarget.style.backgroundColor = selectedDept === d._id ? 'rgba(37,99,235,0.15)' : 'transparent'}
-                    >
-                      {d.name}
-                    </button>
-                  ))}
+              {showAcademicTools && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingLeft: 8, marginTop: 4 }}>
+                  {advancedAcademicNavItems.map(item => {
+                    const Icon = item.icon;
+                    const isActive = activeNav === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => onNavigate(item.id)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                          padding: '8px 12px', borderRadius: 8,
+                          backgroundColor: isActive ? 'rgba(37,99,235,0.15)' : 'transparent',
+                          border: isActive ? '1px solid rgba(37,99,235,0.2)' : '1px solid transparent',
+                          color: isActive ? '#60A5FA' : '#64748B',
+                          fontSize: 12, fontWeight: isActive ? 600 : 500,
+                          cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s'
+                        }}
+                        onMouseEnter={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#F1F5F9'; } }}
+                        onMouseLeave={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#64748B'; } }}
+                      >
+                        <Icon size={14} />
+                        <span>{item.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Navigation */}
-        <nav style={{ flex: 1, padding: '4px 12px 0', overflowY: 'auto' }}>
-          {currentCoreNavItems.map(item => {
-            const Icon = item.icon;
-            const isActive = activeNav === item.id;
-            return (
+          {/* Spacing & Bottom Actions Container */}
+          <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 2, padding: '16px 0 8px' }}>
+            {!isAdvisor && !isHOD && (
               <button
-                key={item.id}
-                onClick={() => onNavigate(item.id)}
+                onClick={() => onNavigate('batches')}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                  padding: '9px 12px', borderRadius: 9, marginBottom: 2,
-                  backgroundColor: isActive ? 'rgba(37,99,235,0.15)' : 'transparent',
-                  border: isActive ? '1px solid rgba(37,99,235,0.2)' : '1px solid transparent',
-                  color: isActive ? '#60A5FA' : '#94A3B8',
-                  fontSize: 13, fontWeight: isActive ? 700 : 500,
-                  cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s'
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%',
+                  padding: '10px 16px', borderRadius: 12,
+                  backgroundColor: '#2563EB', border: 'none',
+                  color: '#FFFFFF', fontSize: 13, fontWeight: 600,
+                  cursor: 'pointer', transition: 'all 0.2s',
+                  boxShadow: '0 4px 12px rgba(37,99,235,0.2)',
+                  marginBottom: '8px'
                 }}
-                onMouseEnter={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#F1F5F9'; } }}
-                onMouseLeave={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94A3B8'; } }}
+                onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#1D4ED8'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#2563EB'; e.currentTarget.style.transform = 'none'; }}
               >
-                <Icon size={15} />
-                <span>{item.label}</span>
+                <Plus size={16} />
+                <span>New Batch</span>
               </button>
-            );
-          })}
+            )}
 
-          <div style={{
-            fontSize: '10px', fontWeight: 800, color: '#475569',
-            letterSpacing: '1px', textTransform: 'uppercase',
-            padding: '16px 12px 8px'
-          }}>
-            System Settings
+            {/* System Settings (Profile Settings) */}
+            {!isAdvisor && currentSystemNavItems.map(item => {
+              const Icon = item.icon;
+              const isActive = activeNav === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => onNavigate(item.id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                    padding: '9px 12px', borderRadius: 9, marginBottom: 2,
+                    backgroundColor: isActive ? 'rgba(37,99,235,0.15)' : 'transparent',
+                    border: isActive ? '1px solid rgba(37,99,235,0.2)' : '1px solid transparent',
+                    color: isActive ? '#60A5FA' : '#94A3B8',
+                    fontSize: 13, fontWeight: isActive ? 700 : 500,
+                    cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s'
+                  }}
+                  onMouseEnter={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#F1F5F9'; } }}
+                  onMouseLeave={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94A3B8'; } }}
+                >
+                  <Icon size={16} />
+                  <span>Settings</span>
+                </button>
+              );
+            })}
           </div>
-
-          {currentSystemNavItems.map(item => {
-            const Icon = item.icon;
-            const isActive = activeNav === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => onNavigate(item.id)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                  padding: '9px 12px', borderRadius: 9, marginBottom: 2,
-                  backgroundColor: isActive ? 'rgba(37,99,235,0.15)' : 'transparent',
-                  border: isActive ? '1px solid rgba(37,99,235,0.2)' : '1px solid transparent',
-                  color: isActive ? '#60A5FA' : '#94A3B8',
-                  fontSize: 13, fontWeight: isActive ? 700 : 500,
-                  cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s'
-                }}
-                onMouseEnter={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#F1F5F9'; } }}
-                onMouseLeave={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94A3B8'; } }}
-              >
-                <Icon size={15} />
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
         </nav>
 
         {/* Logout */}
@@ -363,13 +534,13 @@ export default function AdminLayout({
               backgroundColor: 'rgba(239,68,68,0.08)',
               border: '1px solid rgba(239,68,68,0.15)',
               color: '#F87171', fontSize: 13, fontWeight: 600,
-              cursor: 'pointer'
+              cursor: 'pointer', transition: 'all 0.15s'
             }}
             onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#EF4444'; e.currentTarget.style.color = '#fff'; }}
             onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.08)'; e.currentTarget.style.color = '#F87171'; }}
           >
-            <LogOut size={15} />
-            <span>Log Out</span>
+            <LogOut size={16} />
+            <span>Logout</span>
           </button>
         </div>
       </aside>
@@ -380,178 +551,171 @@ export default function AdminLayout({
         {/* Top Header */}
         <div style={{
           backgroundColor: '#FFFFFF', borderBottom: '1px solid #E2E8F0',
-          padding: '18px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          flexShrink: 0
+          padding: '18px 32px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+          flexShrink: 0, gap: '12px'
         }}>
-          <div>
-            <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>
-              {activeNavLabel}
-            </h1>
-            <p style={{ margin: '3px 0 0', fontSize: '13px', color: '#94A3B8' }}>
-              BatchMinder ERP &bull; <span style={{ color: '#64748B' }}>{activeNavLabel}</span>
-            </p>
-          </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {/* Advisor Batch Switcher */}
-            {isAdvisor && batches.length > 1 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Batch:</span>
-                <div style={{ position: 'relative' }}>
-                  <select
-                    value={selectedBatch}
-                    onChange={e => onBatchChange(e.target.value)}
-                    style={{
-                      padding: '8px 32px 8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1',
-                      fontSize: '12px', fontWeight: 700, color: '#1E293B', outline: 'none',
-                      backgroundColor: '#FAFAFA', appearance: 'none', cursor: 'pointer', fontFamily: 'inherit'
-                    }}
-                  >
-                    <option value="all">All Assigned Batches</option>
-                    {batches.map(b => (
-                      <option key={b._id} value={b._id}>{b.code}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={12} color="#64748B" style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-                </div>
-              </div>
-            )}
-
-            {isAdvisor && batches.length === 1 && (
-              <div style={{
-                padding: '8px 14px', borderRadius: '10px',
-                backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0',
-                fontSize: '12px', fontWeight: 700, color: '#475569'
-              }}>
-                Batch: <span style={{ color: '#2563EB' }}>{batches[0]?.code}</span>
-              </div>
-            )}
-
-            {/* Date */}
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '7px',
+          {/* Advisor Batch Switcher — multi-batch */}
+          {isAdvisor && batches.length > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px',
               padding: '8px 14px', borderRadius: '10px',
-              backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0',
-              fontSize: '12px', fontWeight: 600, color: '#475569'
+              backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0'
             }}>
-              <Calendar size={14} color="#94A3B8" />
-              {currentDate}
+              <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Batch:</span>
+              <div style={{ position: 'relative' }}>
+                <select
+                  value={selectedBatch}
+                  onChange={e => onBatchChange(e.target.value)}
+                  style={{
+                    padding: '2px 28px 2px 4px', border: 'none', outline: 'none',
+                    fontSize: '12px', fontWeight: 700, color: '#2563EB',
+                    backgroundColor: 'transparent', appearance: 'none', cursor: 'pointer', fontFamily: 'inherit'
+                  }}
+                >
+                  <option value="all">All Batches</option>
+                  {batches.map(b => (
+                    <option key={b._id} value={b._id}>{b.code}</option>
+                  ))}
+                </select>
+                <ChevronDown size={11} color="#64748B" style={{ position: 'absolute', right: '2px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+              </div>
             </div>
+          )}
 
-            {/* Bell Button & Dropdown */}
-            <div style={{ position: 'relative' }}>
-              <button
-                onClick={() => {
-                  setShowBellDropdown(o => !o);
-                  fetchHeaderNotifications();
-                }}
-                style={{
-                  position: 'relative', width: '38px', height: '38px', borderRadius: '10px',
-                  backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', color: '#64748B', fontFamily: 'inherit'
-                }}
-              >
-                <Bell size={17} />
-                {unreadCount > 0 && (
-                  <span style={{
-                    position: 'absolute', top: '4px', right: '4px',
-                    width: '18px', height: '18px', borderRadius: '50%',
-                    backgroundColor: '#EF4444', border: '2px solid #fff',
-                    fontSize: '9px', fontWeight: 800, color: '#fff',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center'
-                  }}>{unreadCount}</span>
-                )}
-              </button>
-
-              {showBellDropdown && (
-                <div style={{
-                  position: 'absolute', top: '100%', right: 0, zIndex: 100,
-                  marginTop: '8px', width: '280px', borderRadius: '12px',
-                  backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0',
-                  boxShadow: '0 10px 30px rgba(0,0,0,0.1)', overflow: 'hidden',
-                  textAlign: 'left'
-                }}>
-                  <div style={{ padding: '12px 16px', borderBottom: '1px solid #F1F5F9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#0F172A' }}>Recent Alerts</span>
-                    {unreadCount > 0 ? (
-                      <button
-                        onClick={handleMarkAllRead}
-                        style={{
-                          border: 'none', backgroundColor: 'transparent',
-                          fontSize: '10px', fontWeight: 700, color: '#2563EB',
-                          cursor: 'pointer', fontFamily: 'inherit', padding: 0
-                        }}
-                      >
-                        Mark all as read
-                      </button>
-                    ) : (
-                      <span style={{ fontSize: '10px', fontWeight: 600, color: '#94A3B8' }}>0 Unread</span>
-                    )}
-                  </div>
-
-                  <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
-                    {notifications.length === 0 ? (
-                      <div style={{ padding: '20px', textAlign: 'center', color: '#94A3B8', fontSize: '12px' }}>
-                        No new notifications
-                      </div>
-                    ) : (
-                      notifications.map(alert => (
-                        <div key={alert.id}
-                          onClick={() => handleNotificationClick(alert)}
-                          style={{
-                            padding: '10px 16px', borderBottom: '1px solid #F1F5F9',
-                            display: 'flex', flexDirection: 'column', gap: '2px',
-                            cursor: 'pointer',
-                            backgroundColor: alert.status === 'Unread' ? 'rgba(37,99,235,0.02)' : '#FFFFFF'
-                          }}
-                          onMouseEnter={e => e.currentTarget.style.backgroundColor = '#F8FAFC'}
-                          onMouseLeave={e => e.currentTarget.style.backgroundColor = alert.status === 'Unread' ? 'rgba(37,99,235,0.02)' : '#FFFFFF'}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <div style={{
-                              width: '6px', height: '6px', borderRadius: '50%',
-                              backgroundColor: alert.type === 'critical' ? '#EF4444' : alert.type === 'warning' ? '#F59E0B' : '#3B82F6',
-                              flexShrink: 0
-                            }} />
-                            <span style={{ fontSize: '11px', fontWeight: alert.status === 'Unread' ? 700 : 500, color: '#1E293B', whiteSpace: 'normal' }}>
-                              {alert.title}
-                            </span>
-                          </div>
-                          <span style={{ fontSize: '9.5px', color: '#94A3B8', marginLeft: '12px' }}>
-                            {new Date(alert.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-
-                  <div style={{ padding: '8px', textAlign: 'center', backgroundColor: '#FAFAFA' }}>
-                    <button
-                      onClick={() => {
-                        onNavigate('notifications');
-                        setShowBellDropdown(false);
-                      }}
-                      style={{ border: 'none', backgroundColor: 'transparent', fontSize: '11px', fontWeight: 700, color: '#2563EB', cursor: 'pointer', fontFamily: 'inherit' }}
-                    >
-                      View All Notifications
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Live System */}
+          {/* Advisor Batch — single batch */}
+          {isAdvisor && batches.length === 1 && (
             <div style={{
               display: 'flex', alignItems: 'center', gap: '6px',
               padding: '8px 14px', borderRadius: '10px',
-              backgroundColor: '#16A34A', fontSize: '11px',
-              fontWeight: 700, color: '#fff', letterSpacing: '0.5px', textTransform: 'uppercase'
+              backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0',
+              fontSize: '12px', fontWeight: 700, color: '#475569'
             }}>
-              <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#fff', display: 'inline-block', animation: 'pulse 2s infinite' }} />
-              Live System
+              Batch: <span style={{ color: '#2563EB' }}>{batches[0]?.code}</span>
             </div>
+          )}
+
+          {/* Bell Button & Dropdown */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => {
+                setShowBellDropdown(o => !o);
+                fetchHeaderNotifications();
+              }}
+              style={{
+                position: 'relative', width: '38px', height: '38px', borderRadius: '10px',
+                backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', color: '#64748B', fontFamily: 'inherit'
+              }}
+            >
+              <Bell size={17} />
+              {unreadCount > 0 && (
+                <span style={{
+                  position: 'absolute', top: '4px', right: '4px',
+                  width: '18px', height: '18px', borderRadius: '50%',
+                  backgroundColor: '#EF4444', border: '2px solid #fff',
+                  fontSize: '9px', fontWeight: 800, color: '#fff',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>{unreadCount}</span>
+              )}
+            </button>
+
+            {showBellDropdown && (
+              <div style={{
+                position: 'absolute', top: '100%', right: 0, zIndex: 100,
+                marginTop: '8px', width: '280px', borderRadius: '12px',
+                backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.1)', overflow: 'hidden',
+                textAlign: 'left'
+              }}>
+                <div style={{ padding: '12px 16px', borderBottom: '1px solid #F1F5F9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#0F172A' }}>Recent Alerts</span>
+                  {unreadCount > 0 ? (
+                    <button
+                      onClick={handleMarkAllRead}
+                      style={{
+                        border: 'none', backgroundColor: 'transparent',
+                        fontSize: '10px', fontWeight: 700, color: '#2563EB',
+                        cursor: 'pointer', fontFamily: 'inherit', padding: 0
+                      }}
+                    >
+                      Mark all as read
+                    </button>
+                  ) : (
+                    <span style={{ fontSize: '10px', fontWeight: 600, color: '#94A3B8' }}>0 Unread</span>
+                  )}
+                </div>
+
+                <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
+                  {notifications.length === 0 ? (
+                    <div style={{ padding: '20px', textAlign: 'center', color: '#94A3B8', fontSize: '12px' }}>
+                      No new notifications
+                    </div>
+                  ) : (
+                    notifications.map(alert => (
+                      <div key={alert.id}
+                        onClick={() => handleNotificationClick(alert)}
+                        style={{
+                          padding: '10px 16px', borderBottom: '1px solid #F1F5F9',
+                          display: 'flex', flexDirection: 'column', gap: '2px',
+                          cursor: 'pointer',
+                          backgroundColor: alert.status === 'Unread' ? 'rgba(37,99,235,0.02)' : '#FFFFFF'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.backgroundColor = '#F8FAFC'}
+                        onMouseLeave={e => e.currentTarget.style.backgroundColor = alert.status === 'Unread' ? 'rgba(37,99,235,0.02)' : '#FFFFFF'}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <div style={{
+                            width: '6px', height: '6px', borderRadius: '50%',
+                            backgroundColor: alert.type === 'critical' ? '#EF4444' : alert.type === 'warning' ? '#F59E0B' : '#3B82F6',
+                            flexShrink: 0
+                          }} />
+                          <span style={{ fontSize: '11px', fontWeight: alert.status === 'Unread' ? 700 : 500, color: '#1E293B', whiteSpace: 'normal' }}>
+                            {alert.title}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '9.5px', color: '#94A3B8', marginLeft: '12px' }}>
+                          {new Date(alert.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div style={{ padding: '8px', textAlign: 'center', backgroundColor: '#FAFAFA' }}>
+                  <button
+                    onClick={() => { onNavigate('notifications'); setShowBellDropdown(false); }}
+                    style={{ border: 'none', backgroundColor: 'transparent', fontSize: '11px', fontWeight: 700, color: '#2563EB', cursor: 'pointer', fontFamily: 'inherit' }}
+                  >
+                    View All Notifications
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* Date */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '7px',
+            padding: '8px 14px', borderRadius: '10px',
+            backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0',
+            fontSize: '12px', fontWeight: 600, color: '#475569'
+          }}>
+            <Calendar size={14} color="#94A3B8" />
+            {currentDate}
+          </div>
+
+          {/* Live System Badge */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '6px',
+            padding: '8px 14px', borderRadius: '10px',
+            backgroundColor: '#16A34A', fontSize: '11px',
+            fontWeight: 700, color: '#fff', letterSpacing: '0.5px', textTransform: 'uppercase'
+          }}>
+            <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#fff', display: 'inline-block', animation: 'pulse 2s infinite' }} />
+            Live System
+          </div>
+
         </div>
 
         {/* Content Wrapper */}

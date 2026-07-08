@@ -39,6 +39,7 @@ export default function SuperAdminDashboard({ onLogout }) {
   // Live stats & notifications states
   const [dashboardData, setDashboardData] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [batchesList, setBatchesList] = useState([]);
   const [statsLoading, setStatsLoading] = useState(true);
   const [statsError, setStatsError] = useState(null);
 
@@ -52,6 +53,13 @@ export default function SuperAdminDashboard({ onLogout }) {
         setDashboardData(data.data);
       } else {
         setStatsError(data.message || 'Failed to fetch dashboard statistics.');
+      }
+
+      // Fetch dynamic batches list for summary table
+      const batchesRes = await fetch('/api/batches');
+      const batchesData = await batchesRes.json();
+      if (batchesRes.ok && batchesData.status === 'success') {
+        setBatchesList(batchesData.data);
       }
     } catch (err) {
       setStatsError('Connection error: Failed to retrieve server metrics.');
@@ -435,279 +443,410 @@ export default function SuperAdminDashboard({ onLogout }) {
           <AuditLogsPage setActiveNav={setActiveNav} />
         ) : (
           <div style={{ flex: 1, overflowY: 'auto', backgroundColor: '#F8FAFC', display: 'flex', flexDirection: 'column' }}>
-        {/* Top Header */}
+            {/* Top Header */}
 
-        <div style={{
-          backgroundColor: '#FFFFFF', borderBottom: '1px solid #E2E8F0',
-          padding: '18px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          flexShrink: 0
-        }}>
-          <div>
-            <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>
-              Super Admin Dashboard
-            </h1>
-            <p style={{ margin: '3px 0 0', fontSize: '13px', color: '#94A3B8' }}>
-              BatchMinder ERP &bull; <span style={{ color: '#64748B' }}>Dashboard</span>
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {/* Date */}
             <div style={{
-              display: 'flex', alignItems: 'center', gap: '7px',
-              padding: '8px 14px', borderRadius: '10px',
-              backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0',
-              fontSize: '12px', fontWeight: 600, color: '#475569'
+              backgroundColor: '#FFFFFF', borderBottom: '1px solid #E2E8F0',
+              padding: '18px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              flexShrink: 0
             }}>
-              <Calendar size={14} color="#94A3B8" />
-              {currentDate}
+              <div>
+                <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>
+                  Super Admin Dashboard
+                </h1>
+                <p style={{ margin: '3px 0 0', fontSize: '13px', color: '#94A3B8' }}>
+                  BatchMinder ERP &bull; <span style={{ color: '#64748B' }}>Dashboard</span>
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                {/* Date */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: '7px',
+                  padding: '8px 14px', borderRadius: '10px',
+                  backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0',
+                  fontSize: '12px', fontWeight: 600, color: '#475569'
+                }}>
+                  <Calendar size={14} color="#94A3B8" />
+                  {currentDate}
+                </div>
+
+                {/* Bell */}
+                <div style={{ position: 'relative' }}>
+                  <button
+                    onClick={() => setShowBellDropdown(o => !o)}
+                    style={{
+                      position: 'relative', width: '38px', height: '38px', borderRadius: '10px',
+                      backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      cursor: 'pointer', color: '#64748B', fontFamily: 'inherit'
+                    }}
+                  >
+                    <Bell size={17} />
+                    {notifications.filter(n => n.status === 'Unread').length > 0 && (
+                      <span style={{
+                        position: 'absolute', top: '4px', right: '4px',
+                        width: '18px', height: '18px', borderRadius: '50%',
+                        backgroundColor: '#EF4444', border: '2px solid #fff',
+                        fontSize: '9px', fontWeight: 800, color: '#fff',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                      }}>{notifications.filter(n => n.status === 'Unread').length}</span>
+                    )}
+                  </button>
+                  {showBellDropdown && (
+                    <div style={{
+                      position: 'absolute', top: '100%', right: 0, zIndex: 100,
+                      marginTop: '8px', width: '280px', borderRadius: '12px',
+                      backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0',
+                      boxShadow: '0 10px 30px rgba(0,0,0,0.1)', overflow: 'hidden',
+                      textAlign: 'left'
+                    }}>
+                      <div style={{ padding: '12px 16px', borderBottom: '1px solid #F1F5F9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#0F172A' }}>Recent Alerts</span>
+                        <span style={{ fontSize: '10px', fontWeight: 700, color: '#EF4444', backgroundColor: '#FEE2E2', padding: '2px 6px', borderRadius: '10px' }}>
+                          {notifications.filter(n => n.status === 'Unread').length} Unread
+                        </span>
+                      </div>
+                      <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
+                        {notifications.length === 0 ? (
+                          <div style={{ padding: '20px', textAlign: 'center', color: '#94A3B8', fontSize: '12px' }}>
+                            No new notifications
+                          </div>
+                        ) : (
+                          notifications.map(alert => (
+                            <div key={alert.id} style={{ padding: '10px 16px', borderBottom: '1px solid #F1F5F9', display: 'flex', flexDirection: 'column', gap: '2px' }}
+                              onMouseEnter={e => e.currentTarget.style.backgroundColor = '#F8FAFC'}
+                              onMouseLeave={e => e.currentTarget.style.backgroundColor = '#FFFFFF'}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <div style={{
+                                  width: '6px', height: '6px', borderRadius: '50%',
+                                  backgroundColor: alert.type === 'critical' ? '#EF4444' : alert.type === 'warning' ? '#F59E0B' : '#3B82F6',
+                                  flexShrink: 0
+                                }} />
+                                <span style={{ fontSize: '11px', fontWeight: 600, color: '#1E293B', whiteSpace: 'normal' }}>{alert.title}</span>
+                              </div>
+                              <span style={{ fontSize: '9.5px', color: '#94A3B8', marginLeft: '12px' }}>
+                                {new Date(alert.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      <div style={{ padding: '8px', textAlign: 'center', backgroundColor: '#FAFAFA' }}>
+                        <button
+                          onClick={() => { setActiveNav('notifications'); setShowBellDropdown(false); }}
+                          style={{ border: 'none', backgroundColor: 'transparent', fontSize: '11px', fontWeight: 700, color: '#2563EB', cursor: 'pointer', fontFamily: 'inherit' }}
+                        >
+                          View All Notifications
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Live */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  padding: '8px 14px', borderRadius: '10px',
+                  backgroundColor: '#16A34A', fontSize: '11px',
+                  fontWeight: 700, color: '#fff', letterSpacing: '0.5px', textTransform: 'uppercase'
+                }}>
+                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#fff', display: 'inline-block', animation: 'pulse 2s infinite' }} />
+                  Live System
+                </div>
+              </div>
             </div>
 
-            {/* Bell */}
-            <div style={{ position: 'relative' }}>
-              <button
-                onClick={() => setShowBellDropdown(o => !o)}
-                style={{
-                  position: 'relative', width: '38px', height: '38px', borderRadius: '10px',
-                  backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', color: '#64748B', fontFamily: 'inherit'
-                }}
-              >
-                <Bell size={17} />
-                {notifications.filter(n => n.status === 'Unread').length > 0 && (
-                  <span style={{
-                    position: 'absolute', top: '4px', right: '4px',
-                    width: '18px', height: '18px', borderRadius: '50%',
-                    backgroundColor: '#EF4444', border: '2px solid #fff',
-                    fontSize: '9px', fontWeight: 800, color: '#fff',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center'
-                  }}>{notifications.filter(n => n.status === 'Unread').length}</span>
-                )}
-              </button>
-              {showBellDropdown && (
+            {/* Scrollable Content */}
+            <div style={{ flex: 1, padding: '28px 32px', overflowY: 'auto' }}>
+
+              {/* 8-Card Metrics Grid */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: '16px',
+                marginBottom: '24px'
+              }}>
+                {metrics.map((m, i) => {
+                  const Icon = m.icon;
+                  return (
+                    <div
+                      key={i}
+                      style={{
+                        backgroundColor: '#FFFFFF',
+                        border: '1px solid #E2E8F0',
+                        borderRadius: '14px',
+                        padding: '20px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '12px',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                        transition: 'box-shadow 0.2s',
+                        cursor: 'default'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'}
+                      onMouseLeave={e => e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)'}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                        <div style={{
+                          width: '36px', height: '36px', borderRadius: '9px',
+                          backgroundColor: m.iconBg,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          flexShrink: 0
+                        }}>
+                          <Icon size={17} color={m.iconColor} />
+                        </div>
+                      </div>
+                      <div>
+                        <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
+                          {m.title}
+                        </p>
+                        <h3 style={{ margin: '4px 0 0', fontSize: '28px', fontWeight: 800, color: '#0F172A', letterSpacing: '-1px' }}>
+                          {m.value}
+                        </h3>
+                      </div>
+                      <div style={{
+                        fontSize: '11px', fontWeight: 600, color: m.footerColor,
+                        paddingTop: '10px', borderTop: '1px solid #F1F5F9'
+                      }}>
+                        {m.footer}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Top Row: Department Overview + Quick Actions */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '16px', marginBottom: '24px' }}>
+
+                {/* Department Overview */}
                 <div style={{
-                  position: 'absolute', top: '100%', right: 0, zIndex: 100,
-                  marginTop: '8px', width: '280px', borderRadius: '12px',
                   backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0',
-                  boxShadow: '0 10px 30px rgba(0,0,0,0.1)', overflow: 'hidden',
-                  textAlign: 'left'
+                  borderRadius: '14px', padding: '24px',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
                 }}>
-                  <div style={{ padding: '12px 16px', borderBottom: '1px solid #F1F5F9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#0F172A' }}>Recent Alerts</span>
-                    <span style={{ fontSize: '10px', fontWeight: 700, color: '#EF4444', backgroundColor: '#FEE2E2', padding: '2px 6px', borderRadius: '10px' }}>
-                      {notifications.filter(n => n.status === 'Unread').length} Unread
-                    </span>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #F1F5F9' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Home size={17} color="#64748B" />
+                      <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Department Overview</h3>
+                    </div>
+                    <button
+                      onClick={() => setActiveNav('departments')}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '6px',
+                        padding: '7px 14px', borderRadius: '8px',
+                        backgroundColor: '#0F172A', border: 'none',
+                        color: '#fff', fontSize: '12px', fontWeight: 600,
+                        cursor: 'pointer', transition: 'background 0.15s'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.backgroundColor = '#1E293B'}
+                      onMouseLeave={e => e.currentTarget.style.backgroundColor = '#0F172A'}
+                    >
+                      Manage Depts
+                      <ExternalLink size={12} />
+                    </button>
                   </div>
-                  <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
-                    {notifications.length === 0 ? (
-                      <div style={{ padding: '20px', textAlign: 'center', color: '#94A3B8', fontSize: '12px' }}>
-                        No new notifications
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    {depts.map((d, i) => (
+                      <div key={i}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <span style={{ fontSize: '13px', fontWeight: 600, color: '#1E293B' }}>{d.name}</span>
+                          <span style={{ fontSize: '13px', fontWeight: 700, color: '#64748B' }}>{d.students} Students</span>
+                        </div>
+                        <div style={{ height: '8px', backgroundColor: '#F1F5F9', borderRadius: '4px', overflow: 'hidden', marginBottom: '6px' }}>
+                          <div style={{
+                            height: '100%', borderRadius: '4px',
+                            backgroundColor: d.color,
+                            width: `${d.pct}%`,
+                            transition: 'width 0.8s ease'
+                          }} />
+                        </div>
+                        <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          {d.stats}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Quick Actions */}
+                <div style={{
+                  backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0',
+                  borderRadius: '14px', padding: '24px',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+                }}>
+                  <h3 style={{ margin: '0 0 16px', fontSize: '15px', fontWeight: 700, color: '#0F172A', paddingBottom: '16px', borderBottom: '1px solid #F1F5F9' }}>
+                    Quick Actions
+                  </h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    {quickActions.map((action, i) => {
+                      const ActionIcon = action.icon;
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => { if (action.navId) setActiveNav(action.navId); }}
+                          style={{
+                            display: 'flex', flexDirection: 'column',
+                            alignItems: 'center', justifyContent: 'center', gap: '10px',
+                            padding: '16px 10px', borderRadius: '11px',
+                            backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0',
+                            cursor: 'pointer', transition: 'all 0.15s', textAlign: 'center'
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#F1F5F9'; e.currentTarget.style.borderColor = '#CBD5E1'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#F8FAFC'; e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                        >
+                          <div style={{
+                            width: '40px', height: '40px', borderRadius: '10px',
+                            backgroundColor: action.bg,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                          }}>
+                            <ActionIcon size={18} color={action.iconColor} />
+                          </div>
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#374151' }}>
+                            {action.title}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Bottom Row: Recent System Activity + Batch Allocation Summary */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+
+                {/* Recent System Activity */}
+                <div style={{
+                  backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0',
+                  borderRadius: '14px', padding: '24px',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                  display: 'flex', flexDirection: 'column'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #F1F5F9' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Activity size={17} color="#64748B" />
+                      <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Recent System Activity</h3>
+                    </div>
+                    <button
+                      onClick={() => setActiveNav('audits')}
+                      style={{
+                        border: 'none', backgroundColor: 'transparent',
+                        color: '#2563EB', fontSize: '12px', fontWeight: 700,
+                        cursor: 'pointer', fontFamily: 'inherit'
+                      }}
+                    >
+                      View All Logs &rarr;
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1, overflowY: 'auto' }}>
+                    {!dashboardData?.activityLogs || dashboardData.activityLogs.length === 0 ? (
+                      <div style={{ padding: '40px 10px', textAlign: 'center', color: '#94A3B8', fontSize: '12px' }}>
+                        No system activity logged
                       </div>
                     ) : (
-                      notifications.map(alert => (
-                        <div key={alert.id} style={{ padding: '10px 16px', borderBottom: '1px solid #F1F5F9', display: 'flex', flexDirection: 'column', gap: '2px' }}
-                          onMouseEnter={e => e.currentTarget.style.backgroundColor = '#F8FAFC'}
-                          onMouseLeave={e => e.currentTarget.style.backgroundColor = '#FFFFFF'}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <div style={{
-                              width: '6px', height: '6px', borderRadius: '50%',
-                              backgroundColor: alert.type === 'critical' ? '#EF4444' : alert.type === 'warning' ? '#F59E0B' : '#3B82F6',
-                              flexShrink: 0
-                            }} />
-                            <span style={{ fontSize: '11px', fontWeight: 600, color: '#1E293B', whiteSpace: 'normal' }}>{alert.title}</span>
+                      dashboardData.activityLogs.slice(0, 6).map((log, i) => (
+                        <div key={i} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                          <div style={{
+                            width: '28px', height: '28px', borderRadius: '50%',
+                            backgroundColor: '#EFF6FF', display: 'flex', alignItems: 'center',
+                            justifyContent: 'center', flexShrink: 0, color: '#2563EB'
+                          }}>
+                            <Clock size={12} />
                           </div>
-                          <span style={{ fontSize: '9.5px', color: '#94A3B8', marginLeft: '12px' }}>
-                            {new Date(alert.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
+                          <div style={{ flex: 1 }}>
+                            <p style={{ margin: 0, fontSize: '12.5px', color: '#334155', fontWeight: 500, lineHeight: 1.3 }}>
+                              {log.details || log.action}
+                            </p>
+                            <span style={{ fontSize: '10px', color: '#94A3B8', display: 'block', marginTop: '2px' }}>
+                              {new Date(log.time).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} &bull; by {log.user}
+                            </span>
+                          </div>
                         </div>
                       ))
                     )}
                   </div>
-                  <div style={{ padding: '8px', textAlign: 'center', backgroundColor: '#FAFAFA' }}>
+                </div>
+
+                {/* Batch Allocation Summary */}
+                <div style={{
+                  backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0',
+                  borderRadius: '14px', padding: '24px',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                  display: 'flex', flexDirection: 'column'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #F1F5F9' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Layers size={17} color="#64748B" />
+                      <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Batch Allocation Summary</h3>
+                    </div>
                     <button
-                      onClick={() => { setActiveNav('notifications'); setShowBellDropdown(false); }}
-                      style={{ border: 'none', backgroundColor: 'transparent', fontSize: '11px', fontWeight: 700, color: '#2563EB', cursor: 'pointer', fontFamily: 'inherit' }}
-                    >
-                      View All Notifications
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Live */}
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '6px',
-              padding: '8px 14px', borderRadius: '10px',
-              backgroundColor: '#16A34A', fontSize: '11px',
-              fontWeight: 700, color: '#fff', letterSpacing: '0.5px', textTransform: 'uppercase'
-            }}>
-              <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#fff', display: 'inline-block', animation: 'pulse 2s infinite' }} />
-              Live System
-            </div>
-          </div>
-        </div>
-
-        {/* Scrollable Content */}
-        <div style={{ flex: 1, padding: '28px 32px', overflowY: 'auto' }}>
-
-          {/* 8-Card Metrics Grid */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: '16px',
-            marginBottom: '24px'
-          }}>
-            {metrics.map((m, i) => {
-              const Icon = m.icon;
-              return (
-                <div
-                  key={i}
-                  style={{
-                    backgroundColor: '#FFFFFF',
-                    border: '1px solid #E2E8F0',
-                    borderRadius: '14px',
-                    padding: '20px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '12px',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                    transition: 'box-shadow 0.2s',
-                    cursor: 'default'
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'}
-                  onMouseLeave={e => e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)'}
-                >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                    <div style={{
-                      width: '36px', height: '36px', borderRadius: '9px',
-                      backgroundColor: m.iconBg,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      flexShrink: 0
-                    }}>
-                      <Icon size={17} color={m.iconColor} />
-                    </div>
-                  </div>
-                  <div>
-                    <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
-                      {m.title}
-                    </p>
-                    <h3 style={{ margin: '4px 0 0', fontSize: '28px', fontWeight: 800, color: '#0F172A', letterSpacing: '-1px' }}>
-                      {m.value}
-                    </h3>
-                  </div>
-                  <div style={{
-                    fontSize: '11px', fontWeight: 600, color: m.footerColor,
-                    paddingTop: '10px', borderTop: '1px solid #F1F5F9'
-                  }}>
-                    {m.footer}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Bottom Row: Dept Overview + Quick Actions */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '16px' }}>
-
-            {/* Department Overview */}
-            <div style={{
-              backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0',
-              borderRadius: '14px', padding: '24px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #F1F5F9' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Home size={17} color="#64748B" />
-                  <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Department Overview</h3>
-                </div>
-                <button
-                  onClick={() => setActiveNav('departments')}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '6px',
-                    padding: '7px 14px', borderRadius: '8px',
-                    backgroundColor: '#0F172A', border: 'none',
-                    color: '#fff', fontSize: '12px', fontWeight: 600,
-                    cursor: 'pointer', transition: 'background 0.15s'
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.backgroundColor = '#1E293B'}
-                  onMouseLeave={e => e.currentTarget.style.backgroundColor = '#0F172A'}
-                >
-                  Manage Depts
-                  <ExternalLink size={12} />
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                {depts.map((d, i) => (
-                  <div key={i}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 600, color: '#1E293B' }}>{d.name}</span>
-                      <span style={{ fontSize: '13px', fontWeight: 700, color: '#64748B' }}>{d.students} Students</span>
-                    </div>
-                    <div style={{ height: '8px', backgroundColor: '#F1F5F9', borderRadius: '4px', overflow: 'hidden', marginBottom: '6px' }}>
-                      <div style={{
-                        height: '100%', borderRadius: '4px',
-                        backgroundColor: d.color,
-                        width: `${d.pct}%`,
-                        transition: 'width 0.8s ease'
-                      }} />
-                    </div>
-                    <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      {d.stats}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Quick Actions */}
-            <div style={{
-              backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0',
-              borderRadius: '14px', padding: '24px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
-            }}>
-              <h3 style={{ margin: '0 0 16px', fontSize: '15px', fontWeight: 700, color: '#0F172A', paddingBottom: '16px', borderBottom: '1px solid #F1F5F9' }}>
-                Quick Actions
-              </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                {quickActions.map((action, i) => {
-                  const ActionIcon = action.icon;
-                  return (
-                    <button
-                      key={i}
-                      onClick={() => { if (action.navId) setActiveNav(action.navId); }}
+                      onClick={() => setActiveNav('batches')}
                       style={{
-                        display: 'flex', flexDirection: 'column',
-                        alignItems: 'center', justifyContent: 'center', gap: '10px',
-                        padding: '16px 10px', borderRadius: '11px',
-                        backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0',
-                        cursor: 'pointer', transition: 'all 0.15s', textAlign: 'center'
+                        border: 'none', backgroundColor: 'transparent',
+                        color: '#2563EB', fontSize: '12px', fontWeight: 700,
+                        cursor: 'pointer', fontFamily: 'inherit'
                       }}
-                      onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#F1F5F9'; e.currentTarget.style.borderColor = '#CBD5E1'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#F8FAFC'; e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.transform = 'translateY(0)'; }}
                     >
-                      <div style={{
-                        width: '40px', height: '40px', borderRadius: '10px',
-                        backgroundColor: action.bg,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center'
-                      }}>
-                        <ActionIcon size={18} color={action.iconColor} />
-                      </div>
-                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#374151' }}>
-                        {action.title}
-                      </span>
+                      Manage &rarr;
                     </button>
-                  );
-                })}
+                  </div>
+
+                  <div style={{ flex: 1, overflowY: 'auto' }}>
+                    {batchesList.length === 0 ? (
+                      <div style={{ padding: '40px 10px', textAlign: 'center', color: '#94A3B8', fontSize: '12px' }}>
+                        No batch allocations defined
+                      </div>
+                    ) : (
+                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid #F1F5F9' }}>
+                            {['Batch', 'Dept', 'Advisor', 'Students', 'Status'].map(h => (
+                              <th key={h} style={{
+                                textAlign: 'left', padding: '8px 10px', fontSize: '10px',
+                                fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.4px'
+                              }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {batchesList.slice(0, 6).map((b, i) => {
+                            const statusColors = b.status === 'Allocated'
+                              ? { bg: '#EBF5FF', text: '#2563EB' }
+                              : b.status === 'New'
+                              ? { bg: '#F0FDF4', text: '#16A34A' }
+                              : { bg: '#FFF7ED', text: '#EA580C' };
+                            return (
+                              <tr key={i} style={{ borderBottom: i < 5 ? '1px solid #F8FAFC' : 'none' }}>
+                                <td style={{ padding: '10px', fontSize: '12px', fontWeight: 700, color: '#1E293B' }}>{b.code}</td>
+                                <td style={{ padding: '10px', fontSize: '12px', color: '#475569', fontWeight: 500 }}>
+                                  {b.dept ? (b.dept.includes('Computer Science') ? 'CS' : b.dept.includes('Software') ? 'SE' : b.dept.includes('Electrical') ? 'EE' : b.dept) : 'N/A'}
+                                </td>
+                                <td style={{ padding: '10px', fontSize: '12px', color: '#475569', fontWeight: 600 }}>
+                                  {b.advisor && b.advisor !== 'Unassigned' ? b.advisor : '—'}
+                                </td>
+                                <td style={{ padding: '10px', fontSize: '12px', color: '#1E293B', fontWeight: 700 }}>{b.studentCount || b.students || 0}</td>
+                                <td style={{ padding: '10px' }}>
+                                  <span style={{
+                                    padding: '2px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: 700,
+                                    backgroundColor: statusColors.bg, color: statusColors.text
+                                  }}>{b.status}</span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </div>
+
               </div>
             </div>
-
           </div>
-        </div>
-        </div>
         )}
       </main>
     </div>

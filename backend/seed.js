@@ -204,6 +204,46 @@ async function seed() {
     }
     console.log(`  ${curriculums.length} curricula`);
 
+    // ── Student Course History & Enrollment Seeding ──
+    const seededStudents = await Student.find({});
+    for (const student of seededStudents) {
+      const studentCurriculum = curriculums.find(
+        curr => curr.departmentId.toString() === student.departmentId.toString() &&
+                curr.batchId.toString() === student.batchId.toString()
+      );
+      if (studentCurriculum) {
+        const studentCourses = [];
+        studentCurriculum.courses.forEach(currCourse => {
+          if (currCourse.semester < student.currentSemester) {
+            // Completed courses in past semesters
+            studentCourses.push({
+              courseCode: currCourse.code,
+              courseTitle: currCourse.title,
+              creditHours: currCourse.creditHours,
+              semester: currCourse.semester,
+              grade: ['A', 'B+', 'B', 'C+', 'C'][Math.floor(Math.random() * 5)],
+              enrollmentStatus: 'completed',
+              attendance: Math.floor(Math.random() * 20) + 80
+            });
+          } else if (currCourse.semester === student.currentSemester) {
+            // Currently enrolled courses for the active semester
+            studentCourses.push({
+              courseCode: currCourse.code,
+              courseTitle: currCourse.title,
+              creditHours: currCourse.creditHours,
+              semester: currCourse.semester,
+              grade: 'IP',
+              enrollmentStatus: 'enrolled',
+              attendance: Math.floor(Math.random() * 15) + 85
+            });
+          }
+        });
+        student.courses = studentCourses;
+        await student.save();
+      }
+    }
+    console.log(`  Dynamically seeded course histories for ${seededStudents.length} students`);
+
     // ── Migrations ──
     const migStudent = await Student.findOne({ departmentId: cs }).sort({ rollNumber: 1 });
     if (migStudent) {

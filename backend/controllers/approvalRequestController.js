@@ -12,29 +12,55 @@ export const validateApprovalRequest = async (studentId, courseCode, courseTitle
     throw new Error('Student not found');
   }
 
-  // FR-4.6 Duplicate detection
-  // 1. Check if student already has active enrollment in student.courses
+  // FR-4.6 Duplicate detection & Active Enrollment check
   const hasActiveEnrollment = student.courses.some(
     c => c.courseCode.toUpperCase() === courseCode.toUpperCase() && c.enrollmentStatus === 'enrolled'
   );
-  if (hasActiveEnrollment) {
-    return {
-      isValid: false,
-      reason: `Duplicate course detected: Student is already active in ${courseCode.toUpperCase()} for this semester.`
-    };
-  }
 
-  // 2. Check if student has non-rejected pending or approved request
-  const hasPendingRequest = await ApprovalRequest.findOne({
-    studentId,
-    courseCode: courseCode.toUpperCase(),
-    status: { $in: ['pending', 'advisor_approved', 'approved', 'special_granted'] }
-  });
-  if (hasPendingRequest) {
-    return {
-      isValid: false,
-      reason: `Duplicate request: Student already has a pending or approved request for ${courseCode.toUpperCase()}.`
-    };
+  if (requestType === 'add' || requestType === 'special_permission') {
+    // 1. Check if student already has active enrollment
+    if (hasActiveEnrollment) {
+      return {
+        isValid: false,
+        reason: `Duplicate course detected: Student is already active in ${courseCode.toUpperCase()} for this semester.`
+      };
+    }
+
+    // 2. Check if student has pending or approved add request
+    const hasPendingRequest = await ApprovalRequest.findOne({
+      studentId,
+      courseCode: courseCode.toUpperCase(),
+      requestType: { $in: ['add', 'special_permission'] },
+      status: { $in: ['pending', 'advisor_approved', 'approved', 'special_granted'] }
+    });
+    if (hasPendingRequest) {
+      return {
+        isValid: false,
+        reason: `Duplicate request: Student already has a pending or approved request to add ${courseCode.toUpperCase()}.`
+      };
+    }
+  } else if (requestType === 'drop' || requestType === 'withdrawal') {
+    // 1. Verify student is actually active/enrolled in the course they want to drop/withdraw
+    if (!hasActiveEnrollment) {
+      return {
+        isValid: false,
+        reason: `Invalid request: Student is not currently active/enrolled in ${courseCode.toUpperCase()}.`
+      };
+    }
+
+    // 2. Verify there isn't already a pending drop/withdrawal request
+    const hasPendingRequest = await ApprovalRequest.findOne({
+      studentId,
+      courseCode: courseCode.toUpperCase(),
+      requestType,
+      status: { $in: ['pending', 'advisor_approved'] }
+    });
+    if (hasPendingRequest) {
+      return {
+        isValid: false,
+        reason: `Duplicate request: Student already has a pending ${requestType} request for ${courseCode.toUpperCase()}.`
+      };
+    }
   }
 
   // FR-4.4 Prerequisite validation
@@ -436,7 +462,8 @@ export const createHODSpecialPermission = async (req, res, next) => {
       creditHours,
       grade: 'IP',
       enrollmentStatus: 'enrolled',
-      attendance: 100
+      attendance: 100,
+      semester: student.currentSemester
     });
     await student.save();
 
@@ -606,7 +633,8 @@ export const resolveHODDecision = async (req, res, next) => {
           creditHours: request.creditHours,
           grade: 'IP',
           enrollmentStatus: 'enrolled',
-          attendance: 100
+          attendance: 100,
+          semester: student.currentSemester
         });
       } else if (request.requestType === 'drop') {
         student.courses = student.courses.filter(

@@ -10,7 +10,9 @@ import {
     Plus,
     Search,
     Check,
-    AlertCircle
+    AlertCircle,
+    GraduationCap,
+    BookOpen
 } from 'lucide-react';
 import { CircularProgress } from '@mui/material';
 
@@ -31,6 +33,9 @@ export default function AdvisorQueue() {
     const [remarks, setRemarks] = useState('');
     const [actionLoading, setActionLoading] = useState(false);
     const [actionError, setActionError] = useState('');
+    const [evalStudent, setEvalStudent] = useState(null);
+    const [evalStudentLoading, setEvalStudentLoading] = useState(false);
+
 
     // Request submission modal
     const [showSubmitModal, setShowSubmitModal] = useState(false);
@@ -45,6 +50,10 @@ export default function AdvisorQueue() {
     const [justification, setJustification] = useState('');
     const [submitLoading, setSubmitLoading] = useState(false);
     const [submitError, setSubmitError] = useState('');
+    const [eligibleCourses, setEligibleCourses] = useState({ enrolledCourses: [], curriculumCourses: [] });
+    const [loadingCourses, setLoadingCourses] = useState(false);
+    const [selectedCourseId, setSelectedCourseId] = useState('');
+
 
     // Fetch requests
     const fetchRequests = async (showRefresher = false) => {
@@ -94,14 +103,67 @@ export default function AdvisorQueue() {
             }
         }, 400);
 
-        return () => clearTimeout(delayDebounce);
     }, [studentSearch, user]);
 
-    const handleRowClick = (req) => {
+    // Fetch eligible courses for submission modal when selectedStudent changes
+    useEffect(() => {
+        if (!selectedStudent) {
+            setEligibleCourses({ enrolledCourses: [], curriculumCourses: [] });
+            setSelectedCourseId('');
+            setCourseCode('');
+            setCourseTitle('');
+            setCreditHours(3);
+            return;
+        }
+
+        const fetchEligibleCourses = async () => {
+            setLoadingCourses(true);
+            try {
+                const res = await fetch(`/api/advisor/students/${selectedStudent._id}/eligible-courses`);
+                const data = await res.json();
+                if (res.ok && data.status === 'success') {
+                    setEligibleCourses({
+                        enrolledCourses: data.data.enrolledCourses || [],
+                        curriculumCourses: data.data.curriculumCourses || []
+                    });
+                }
+            } catch (err) {
+                console.error('Failed to fetch eligible courses:', err);
+            } finally {
+                setLoadingCourses(false);
+            }
+        };
+
+        fetchEligibleCourses();
+    }, [selectedStudent]);
+
+    // Reset subject fields when request category toggles
+    useEffect(() => {
+        setSelectedCourseId('');
+        setCourseCode('');
+        setCourseTitle('');
+        setCreditHours(3);
+    }, [requestType]);
+
+
+    const handleRowClick = async (req) => {
         setSelectedRequest(req);
         setRemarks('');
         setActionError('');
         setIsModalOpen(true);
+        setEvalStudentLoading(true);
+        setEvalStudent(null);
+        try {
+            const res = await fetch(`/api/advisor/students/${req.studentId}`);
+            const data = await res.json();
+            if (res.ok && data.status === 'success') {
+                setEvalStudent(data.data.student);
+            }
+        } catch (err) {
+            console.error('Failed to fetch student details for evaluation:', err);
+        } finally {
+            setEvalStudentLoading(false);
+        }
     };
 
     // Advisor decisions (Approve / Reject)
@@ -137,6 +199,26 @@ export default function AdvisorQueue() {
             console.error(err);
         } finally {
             setActionLoading(false);
+        }
+    };
+
+    // Handle course dropdown selection changes
+    const handleCourseChange = (e) => {
+        const val = e.target.value;
+        setSelectedCourseId(val);
+        if (!val) {
+            setCourseCode('');
+            setCourseTitle('');
+            setCreditHours(3);
+            return;
+        }
+
+        const list = requestType === 'add' ? eligibleCourses.curriculumCourses : eligibleCourses.enrolledCourses;
+        const matched = list.find(c => (c._id === val || (c.courseCode || c.code) === val));
+        if (matched) {
+            setCourseCode(matched.courseCode || matched.code || '');
+            setCourseTitle(matched.courseTitle || matched.title || '');
+            setCreditHours(Number(matched.creditHours));
         }
     };
 
@@ -180,6 +262,8 @@ export default function AdvisorQueue() {
                 setCreditHours(3);
                 setRequestType('add');
                 setJustification('');
+                setSelectedCourseId('');
+                setEligibleCourses({ enrolledCourses: [], curriculumCourses: [] });
                 fetchRequests();
             } else {
                 setSubmitError(data.message || 'Failed to submit request.');
@@ -354,6 +438,125 @@ export default function AdvisorQueue() {
 
                             {/* Modal Body */}
                             <div className="p-6 space-y-5 flex-1">
+                                {evalStudentLoading ? (
+                                    <div className="flex justify-center items-center p-6 bg-slate-50 border border-slate-200/60 rounded-xl">
+                                        <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                                            <CircularProgress size={14} color="inherit" />
+                                            <span>Loading Student Academic History...</span>
+                                        </div>
+                                    </div>
+                                ) : evalStudent ? (() => {
+                                    const gradePointsMap = {
+                                        'A': 4.0,
+                                        'B+': 3.5,
+                                        'B': 3.0,
+                                        'C+': 2.5,
+                                        'C': 2.0,
+                                        'F': 0.0
+                                    };
+
+                                    const calculateGPA = (semesterCourses) => {
+                                        let totalCredits = 0;
+                                        let totalGradePoints = 0;
+                                        let hasGradedCourse = false;
+
+                                        semesterCourses.forEach(c => {
+                                            if (c.enrollmentStatus === 'completed' && gradePointsMap[c.grade] !== undefined) {
+                                                totalCredits += c.creditHours;
+                                                totalGradePoints += c.creditHours * gradePointsMap[c.grade];
+                                                hasGradedCourse = true;
+                                            } else if (c.enrollmentStatus === 'failed') {
+                                                totalCredits += c.creditHours;
+                                                totalGradePoints += c.creditHours * 0.0;
+                                                hasGradedCourse = true;
+                                            }
+                                        });
+
+                                        if (!hasGradedCourse || totalCredits === 0) return 'N/A';
+                                        return (totalGradePoints / totalCredits).toFixed(2);
+                                    };
+
+                                    const coursesBySemester = {};
+                                    evalStudent.courses.forEach(c => {
+                                        const sem = c.semester || 1;
+                                        if (!coursesBySemester[sem]) {
+                                            coursesBySemester[sem] = [];
+                                        }
+                                        coursesBySemester[sem].push(c);
+                                    });
+
+                                    return (
+                                        <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-4 space-y-3 shadow-sm">
+                                            <div className="flex justify-between items-center pb-2 border-b border-slate-200/80">
+                                                <div className="flex items-center gap-1.5 text-brandNavy font-extrabold text-xs uppercase tracking-wider">
+                                                    <GraduationCap className="w-4 h-4 text-brandAccent" />
+                                                    <span>Student Academic History & Semesters</span>
+                                                </div>
+                                                <div className="text-xs text-slate-500 font-semibold">
+                                                    CGPA: <span className="text-brandNavy font-extrabold text-sm">{evalStudent.cgpa.toFixed(2)}</span> &bull; Current Sem: <span className="text-slate-700 font-extrabold">{evalStudent.currentSemester}</span>
+                                                </div>
+                                            </div>
+
+                                            {(!evalStudent.courses || evalStudent.courses.length === 0) ? (
+                                                <p className="text-xs text-slate-400 font-medium italic">No courses recorded for this student.</p>
+                                            ) : (
+                                                <div className="space-y-3 max-h-56 overflow-y-auto pr-1">
+                                                    {Object.keys(coursesBySemester)
+                                                        .sort((a, b) => Number(a) - Number(b))
+                                                        .map(sem => {
+                                                            const semCourses = coursesBySemester[sem];
+                                                            const semGpa = calculateGPA(semCourses);
+
+                                                            return (
+                                                                <div key={sem} className="flex flex-col gap-1 border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
+                                                                    <div className="flex justify-between items-center px-3 py-1.5 bg-slate-50 border-b border-slate-100">
+                                                                        <span className="text-[10px] font-extrabold text-slate-700 uppercase">Semester {sem}</span>
+                                                                        <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full border ${
+                                                                            semGpa === 'N/A' ? 'bg-slate-100 text-slate-600 border-slate-200' : 'bg-blue-50 text-blue-700 border-blue-100'
+                                                                        }`}>
+                                                                            GPA: {semGpa}
+                                                                        </span>
+                                                                    </div>
+                                                                    <table className="w-full text-left text-xs border-collapse">
+                                                                        <thead>
+                                                                            <tr className="bg-slate-50/40 border-b border-slate-100 text-slate-400 font-bold uppercase text-[8px] tracking-wider">
+                                                                                <th className="px-3 py-1">Code</th>
+                                                                                <th className="px-3 py-1">Title</th>
+                                                                                <th className="px-3 py-1">Credits</th>
+                                                                                <th className="px-3 py-1">Grade</th>
+                                                                                <th className="px-3 py-1">Status</th>
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody className="divide-y divide-slate-50 font-medium text-slate-700 text-[10.5px]">
+                                                                            {semCourses.map((c, idx) => (
+                                                                                <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                                                                    <td className="px-3 py-1 font-bold text-slate-900">{c.courseCode}</td>
+                                                                                    <td className="px-3 py-1 text-slate-600 font-normal">{c.courseTitle}</td>
+                                                                                    <td className="px-3 py-1 text-slate-500">{c.creditHours} CH</td>
+                                                                                    <td className="px-3 py-1 font-extrabold text-slate-900">{c.grade}</td>
+                                                                                    <td className="px-3 py-1">
+                                                                                        <span className={`inline-block px-1 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wider ${
+                                                                                            c.enrollmentStatus === 'completed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
+                                                                                            c.enrollmentStatus === 'failed' ? 'bg-rose-50 text-rose-700 border border-rose-100' :
+                                                                                            'bg-blue-50 text-blue-700 border border-blue-100'
+                                                                                        }`}>
+                                                                                            {c.enrollmentStatus}
+                                                                                        </span>
+                                                                                    </td>
+                                                                                </tr>
+                                                                            ))}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })()
+                                : null}
+
                                 <DuplicateWarning
                                     hasDuplicate={selectedRequest.validations.hasDuplicate}
                                     courseCode={selectedRequest.courseCode}
@@ -513,50 +716,73 @@ export default function AdvisorQueue() {
                                     </select>
                                 </div>
 
+                                {selectedStudent && (
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+                                            Select Course/Subject <span className="text-red-500">*</span>
+                                        </label>
+                                        {loadingCourses ? (
+                                            <div className="flex items-center gap-2 text-xs text-slate-500 p-2 border border-slate-100 bg-slate-50 rounded-lg">
+                                                <CircularProgress size={12} />
+                                                <span>Loading eligible subjects from database...</span>
+                                            </div>
+                                        ) : (
+                                            <select
+                                                value={selectedCourseId}
+                                                onChange={handleCourseChange}
+                                                className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-blue-500 bg-white"
+                                                required
+                                            >
+                                                <option value="">-- Choose Subject --</option>
+                                                {(requestType === 'add' ? eligibleCourses.curriculumCourses : eligibleCourses.enrolledCourses).map((c) => (
+                                                    <option key={c._id || c.code || c.courseCode} value={c._id || c.code || c.courseCode}>
+                                                        {c.courseCode || c.code} - {c.courseTitle || c.title} ({c.creditHours} CH)
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        )}
+                                    </div>
+                                )}
+
                                 {/* Course Code & Credit Hours */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="flex flex-col gap-1.5">
                                         <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                                            Course Code <span className="text-red-500">*</span>
+                                            Course Code
                                         </label>
                                         <input
                                             type="text"
-                                            placeholder="e.g. CS201"
                                             value={courseCode}
-                                            onChange={e => setCourseCode(e.target.value)}
-                                            required
-                                            className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-blue-500"
+                                            disabled
+                                            placeholder="Auto-populated"
+                                            className="w-full text-xs p-2.5 rounded-lg border border-slate-100 bg-slate-50 text-slate-400 font-bold focus:outline-none"
                                         />
                                     </div>
                                     <div className="flex flex-col gap-1.5">
                                         <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                                            Credit Hours <span className="text-red-500">*</span>
+                                            Credit Hours
                                         </label>
-                                        <select
-                                            value={creditHours}
-                                            onChange={e => setCreditHours(Number(e.target.value))}
-                                            className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-blue-500 bg-white"
-                                        >
-                                            <option value={1}>1 Credit Hour</option>
-                                            <option value={2}>2 Credit Hours</option>
-                                            <option value={3}>3 Credit Hours</option>
-                                            <option value={4}>4 Credit Hours</option>
-                                        </select>
+                                        <input
+                                            type="text"
+                                            value={courseCode ? `${creditHours} Credit Hour(s)` : ''}
+                                            disabled
+                                            placeholder="Auto-populated"
+                                            className="w-full text-xs p-2.5 rounded-lg border border-slate-100 bg-slate-50 text-slate-400 font-bold focus:outline-none"
+                                        />
                                     </div>
                                 </div>
 
                                 {/* Course Title */}
                                 <div className="flex flex-col gap-1.5">
                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                                        Course Title <span className="text-red-500">*</span>
+                                        Course Title
                                     </label>
                                     <input
                                         type="text"
-                                        placeholder="e.g. Software Engineering"
                                         value={courseTitle}
-                                        onChange={e => setCourseTitle(e.target.value)}
-                                        required
-                                        className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-blue-500"
+                                        disabled
+                                        placeholder="Auto-populated"
+                                        className="w-full text-xs p-2.5 rounded-lg border border-slate-100 bg-slate-50 text-slate-400 font-bold focus:outline-none"
                                     />
                                 </div>
 

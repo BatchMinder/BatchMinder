@@ -22,19 +22,34 @@ const PERMISSIONS_LIST = [
   { key: 'view_students',      label: 'Read Student Records',    group: 'Academic Flows' }
 ];
 
-const INITIAL_USERS = [
-  { id: 1, name: 'Dr. Ahmed Raza',     email: 'a.raza@stmu.edu.pk',    role: 'Batch Advisor', dept: 'Computer Science',       status: 'Active' },
-  { id: 2, name: 'Dr. Fatima Malik',   email: 'f.malik@stmu.edu.pk',   role: 'Batch Advisor', dept: 'Computer Science',       status: 'Active' },
-  { id: 3, name: 'Mr. Usman Ahmed',    email: 'u.ahmed@stmu.edu.pk',   role: 'Batch Advisor', dept: 'Software Engineering',   status: 'Active' },
-  { id: 4, name: 'Prof. Zainab Khan',  email: 'z.khan@stmu.edu.pk',    role: 'HOD / Admin',   dept: 'Computer Science',       status: 'Active' },
-  { id: 5, name: 'Mr. Tariq Hussain',  email: 't.hussain@stmu.edu.pk', role: 'Batch Advisor', dept: 'Electrical Engineering',   status: 'Active' },
-  { id: 6, name: 'Dr. Sara Riaz',      email: 's.riaz@stmu.edu.pk',    role: 'HOD / Admin',   dept: 'Software Engineering',   status: 'Active' },
-  { id: 7, name: 'Mr. Mohammad Kamil', email: 'm.kamil@stmu.edu.pk',   role: 'Academic Admin',dept: 'All Departments',        status: 'Active' },
-  { id: 8, name: 'Ms. Nadia Baig',     email: 'n.baig@stmu.edu.pk',    role: 'Batch Advisor', dept: 'Electrical Engineering',   status: 'Active' },
-  { id: 9, name: 'Dr. Bob Brown',      email: 'b.brown@stmu.edu.pk',   role: 'Batch Advisor', dept: 'Information Technology',  status: 'Active' },
-  { id: 10, name: 'Dr. Alice Green',   email: 'a.green@stmu.edu.pk',   role: 'Batch Advisor', dept: 'Management Sciences',     status: 'Active' },
-  { id: 11, name: 'Super Admin User',  email: 'superadmin@stmu.edu.pk', role: 'Super Admin',   dept: 'System Controls',        status: 'Active' },
-];
+// UI <-> API Role mappings
+const toUiRoleName = (apiRole) => {
+  const map = {
+    'advisor': 'Batch Advisor',
+    'Batch Advisor': 'Batch Advisor',
+    'admin': 'HOD / Admin',
+    'HOD': 'HOD / Admin',
+    'HOD / Admin': 'HOD / Admin',
+    'academic_admin': 'Academic Admin',
+    'Administrator': 'Academic Admin',
+    'Academic Admin': 'Academic Admin',
+    'super_admin': 'Super Admin',
+    'Super Admin': 'Super Admin'
+  };
+  return map[apiRole] || 'Batch Advisor';
+};
+
+const toApiPayloadRole = (uiRole) => {
+  const map = {
+    'Super Admin': 'Super Admin',
+    'Academic Admin': 'Administrator',
+    'HOD / Admin': 'HOD',
+    'Batch Advisor': 'Batch Advisor'
+  };
+  return map[uiRole] || 'Batch Advisor';
+};
+
+
 
 export default function RolesPermissions({ setActiveNav }) {
   const [roles, setRoles] = useState(INITIAL_ROLES);
@@ -68,7 +83,7 @@ export default function RolesPermissions({ setActiveNav }) {
   // Selected elements
   const selectedRole = roles.find(r => r.id === selectedRoleId) || roles[0];
   const selectedUser = usersList.find(u => u.id === selectedUserId) || usersList[0] || { name: 'None', role: 'Batch Advisor' };
-  const userMappedRole = roles.find(r => r.name === selectedUser.role) || roles[3];
+  const userMappedRole = roles.find(r => r.name === toUiRoleName(selectedUser.role)) || roles[3];
 
   const handlePermissionToggle = (permissionKey) => {
     setRoles(prevRoles => prevRoles.map(r => {
@@ -126,9 +141,11 @@ export default function RolesPermissions({ setActiveNav }) {
     }
   };
 
+
+
   // Helper to count users per role
   const getRoleUserCount = (roleName) => {
-    return usersList.filter(u => u.role === roleName).length;
+    return usersList.filter(u => toUiRoleName(u.role) === roleName).length;
   };
 
   // Stats computation
@@ -137,8 +154,7 @@ export default function RolesPermissions({ setActiveNav }) {
   const stats = [
     { label: 'System Roles',       value: roles.length,        icon: Shield,   iconColor: '#2563EB', iconBg: '#EFF6FF' },
     { label: 'Permissions Items',  value: PERMISSIONS_LIST.length, icon: Lock,     iconColor: '#10B981', iconBg: '#F0FDF4' },
-    { label: 'Assigned Users',     value: totalAssignedUsers,  icon: Check,    iconColor: '#7C3AED', iconBg: '#F5F3FF' },
-    { label: 'Security Standard',  value: 'A+',                icon: Shield,   iconColor: '#0891B2', iconBg: '#ECFEFF' },
+    { label: 'Assigned Users',     value: totalAssignedUsers,  icon: Check,    iconColor: '#7C3AED', iconBg: '#F5F3FF' }
   ];
 
   // Group permission definitions
@@ -150,7 +166,13 @@ export default function RolesPermissions({ setActiveNav }) {
 
   const filteredUsers = usersList.filter(u => {
     const q = searchQuery.toLowerCase();
-    return !q || (u.name || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q) || (u.dept || '').toLowerCase().includes(q) || (u.role || '').toLowerCase().includes(q);
+    const uiRole = toUiRoleName(u.role).toLowerCase();
+    const dbRoleVal = (u.role || '').toLowerCase();
+    const nameVal = (u.name || '').toLowerCase();
+    const emailVal = (u.email || '').toLowerCase();
+    const deptVal = (u.dept || '').toLowerCase();
+
+    return !q || nameVal.includes(q) || emailVal.includes(q) || deptVal.includes(q) || dbRoleVal.includes(q) || uiRole.includes(q);
   });
 
   const labelStyle  = {
@@ -185,7 +207,7 @@ export default function RolesPermissions({ setActiveNav }) {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, padding: '18px 24px', backgroundColor: '#F8FAFC', overflowY: 'auto' }}>
 
         {/* Stats Row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '12px', marginBottom: '18px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '12px', marginBottom: '18px' }}>
           {stats.map((s, i) => {
             const Icon = s.icon;
             return (
@@ -376,8 +398,8 @@ export default function RolesPermissions({ setActiveNav }) {
                               {/* Direct role allocation dropdown */}
                               <div style={{ position: 'relative', width: '160px' }}>
                                 <select
-                                  value={u.role}
-                                  onChange={e => handleUserRoleChange(u.id, e.target.value)}
+                                  value={toUiRoleName(u.role)}
+                                  onChange={e => handleUserRoleChange(u.id, toApiPayloadRole(e.target.value))}
                                   style={{
                                     width: '100%', padding: '5px 22px 5px 8px', borderRadius: '6px',
                                     border: '1px solid #CBD5E1', fontSize: '11.5px', color: '#1E293B',
@@ -528,8 +550,8 @@ export default function RolesPermissions({ setActiveNav }) {
                   <label style={labelStyle}>Assign New Role</label>
                   <div style={{ position: 'relative', marginBottom: '10px' }}>
                     <select
-                      value={selectedUser.role}
-                      onChange={e => handleUserRoleChange(selectedUser.id, e.target.value)}
+                      value={toUiRoleName(selectedUser.role)}
+                      onChange={e => handleUserRoleChange(selectedUser.id, toApiPayloadRole(e.target.value))}
                       style={{
                         width: '100%', padding: '7px 28px 7px 10px', borderRadius: '7px',
                         border: '1px solid #E2E8F0', fontSize: '12px', color: '#1E293B',

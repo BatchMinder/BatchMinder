@@ -1,5 +1,5 @@
 import express from 'express';
-import { getDashboardSummary, getStudents, getStudentById } from '../controllers/advisorController.js';
+import { getDashboardSummary, getStudents, getStudentById, getStudentEligibleCourses } from '../controllers/advisorController.js';
 import {
   listAdvisorRequests,
   createAdvisorRequest,
@@ -18,6 +18,7 @@ router.use(restrictTo('advisor', 'super_admin'));
 router.get('/dashboard-summary', getDashboardSummary);
 router.get('/students', getStudents);
 router.get('/students/:id', getStudentById);
+router.get('/students/:id/eligible-courses', getStudentEligibleCourses);
 
 // Workflow requests management (Advisor role)
 router.get('/requests', listAdvisorRequests);

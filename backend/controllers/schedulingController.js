@@ -179,3 +179,61 @@ export const saveOverride = async (req, res, next) => {
     next(err);
   }
 };
+
+// POST: check timetable conflicts / clashes
+export const checkTimetableClash = async (req, res, next) => {
+  try {
+    const { day, timeSlot, room, instructor, courseCode } = req.body;
+
+    if (!day || !timeSlot || !room || !instructor) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid request parameters: day, timeSlot, room, and instructor are required.'
+      });
+    }
+
+    // Fetch existing schedules for the given Day and Time Slot
+    const existingSchedules = await Timetable.find({ day, timeSlot });
+
+    let clashDetected = false;
+    let clashReason = '';
+
+    for (const schedule of existingSchedules) {
+      // Room Conflict
+      if (schedule.room === room) {
+        clashDetected = true;
+        clashReason = `Room already booked for ${schedule.courseCode} (${schedule.courseName})`;
+        break;
+      }
+
+      // Faculty Conflict
+      if (schedule.instructor === instructor) {
+        clashDetected = true;
+        clashReason = `Instructor is already teaching ${schedule.courseCode} (${schedule.courseName})`;
+        break;
+      }
+    }
+
+    if (clashDetected) {
+      return res.status(200).json({
+        status: 'success',
+        data: {
+          clashed: true,
+          status: 'FAILED',
+          reason: clashReason
+        }
+      });
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        clashed: false,
+        status: 'SUCCESS',
+        message: 'No clash detected. Slot available.'
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
