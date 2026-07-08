@@ -1,0 +1,8 @@
+{
+    "rewrites": [
+        {
+            "source": "/api/:path*",
+            "destination": "https://batchminder-f0pe7dif3-batchminder-project.vercel.app/api/:path*"
+        }
+    ]
+}
