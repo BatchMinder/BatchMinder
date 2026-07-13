@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Upload, ArrowRightLeft, BookOpen, Layers,
   LogOut, GraduationCap, ChevronDown, ChevronUp, Building2, Calendar,
   BarChart2, Settings, Bell, Clock, Plus, Search, CalendarCheck, FileText,
-  AlertTriangle, HelpCircle, CheckCircle
+  AlertTriangle, HelpCircle, CheckCircle, Menu
 } from 'lucide-react';
 
 const CORE_NAV_ITEMS = [
@@ -60,6 +60,24 @@ export default function AdminLayout({
   const [currentDate, setCurrentDate] = useState('');
   const [showAcademicTools, setShowAcademicTools] = useState(false);
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const handleNavigate = (pageId) => {
+    onNavigate(pageId);
+    if (window.innerWidth < 1024) {
+      setMobileSidebarOpen(false);
+    }
+  };
+
   // Notification states in Layout
   const [showBellDropdown, setShowBellDropdown] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -107,11 +125,11 @@ export default function AdminLayout({
       }
       if (alert.deepLinkUrl) {
         if (alert.deepLinkUrl.includes('migrations')) {
-          onNavigate('migrations');
+          handleNavigate('migrations');
         } else if (alert.deepLinkUrl.includes('csv-upload') || alert.deepLinkUrl.includes('upload')) {
-          onNavigate('upload');
+          handleNavigate('upload');
         } else if (alert.deepLinkUrl.includes('students')) {
-          onNavigate('students');
+          handleNavigate('students');
         } else {
           window.location.href = alert.deepLinkUrl;
         }
@@ -202,11 +220,28 @@ export default function AdminLayout({
       : 'Academic Portal';
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: "'Inter', sans-serif", width: '100vw' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: "'Inter', sans-serif", width: '100vw', position: 'relative' }}>
+      {/* Mobile Backdrop Overlay */}
+      {isMobile && mobileSidebarOpen && (
+        <div 
+          onClick={() => setMobileSidebarOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            zIndex: 998
+          }}
+        />
+      )}
+
       {/* Sidebar */}
       <aside style={{
         width: 256, minWidth: 256, backgroundColor: '#0B0F19',
-        display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto', flexShrink: 0
+        display: (!isMobile || mobileSidebarOpen) ? 'flex' : 'none',
+        flexDirection: 'column', height: '100%', overflowY: 'auto', flexShrink: 0,
+        position: isMobile ? 'fixed' : 'relative',
+        top: 0, left: 0, zIndex: 999,
+        boxShadow: isMobile ? '4px 0 20px rgba(0,0,0,0.4)' : 'none'
       }}>
         {/* Logo */}
         <div style={{ padding: '24px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -283,7 +318,7 @@ export default function AdminLayout({
                   const Icon = item.icon;
                   const isActive = activeNav === item.id;
                   return (
-                    <button key={item.id} onClick={() => onNavigate(item.id)}
+                    <button key={item.id} onClick={() => handleNavigate(item.id)}
                       style={{
                         display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
                         padding: '9px 12px', borderRadius: '9px', marginBottom: '2px',
@@ -315,7 +350,7 @@ export default function AdminLayout({
                   const Icon = item.icon;
                   const isActive = activeNav === item.id;
                   return (
-                    <button key={item.id} onClick={() => onNavigate(item.id)}
+                    <button key={item.id} onClick={() => handleNavigate(item.id)}
                       style={{
                         display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
                         padding: '9px 12px', borderRadius: '9px', marginBottom: '2px',
@@ -346,7 +381,7 @@ export default function AdminLayout({
                   const Icon = item.icon;
                   const isActive = activeNav === item.id;
                   return (
-                    <button key={item.id} onClick={() => onNavigate(item.id)}
+                    <button key={item.id} onClick={() => handleNavigate(item.id)}
                       style={{
                         display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
                         padding: '9px 12px', borderRadius: '9px', marginBottom: '2px',
@@ -376,7 +411,7 @@ export default function AdminLayout({
                   const Icon = item.icon;
                   const isActive = activeNav === item.id;
                   return (
-                    <button key={item.id} onClick={() => onNavigate(item.id)}
+                    <button key={item.id} onClick={() => handleNavigate(item.id)}
                       style={{
                         display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
                         padding: '9px 12px', borderRadius: '9px', marginBottom: '2px',
@@ -405,7 +440,7 @@ export default function AdminLayout({
                   const Icon = item.icon;
                   const isActive = activeNav === item.id;
                   return (
-                    <button key={item.id} onClick={() => onNavigate(item.id)}
+                    <button key={item.id} onClick={() => handleNavigate(item.id)}
                       style={{
                         display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
                         padding: '9px 12px', borderRadius: '9px', marginBottom: '2px',
@@ -437,7 +472,7 @@ export default function AdminLayout({
                   const Icon = item.icon;
                   const isActive = activeNav === item.id;
                   return (
-                    <button key={item.id} onClick={() => onNavigate(item.id)}
+                    <button key={item.id} onClick={() => handleNavigate(item.id)}
                       style={{
                         display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
                         padding: '9px 12px', borderRadius: '9px', marginBottom: '2px',
@@ -469,7 +504,7 @@ export default function AdminLayout({
                   const Icon = item.icon;
                   const isActive = activeNav === item.id;
                   return (
-                    <button key={item.id} onClick={() => onNavigate(item.id)}
+                    <button key={item.id} onClick={() => handleNavigate(item.id)}
                       style={{
                         display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
                         padding: '9px 12px', borderRadius: '9px', marginBottom: '2px',
@@ -499,7 +534,7 @@ export default function AdminLayout({
                   const Icon = item.icon;
                   const isActive = activeNav === item.id;
                   return (
-                    <button key={item.id} onClick={() => onNavigate(item.id)}
+                    <button key={item.id} onClick={() => handleNavigate(item.id)}
                       style={{
                         display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
                         padding: '9px 12px', borderRadius: '9px', marginBottom: '2px',
@@ -531,7 +566,7 @@ export default function AdminLayout({
                   const Icon = item.icon;
                   const isActive = activeNav === item.id;
                   return (
-                    <button key={item.id} onClick={() => onNavigate(item.id)}
+                    <button key={item.id} onClick={() => handleNavigate(item.id)}
                       style={{
                         display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
                         padding: '9px 12px', borderRadius: '9px', marginBottom: '2px',
@@ -614,9 +649,30 @@ export default function AdminLayout({
         {/* Top Header */}
         <div style={{
           backgroundColor: '#FFFFFF', borderBottom: '1px solid #E2E8F0',
-          padding: '18px 32px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+          padding: isMobile ? '12px 16px' : '18px 32px', display: 'flex', alignItems: 'center',
+          justifyContent: isMobile ? 'space-between' : 'flex-end',
           flexShrink: 0, gap: '12px'
         }}>
+          {isMobile && (
+            <button
+              onClick={() => setMobileSidebarOpen(o => !o)}
+              style={{
+                marginRight: 'auto',
+                width: '38px',
+                height: '38px',
+                borderRadius: '10px',
+                backgroundColor: '#F8FAFC',
+                border: '1px solid #E2E8F0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: '#64748B'
+              }}
+            >
+              <Menu size={18} />
+            </button>
+          )}
 
           {/* Advisor Batch Switcher — multi-batch */}
           {isAdvisor && batches.length > 1 && (
@@ -747,7 +803,7 @@ export default function AdminLayout({
 
                 <div style={{ padding: '8px', textAlign: 'center', backgroundColor: '#FAFAFA' }}>
                   <button
-                    onClick={() => { onNavigate('notifications'); setShowBellDropdown(false); }}
+                    onClick={() => { handleNavigate('notifications'); setShowBellDropdown(false); }}
                     style={{ border: 'none', backgroundColor: 'transparent', fontSize: '11px', fontWeight: 700, color: '#2563EB', cursor: 'pointer', fontFamily: 'inherit' }}
                   >
                     View All Notifications
@@ -782,7 +838,7 @@ export default function AdminLayout({
         </div>
 
         {/* Content Wrapper */}
-        <div style={{ flex: 1, padding: '28px 32px', overflowY: 'auto' }}>
+        <div style={{ flex: 1, padding: isMobile ? '16px' : '28px 32px', overflowY: 'auto' }}>
           {children}
         </div>
       </main>
