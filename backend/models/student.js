@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import './degreeProgress.js';
 
 const courseEnrollmentSchema = new mongoose.Schema({
   courseCode: {
@@ -20,6 +21,10 @@ const courseEnrollmentSchema = new mongoose.Schema({
   enrollmentStatus: {
     type: String,
     enum: ['enrolled', 'completed', 'failed'],
+    default: 'enrolled',
+  },
+  status: {
+    type: String,
     default: 'enrolled',
   },
   attendance: {
@@ -62,6 +67,11 @@ const studentSchema = new mongoose.Schema({
     lowercase: true,
     trim: true,
   },
+  phone: {
+    type: String,
+    trim: true,
+    default: '',
+  },
   departmentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Department',
@@ -93,7 +103,6 @@ const studentSchema = new mongoose.Schema({
   // Enrollment status — independent of academic performance
   status: {
     type: String,
-    enum: ['active', 'inactive'],
     default: 'active',
   },
   courses: [courseEnrollmentSchema],
@@ -126,6 +135,110 @@ studentSchema.pre('findOneAndUpdate', function (next) {
     }
   }
   next();
+});
+
+// Post hooks for DegreeProgress and CGPA Threshold Warning Alerts
+studentSchema.post('save', async function (doc) {
+  try {
+    // 1. Calculate and update Degree Progress
+    const completedCredits = (doc.courses || [])
+      .filter(c => c.enrollmentStatus === 'completed' || c.status === 'completed')
+      .reduce((sum, c) => sum + (c.creditHours || 0), 0);
+    const remainingCredits = Math.max(130 - completedCredits, 0);
+    const completionPercentage = parseFloat(((completedCredits / 130) * 100).toFixed(2));
+
+    await mongoose.model('DegreeProgress').findOneAndUpdate(
+      { studentId: doc._id },
+      {
+        completedCredits,
+        remainingCredits,
+        completionPercentage
+      },
+      { upsert: true, new: true }
+    );
+
+    // 2. Evaluate CGPA thresholds and trigger Advisor notifications
+    const cgpa = doc.cgpa || 0.0;
+    if (cgpa <= 2.1) {
+      const type = cgpa < 2.0 ? 'CGPA_CRITICAL' : 'CGPA_WARNING';
+      const message = type === 'CGPA_CRITICAL'
+        ? `Academic Alert: Student ${doc.name} (${doc.rollNumber}) CGPA has dropped to Critical level: ${cgpa.toFixed(2)}.`
+        : `Academic Warning: Student ${doc.name} (${doc.rollNumber}) CGPA is at Warning level: ${cgpa.toFixed(2)}.`;
+
+      const batch = await mongoose.model('Batch').findById(doc.batchId);
+      if (batch && batch.advisorId) {
+        // Create Notification record
+        await mongoose.model('Notification').create({
+          recipientId: batch.advisorId,
+          targetUserID: batch.advisorId,
+          recipientRole: 'advisor',
+          type,
+          message,
+          departmentId: doc.departmentId.toString(),
+          batchId: doc.batchId.toString(),
+          isRead: false,
+          deepLinkUrl: `/advisor/students?search=${encodeURIComponent(doc.rollNumber)}`
+        });
+        
+        console.log(`[FCM Notification Dispatch] Logged alert to DB for student ${doc.rollNumber}`);
+        console.log(`[Email Service Mock Dispatch] Sending alert email to Advisor (ID: ${batch.advisorId}) for student ${doc.rollNumber} (${type})`);
+      }
+    }
+  } catch (err) {
+    console.error('Error in student post-save hook:', err);
+  }
+});
+
+studentSchema.post('findOneAndUpdate', async function (doc) {
+  if (doc) {
+    try {
+      // 1. Calculate and update Degree Progress
+      const completedCredits = (doc.courses || [])
+        .filter(c => c.enrollmentStatus === 'completed' || c.status === 'completed')
+        .reduce((sum, c) => sum + (c.creditHours || 0), 0);
+      const remainingCredits = Math.max(130 - completedCredits, 0);
+      const completionPercentage = parseFloat(((completedCredits / 130) * 100).toFixed(2));
+
+      await mongoose.model('DegreeProgress').findOneAndUpdate(
+        { studentId: doc._id },
+        {
+          completedCredits,
+          remainingCredits,
+          completionPercentage
+        },
+        { upsert: true, new: true }
+      );
+
+      // 2. Evaluate CGPA thresholds and trigger Advisor notifications
+      const cgpa = doc.cgpa || 0.0;
+      if (cgpa <= 2.1) {
+        const type = cgpa < 2.0 ? 'CGPA_CRITICAL' : 'CGPA_WARNING';
+        const message = type === 'CGPA_CRITICAL'
+          ? `Academic Alert: Student ${doc.name} (${doc.rollNumber}) CGPA has dropped to Critical level: ${cgpa.toFixed(2)}.`
+          : `Academic Warning: Student ${doc.name} (${doc.rollNumber}) CGPA is at Warning level: ${cgpa.toFixed(2)}.`;
+
+        const batch = await mongoose.model('Batch').findById(doc.batchId);
+        if (batch && batch.advisorId) {
+          await mongoose.model('Notification').create({
+            recipientId: batch.advisorId,
+            targetUserID: batch.advisorId,
+            recipientRole: 'advisor',
+            type,
+            message,
+            departmentId: doc.departmentId.toString(),
+            batchId: doc.batchId.toString(),
+            isRead: false,
+            deepLinkUrl: `/advisor/students?search=${encodeURIComponent(doc.rollNumber)}`
+          });
+          
+          console.log(`[FCM Notification Dispatch] Logged alert to DB for student ${doc.rollNumber}`);
+          console.log(`[Email Service Mock Dispatch] Sending alert email to Advisor (ID: ${batch.advisorId}) for student ${doc.rollNumber} (${type})`);
+        }
+      }
+    } catch (err) {
+      console.error('Error in student post-findOneAndUpdate hook:', err);
+    }
+  }
 });
 
 // Export the compute function for use in controllers

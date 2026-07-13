@@ -6,6 +6,11 @@ const transferredCourseSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
+  mappedCourseName: {
+    type: String,
+    default: '',
+    trim: true,
+  },
   credits: {
     type: Number,
     required: true,
@@ -34,7 +39,40 @@ const migrationSchema = new mongoose.Schema({
     required: [true, 'Please specify source institution'],
     trim: true,
   },
+  fromProgram: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  toProgram: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'pending',
+  },
   transferredCourses: [transferredCourseSchema],
+  curriculumComparison: {
+    fromRequiredCredits: { type: Number, default: 0 },
+    toRequiredCredits: { type: Number, default: 0 },
+    fromCompletedCredits: { type: Number, default: 0 },
+    toCompletedCredits: { type: Number, default: 0 },
+    fromRemainingCredits: { type: Number, default: 0 },
+    toRemainingCredits: { type: Number, default: 0 },
+    fromDurationSemesters: { type: Number, default: 8 },
+    toDurationSemesters: { type: Number, default: 8 },
+    expectedCompletion: { type: String, default: '' },
+  },
+  missingCourses: [
+    {
+      courseCode: { type: String, default: '' },
+      courseTitle: { type: String, default: '' },
+      creditHours: { type: Number, default: 0 },
+    }
+  ],
   decidedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

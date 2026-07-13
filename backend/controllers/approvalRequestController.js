@@ -347,20 +347,45 @@ export const listAdvisorRequests = async (req, res, next) => {
         .filter(c => c.enrollmentStatus === 'enrolled')
         .reduce((sum, c) => sum + c.creditHours, 0) : 0;
       
+      let prerequisites = [];
+      if (student) {
+        const curriculum = await Curriculum.findOne({
+          departmentId: student.departmentId,
+          batchId: student.batchId,
+          status: 'active'
+        });
+        if (curriculum) {
+          const curriculumCourse = curriculum.courses.find(c => c.code.toUpperCase() === r.courseCode.toUpperCase());
+          if (curriculumCourse && curriculumCourse.prerequisiteCourseIds && curriculumCourse.prerequisiteCourseIds.length > 0) {
+            for (const prereqId of curriculumCourse.prerequisiteCourseIds) {
+              const prereqCourse = curriculum.courses.id(prereqId);
+              if (prereqCourse) {
+                const isCompleted = student.courses.some(c => c.courseCode.toUpperCase() === prereqCourse.code.toUpperCase() && c.enrollmentStatus === 'completed');
+                prerequisites.push({
+                  courseCode: prereqCourse.code,
+                  courseTitle: prereqCourse.title,
+                  status: isCompleted ? 'Completed' : 'Missing'
+                });
+              }
+            }
+          }
+        }
+      }
+
       const validations = {
         currentCredits,
         maxCredits: 18,
         hasDuplicate: false, // passed validation pre-submission, so default false
-        prerequisites: [] // dynamic fetch in frontend, default empty
+        prerequisites
       };
 
       // Map request to the exact flat object formatting expected in AdvisorQueue.jsx
       return {
-        id: r._id,
-        _id: r._id,
+        id: r._id.toString(),
+        _id: r._id.toString(),
         studentName: student ? student.name : 'N/A',
         rollNo: student ? student.rollNumber : 'N/A',
-        cgpa: student ? student.cgpa.toFixed(2) : '0.00',
+        cgpa: student ? parseFloat(student.cgpa || 0).toFixed(2) : '0.00',
         type: r.requestType === 'add' ? 'Course Add' : r.requestType === 'drop' ? 'Course Drop' : r.requestType === 'withdrawal' ? 'Course Withdrawal' : 'Special Permission',
         requestType: r.requestType,
         courseCode: r.courseCode,

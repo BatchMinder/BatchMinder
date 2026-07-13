@@ -21,6 +21,8 @@ import connectDB from './utils/db.js';
 
 dotenv.config();
 
+
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -36,6 +38,7 @@ connectDB();
 app.use('/api/auth', authRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/curriculum', curriculumRoutes);
+app.use('/api/curriculums', curriculumRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/batches', batchRoutes);
@@ -44,6 +47,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/migrations', migrationRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/audit-logs', auditLogRoutes);
+app.use('/api/auth/audit-logs', auditLogRoutes);
 app.use('/api/advisor', advisorRoutes);
 app.use('/api/hod', hodRoutes);
 app.use('/api/scheduling', schedulingRoutes);

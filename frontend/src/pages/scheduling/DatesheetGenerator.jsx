@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
-import { RefreshCw, Info, AlertTriangle, CheckCircle } from "lucide-react";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import { 
+  RefreshCw, Info, AlertTriangle, CheckCircle, Search, Edit2, 
+  LayoutGrid, FileText, Download, CheckCircle2, ChevronDown, 
+  MapPin, Clock, Users, BookOpen, Plus, UserPlus, Home, AlertCircle, FileBarChart, Calendar
+} from "lucide-react";
 
 const EXAMSLOTS = [
   '09:00 AM - 12:00 PM',
@@ -21,82 +26,65 @@ const DATES = [
 
 function detectDatesheetConflicts(entries) {
   const conflicts = [];
-
   for (let i = 0; i < entries.length; i++) {
     for (let j = i + 1; j < entries.length; j++) {
       const e1 = entries[i];
       const e2 = entries[j];
-
-      // Must be on the same date and exam slot to overlap
       if (e1.date === e2.date && e1.examSlot === e2.examSlot) {
         const id1 = e1._id || e1.id;
         const id2 = e2._id || e2.id;
-
-        // Room Overlap
-        if (e1.room === e2.room) {
-          conflicts.push({
-            type: 'ROOM_OVERLAP',
-            description: `Room clash in ${e1.room}: Exam for ${e1.courseCode} (${e1.batch}) and ${e2.courseCode} (${e2.batch}) are both assigned here.`,
-            cellIds: [id1, id2]
-          });
-        }
-
-        // Invigilator Overlap
-        if (e1.invigilator && e2.invigilator && e1.invigilator === e2.invigilator) {
-          conflicts.push({
-            type: 'INVIGILATOR_OVERLAP',
-            description: `Invigilator clash: ${e1.invigilator} is assigned to invigilate both ${e1.courseCode} (${e1.batch}) and ${e2.courseCode} (${e2.batch}).`,
-            cellIds: [id1, id2]
-          });
-        }
-
-        // Cohort/Batch Overlap
-        if (e1.batch === e2.batch) {
-          conflicts.push({
-            type: 'COHORT_OVERLAP',
-            description: `Cohort clash: Batch ${e1.batch} has exams for both ${e1.courseCode} and ${e2.courseCode} scheduled at the same time.`,
-            cellIds: [id1, id2]
-          });
-        }
+        if (e1.room === e2.room) conflicts.push({ type: 'ROOM_OVERLAP', description: `Room clash in ${e1.room}: Exam for ${e1.courseCode} and ${e2.courseCode} are both assigned here.`, cellIds: [id1, id2] });
+        if (e1.invigilator && e2.invigilator && e1.invigilator === e2.invigilator) conflicts.push({ type: 'INVIGILATOR_OVERLAP', description: `Invigilator clash: ${e1.invigilator} assigned to both ${e1.courseCode} and ${e2.courseCode}.`, cellIds: [id1, id2] });
+        if (e1.batch === e2.batch) conflicts.push({ type: 'COHORT_OVERLAP', description: `Cohort clash: Batch ${e1.batch} has exams for ${e1.courseCode} and ${e2.courseCode} at same time.`, cellIds: [id1, id2] });
       }
     }
   }
-
   return conflicts;
 }
 
-function DatesheetGenerator() {
+const COLORS = ['#3B82F6', '#8B5CF6', '#F59E0B', '#10B981', '#EC4899', '#6366F1'];
+
+export default function DatesheetGenerator({ setActiveNav }) {
   const { user } = useAuth();
   const [entries, setEntries] = useState([]);
   const [conflicts, setConflicts] = useState([]);
-  const [hasData, setHasData] = useState(false);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [batches, setBatches] = useState([]);
+  
+  // Filters
+  const [selectedDept, setSelectedDept] = useState("Computer Science");
+  const [selectedProgram, setSelectedProgram] = useState("BS Computer Science");
+  const [selectedBatchId, setSelectedBatchId] = useState("");
+  const [selectedSemester, setSelectedSemester] = useState("");
+  const [selectedSection, setSelectedSection] = useState("Section A");
 
   useEffect(() => {
-    fetchExistingDatesheet();
+    fetchMetadataAndDatesheet();
   }, []);
 
-  const fetchExistingDatesheet = async () => {
+  const fetchMetadataAndDatesheet = async () => {
     setLoading(true);
     try {
+      const batchesRes = await fetch("/api/batches");
+      if (batchesRes.ok) {
+        const batchesData = await batchesRes.json();
+        setBatches(batchesData.data || []);
+        if (batchesData.data?.length > 0) {
+          setSelectedBatchId(batchesData.data[0]._id);
+          setSelectedSemester(batchesData.data[0].semester || "6");
+        }
+      }
+
       const dateRes = await fetch("/api/scheduling/datesheet");
       if (dateRes.ok) {
         const dateData = await dateRes.json();
         const data = dateData.data?.entries || [];
-        if (data.length > 0) {
-          setEntries(data);
-          setHasData(true);
-          setConflicts(detectDatesheetConflicts(data));
-        } else {
-          setHasData(false);
-        }
-      } else {
-        setHasData(false);
+        setEntries(data);
+        setConflicts(detectDatesheetConflicts(data));
       }
     } catch (err) {
-      console.error("Failed to load datesheet:", err);
-      setHasData(false);
+      console.error("Failed to load:", err);
     } finally {
       setLoading(false);
     }
@@ -110,42 +98,35 @@ function DatesheetGenerator() {
         fetch("/api/users")
       ]);
 
-      let batches = [];
+      let allBatches = [];
       let users = [];
 
       if (batchesRes.ok) {
         const batchesData = await batchesRes.json();
-        batches = batchesData.status === "success" ? (batchesData.data || []) : [];
+        allBatches = batchesData.status === "success" ? (batchesData.data || []) : [];
       }
       if (usersRes.ok) {
         const usersData = await usersRes.json();
         users = usersData.status === "success" ? (usersData.data || []) : [];
       }
 
-      let invigilators = users
-        .filter(u => u.role === "advisor" || u.role === "faculty" || u.role === "academic_admin")
-        .map(u => u.name);
-
-      if (invigilators.length === 0) {
-        invigilators = ['Dr. Alice Smith', 'Dr. Bob Johnson', 'Prof. Carol Williams', 'Dr. David Brown'];
-      }
+      let invigilators = users.filter(u => u.role === "advisor" || u.role === "faculty").map(u => u.name);
+      if (invigilators.length === 0) invigilators = ['Dr. Alice Smith', 'Dr. Bob Johnson', 'Prof. Carol Williams'];
 
       const ROOMS = ['Room 101', 'Room 102', 'Room 201', 'Room 202', 'Exam Hall'];
 
       const generatedEntries = [];
       let examIndex = 0;
 
-      for (const batch of batches) {
+      for (const batch of allBatches) {
+        if(selectedBatchId && batch._id !== selectedBatchId) continue;
+        
         const currRes = await fetch(`/api/curriculum/batch/${batch._id}`);
         let courses = [];
         if (currRes.ok) {
           const currData = await currRes.json();
-          if (currData.status === "success" && currData.data?.curriculum) {
-            courses = currData.data.curriculum.courses || [];
-          }
+          courses = currData.data?.curriculum?.courses || [];
         }
-
-        if (courses.length === 0) continue;
 
         for (const course of courses) {
           const date = DATES[examIndex % DATES.length];
@@ -181,160 +162,412 @@ function DatesheetGenerator() {
       }
 
       setEntries(savedEntries);
-      setHasData(savedEntries.length > 0);
       setConflicts(detectDatesheetConflicts(savedEntries));
     } catch (err) {
-      console.error("Failed to compile datesheet:", err);
+      console.error("Failed to compile:", err);
     } finally {
       setGenerating(false);
     }
   };
 
-  const conflictIdsSet = new Set(conflicts.flatMap((c) => c.cellIds));
-  const isConflicted = (entryId) => conflictIdsSet.has(entryId);
+  // --- Dynamic Metrics ---
+  const filteredEntries = entries.filter(e => !selectedBatchId || e.batch === batches.find(b => b._id === selectedBatchId)?.code);
+  const totalExams = filteredEntries.length;
+  const totalCourses = new Set(filteredEntries.map(e => e.courseCode)).size;
+  const totalInvigilators = new Set(filteredEntries.filter(e => e.invigilator).map(e => e.invigilator)).size;
+  const totalRooms = new Set(filteredEntries.filter(e => e.room).map(e => e.room)).size;
 
-  const formatDate = (dateStr) => {
-    const options = { weekday: 'short', month: 'short', day: 'numeric' };
-    return new Date(dateStr).toLocaleDateString('en-US', options);
+  // --- Room Utilization Donut Chart Data ---
+  const roomCounts = {};
+  filteredEntries.forEach(e => {
+    if (e.room) roomCounts[e.room] = (roomCounts[e.room] || 0) + 1;
+  });
+  const roomData = Object.entries(roomCounts)
+    .sort((a,b) => b[1] - a[1])
+    .map(([name, value]) => ({ name, value }));
+
+  // --- Exam Timing Details Aggregation ---
+  const timingDetails = [];
+  filteredEntries.forEach(e => {
+    timingDetails.push({
+      code: e.courseCode,
+      title: e.courseName,
+      date: formatDate(e.date),
+      slot: e.examSlot,
+      invigilator: e.invigilator,
+      room: e.room,
+      batch: e.batch
+    });
+  });
+
+  const getSlotColor = (courseName, room) => {
+    if (room?.toLowerCase().includes('hall')) return 'bg-purple-50 border-purple-200 text-purple-800';
+    if (courseName?.includes('Database') || courseName?.includes('Software')) return 'bg-emerald-50 border-emerald-200 text-emerald-800';
+    if (courseName?.includes('AI') || courseName?.includes('Artificial')) return 'bg-pink-50 border-pink-200 text-pink-800';
+    if (courseName?.includes('Operating')) return 'bg-amber-50 border-amber-200 text-amber-800';
+    return 'bg-indigo-50 border-indigo-200 text-indigo-800';
   };
 
+  function formatDate(dateStr) {
+    const options = { weekday: 'short', month: 'short', day: 'numeric' };
+    return new Date(dateStr).toLocaleDateString('en-US', options);
+  }
+
+  const selectedBatchObj = batches.find(b => b._id === selectedBatchId);
+  const batchLabel = selectedBatchObj ? `${selectedBatchObj.code} (${selectedBatchObj.semester === 6 ? '2023 Spring' : '2024'})` : '23S (2023 Spring)';
+
+  if (loading) {
+    return <div className="p-8 text-center text-slate-500 font-semibold animate-pulse">Loading Exam Management...</div>;
+  }
+
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* Header Panel */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="bg-slate-50 min-h-screen text-slate-800 p-6 pb-20 font-sans">
+      
+      {/* Header */}
+      <div className="flex justify-between items-center mb-6">
         <div>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Exam Management</span>
-          <h2 className="text-2xl font-extrabold text-[#1B3A6B] mt-0.5">Exam Datesheet Compiler</h2>
-          <p className="text-slate-500 text-xs mt-1">
-            Generate exam schedules automatically and validate room/invigilator allocations (FR-5.2).
-          </p>
+          <h1 className="text-2xl font-extrabold text-[#1B3A6B] font-display">Exam Management</h1>
+          <div className="text-xs text-slate-500 font-medium mt-1 flex items-center gap-1.5">
+            <span className="hover:text-brandAccent cursor-pointer transition-colors">BatchMinder ERP</span>
+            <span className="text-slate-300">/</span>
+            <span className="hover:text-brandAccent cursor-pointer transition-colors">Academic Management</span>
+            <span className="text-slate-300">/</span>
+            <span className="text-slate-700 font-bold">Exam Datesheet Compiler</span>
+          </div>
         </div>
-        <button
-          onClick={handleCompile}
-          disabled={generating}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#1B3A6B] hover:bg-[#12284C] text-white text-xs font-bold rounded-xl shadow-md transition-all disabled:opacity-50"
-        >
-          <RefreshCw className={`h-4 w-4 ${generating ? "animate-spin" : ""}`} />
-          {generating ? "Processing..." : "Compile Exam Datesheet"}
-        </button>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border border-slate-200 text-xs font-bold text-slate-600 shadow-sm">
+            <Calendar className="w-4 h-4 text-slate-400" />
+            Friday, May 22, 2026
+          </div>
+        </div>
       </div>
 
-      {/* Schedule Status Banner (Inlined) */}
-      {!hasData ? (
-        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 text-xs flex gap-3 items-start">
-          <Info className="h-5 w-5 text-slate-400 shrink-0 mt-0.5" />
-          <div>
-            <h4 className="font-bold text-slate-800">Schedule Pending Generation</h4>
-            <p className="mt-0.5">Run the automated algorithm above to compile the datesheet.</p>
-          </div>
-        </div>
-      ) : conflicts.length === 0 ? (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex gap-3 items-start">
-          <CheckCircle className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
-          <div>
-            <h4 className="font-bold text-emerald-950">Schedule Status: All Clear</h4>
-            <p className="mt-0.5">No Room, Invigilator, or Student cohort overlaps found in this exam schedule setup.</p>
-          </div>
-        </div>
-      ) : (
-        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex flex-col gap-3">
-          <div className="flex gap-3 items-start">
-            <AlertTriangle className="h-5 w-5 text-rose-500 shrink-0 mt-0.5" />
-            <div>
-              <h4 className="font-bold text-rose-950">Schedule Conflict Alert ({conflicts.length} Clashes)</h4>
-              <p className="mt-0.5">Automated checks identified exam date/slot overlaps (FR-5.3).</p>
+      {/* Top Filter Bar */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-4 flex-1">
+          <div className="flex flex-col gap-1 w-40">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Department</label>
+            <div className="relative">
+              <select className="w-full appearance-none bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 py-2 px-3 rounded-lg outline-none cursor-pointer">
+                <option>Computer Science</option>
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
-          <div className="border-t border-rose-200/65 pt-3">
-            <ul className="space-y-1.5 max-h-[140px] overflow-y-auto">
-              {conflicts.map((c, i) => (
-                <li key={i} className="bg-white/60 p-2 rounded border border-rose-100 flex gap-2">
-                  <span className="font-extrabold uppercase font-mono text-[9px] px-1 py-0.25 bg-rose-100 rounded text-rose-800 h-fit mt-0.5">
-                    {c.type}
-                  </span>
-                  <span>{c.description}</span>
-                </li>
-              ))}
-            </ul>
+          <div className="flex flex-col gap-1 w-44">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Program</label>
+            <div className="relative">
+              <select className="w-full appearance-none bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 py-2 px-3 rounded-lg outline-none cursor-pointer">
+                <option>BS Computer Science</option>
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1 w-40">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Batch (Year-Term)</label>
+            <div className="relative">
+              <select 
+                value={selectedBatchId} 
+                onChange={e => setSelectedBatchId(e.target.value)}
+                className="w-full appearance-none bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 py-2 px-3 rounded-lg outline-none cursor-pointer"
+              >
+                {batches.map(b => <option key={b._id} value={b._id}>{b.code} (2023 Spring)</option>)}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1 w-32">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Semester</label>
+            <div className="relative">
+              <select 
+                value={selectedSemester} 
+                onChange={e => setSelectedSemester(e.target.value)}
+                className="w-full appearance-none bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 py-2 px-3 rounded-lg outline-none cursor-pointer"
+              >
+                {[1,2,3,4,5,6,7,8].map(s => <option key={s} value={s}>Semester {s}</option>)}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1 w-32">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Section</label>
+            <div className="relative">
+              <select className="w-full appearance-none bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 py-2 px-3 rounded-lg outline-none cursor-pointer">
+                <option>Section A</option>
+                <option>Section B</option>
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
           </div>
         </div>
-      )}
+        <div>
+          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-brandAccent/30 text-brandAccent text-xs font-bold rounded-lg shadow-sm hover:bg-blue-50 transition-colors">
+            <Download className="w-4 h-4" /> Export Datesheet
+          </button>
+        </div>
+      </div>
 
-      {/* Main Grid Render (Inlined) */}
-      {loading ? (
-        <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center text-xs text-slate-400 font-semibold flex items-center justify-center gap-2">
-          <div className="w-4 h-4 border-2 border-[#1B3A6B] border-t-transparent rounded-full animate-spin" />
-          <span>Syncing exam datesheet...</span>
-        </div>
-      ) : !hasData ? (
-        <div className="bg-white border border-slate-200/80 rounded-3xl p-12 text-center max-w-xl mx-auto shadow-sm mt-6">
-          <div className="w-12 h-12 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-center text-slate-400 mx-auto mb-4 font-bold text-lg">
-            📝
-          </div>
-          <h3 className="font-bold text-slate-800 text-sm">No Datesheet Found</h3>
-          <p className="text-slate-500 text-xs mt-1.5">
-            Click the **Compile Exam Datesheet** button above to generate a datesheet.
-          </p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full border-collapse text-left text-xs">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
-                <th className="p-4 w-44">Date</th>
-                {EXAMSLOTS.map(slot => (
-                  <th key={slot} className="p-4 text-center min-w-[240px]">{slot}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {DATES.map(date => (
-                <tr key={date} className="hover:bg-slate-50/40">
-                  <td className="p-4 bg-slate-50/50 border-r border-slate-100 align-middle">
-                    <div className="font-bold text-slate-800">{formatDate(date)}</div>
-                    <div className="text-[10px] text-slate-400 font-mono mt-0.5">{date}</div>
-                  </td>
-                  {EXAMSLOTS.map(slot => {
-                    const cellEntries = entries.filter(e => e.date === date && e.examSlot === slot);
-                    return (
-                      <td key={slot} className="p-3 border-r border-slate-100 align-top h-32">
-                        <div className="space-y-2 overflow-y-auto max-h-24">
-                          {cellEntries.map(entry => {
-                            const conflicted = isConflicted(entry._id || entry.id);
-                            return (
-                              <div
-                                key={entry._id || entry.id}
-                                className={`p-3 rounded-xl border text-[11px] ${
-                                  conflicted
-                                    ? 'bg-rose-50 border-rose-200 text-rose-950'
-                                    : 'bg-indigo-50/40 border-indigo-100 text-indigo-950'
-                                }`}
-                              >
-                                <div className="flex justify-between items-start font-bold">
-                                  <span>{entry.courseCode}</span>
-                                  <span className="px-1.5 py-0.25 bg-white border rounded text-[8px] font-mono">{entry.batch}</span>
-                                </div>
-                                <div className="truncate mt-0.5 font-semibold text-xs">{entry.courseName}</div>
-                                <div className="text-[9px] text-slate-400 mt-1.5 flex justify-between">
-                                  <span>🏫 {entry.room}</span>
-                                  <span>👤 {entry.invigilator.split(' ').pop()}</span>
-                                </div>
-                              </div>
-                            );
-                          })}
+      <div className="flex flex-col xl:flex-row gap-6 items-start">
+        {/* Left Column: Grid & Tables */}
+        <div className="flex-1 w-full space-y-6 overflow-hidden">
+          
+          {/* Main Grid Card */}
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
+            <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white">
+              <div className="flex items-center gap-3">
+                <h3 className="text-sm font-extrabold text-slate-800">Final Exams Datesheet - BSCS {batchLabel} - Semester {selectedSemester || 6}</h3>
+                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase tracking-wider rounded border border-emerald-200">Published</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-slate-500 font-medium">Effective From: July 13, 2026</span>
+                <button 
+                  onClick={() => setActiveNav && setActiveNav('schedule_override')}
+                  className="px-4 py-2 bg-brandAccent text-white text-xs font-bold rounded-lg shadow-sm hover:bg-blue-600 transition-colors"
+                >
+                  Edit Datesheet
+                </button>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[1200px]">
+                <thead>
+                  <tr className="bg-slate-50/50 text-slate-500 text-[11px] font-bold uppercase tracking-wider border-b border-slate-200">
+                    <th className="px-4 py-3 w-36 text-center border-r border-slate-100 sticky left-0 bg-slate-50/90 backdrop-blur z-10 shadow-[1px_0_0_0_#f1f5f9]">Slot / Date</th>
+                    {DATES.map(date => <th key={date} className="px-4 py-3 text-center border-r border-slate-100 w-48">{formatDate(date)}</th>)}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs">
+                  {EXAMSLOTS.map((slot, index) => (
+                    <tr key={slot} className="hover:bg-slate-50/30 transition-colors">
+                      <td className="px-4 py-5 text-center font-bold text-slate-600 border-r border-slate-100 align-middle bg-slate-50/30 sticky left-0 z-10 shadow-[1px_0_0_0_#f1f5f9]">
+                        <div className="flex flex-col items-center gap-1">
+                          <Clock className="w-4 h-4 text-slate-400" />
+                          <span className="whitespace-nowrap">{slot}</span>
                         </div>
                       </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                      {DATES.map(date => {
+                        const cellEntries = filteredEntries.filter(e => e.date === date && e.examSlot === slot);
+                        return (
+                          <td key={date} className="px-2 py-2 border-r border-slate-100 align-top h-32 relative">
+                            {cellEntries.map((entry, i) => (
+                              <div key={i} className={`p-2.5 rounded-xl border ${getSlotColor(entry.courseName, entry.room)} mb-2 flex flex-col items-center justify-center text-center shadow-sm h-full relative overflow-hidden group`}>
+                                <div className="absolute top-0 left-0 w-1 h-full bg-current opacity-20 group-hover:opacity-50 transition-opacity" />
+                                <span className="font-extrabold text-[11px] mb-0.5">{entry.courseCode}</span>
+                                <span className="font-medium text-[10px] leading-tight mb-1.5 opacity-90 truncate w-full px-2" title={entry.courseName}>{entry.courseName}</span>
+                                <span className="font-bold text-[10px] text-brandNavy bg-white/50 px-1.5 rounded mb-0.5 w-full truncate">{entry.invigilator}</span>
+                                <span className="font-bold text-[10px] opacity-75">{entry.room}</span>
+                              </div>
+                            ))}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="grid lg:grid-cols-3 gap-6">
+            {/* Bottom Table: Exam Timing Details */}
+            <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+              <h3 className="text-sm font-bold text-slate-800 mb-4">Exam Schedule Details</h3>
+              <div className="overflow-x-auto rounded-xl border border-slate-200 max-h-[300px] overflow-y-auto">
+                <table className="w-full text-left text-xs relative">
+                  <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200 sticky top-0 z-10">
+                    <tr>
+                      <th className="px-4 py-3">Code</th>
+                      <th className="px-4 py-3">Course Title</th>
+                      <th className="px-4 py-3">Date</th>
+                      <th className="px-4 py-3">Time Slot</th>
+                      <th className="px-4 py-3">Invigilator</th>
+                      <th className="px-4 py-3">Room</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {timingDetails.map((td, i) => (
+                      <tr key={i} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-4 py-3 text-slate-800 font-bold">{td.code}</td>
+                        <td className="px-4 py-3 text-slate-600">{td.title}</td>
+                        <td className="px-4 py-3 text-brandNavy font-bold">{td.date}</td>
+                        <td className="px-4 py-3 text-slate-500">{td.slot}</td>
+                        <td className="px-4 py-3 text-slate-800">{td.invigilator}</td>
+                        <td className="px-4 py-3 text-emerald-700 font-bold">{td.room}</td>
+                      </tr>
+                    ))}
+                    {timingDetails.length === 0 && (
+                      <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400">No exams scheduled</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Bottom Panel: Clash Check */}
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 flex flex-col">
+              <h3 className="text-sm font-bold text-slate-800 mb-4">Datesheet Clash Check</h3>
+              
+              {conflicts.length === 0 ? (
+                <div className="flex-1 bg-emerald-50/50 border border-emerald-100 rounded-xl p-6 flex flex-col items-center justify-center text-center">
+                  <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-3">
+                    <CheckCircle2 className="w-6 h-6" />
+                  </div>
+                  <h4 className="text-sm font-extrabold text-emerald-700 mb-1">No Clashes Found!</h4>
+                  <p className="text-xs text-emerald-600/80 font-medium">Great! There are no faculty, room or cohort overlaps in this datesheet.</p>
+                </div>
+              ) : (
+                <div className="flex-1 bg-rose-50/50 border border-rose-100 rounded-xl p-5 flex flex-col">
+                  <div className="flex items-center gap-2 mb-3 text-rose-700">
+                    <AlertTriangle className="w-5 h-5" />
+                    <h4 className="text-sm font-extrabold">Clashes Detected ({conflicts.length})</h4>
+                  </div>
+                  <ul className="space-y-2 overflow-y-auto max-h-48 pr-1">
+                    {conflicts.map((c, i) => (
+                      <li key={i} className="text-[11px] p-2 bg-white rounded border border-rose-100 text-rose-800 shadow-sm">
+                        <strong className="block text-[10px] uppercase font-bold text-rose-500 mb-0.5">{c.type}</strong>
+                        {c.description}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+
         </div>
-      )}
+
+        {/* Right Sidebar */}
+        <div className="w-full xl:w-80 space-y-6 flex-shrink-0">
+          
+          {/* Exam Summary */}
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+            <h3 className="text-sm font-bold text-slate-800 mb-4">Exam Summary</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center p-2.5 rounded-lg hover:bg-slate-50 transition-colors">
+                <div className="flex items-center gap-2.5 text-slate-600 text-xs font-bold">
+                  <LayoutGrid className="w-4 h-4 text-brandAccent" /> Total Exams
+                </div>
+                <span className="text-sm font-extrabold text-slate-800">{totalExams}</span>
+              </div>
+              <div className="flex justify-between items-center p-2.5 rounded-lg hover:bg-slate-50 transition-colors">
+                <div className="flex items-center gap-2.5 text-slate-600 text-xs font-bold">
+                  <BookOpen className="w-4 h-4 text-emerald-500" /> Total Courses
+                </div>
+                <span className="text-sm font-extrabold text-slate-800">{totalCourses}</span>
+              </div>
+              <div className="flex justify-between items-center p-2.5 rounded-lg hover:bg-slate-50 transition-colors">
+                <div className="flex items-center gap-2.5 text-slate-600 text-xs font-bold">
+                  <Users className="w-4 h-4 text-purple-500" /> Total Invigilators
+                </div>
+                <span className="text-sm font-extrabold text-slate-800">{totalInvigilators}</span>
+              </div>
+              <div className="flex justify-between items-center p-2.5 rounded-lg hover:bg-slate-50 transition-colors">
+                <div className="flex items-center gap-2.5 text-slate-600 text-xs font-bold">
+                  <Home className="w-4 h-4 text-amber-500" /> Exam Halls Used
+                </div>
+                <span className="text-sm font-extrabold text-slate-800">{totalRooms}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Room Utilization Donut Chart */}
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+            <h3 className="text-sm font-bold text-slate-800 mb-4">Exam Hall Utilization</h3>
+            {roomData.length > 0 ? (
+              <>
+                <div className="h-40 w-full relative">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={roomData}
+                        cx="50%" cy="50%"
+                        innerRadius={50} outerRadius={70}
+                        paddingAngle={3}
+                        dataKey="value"
+                        stroke="none"
+                      >
+                        {roomData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(val) => [`${val} exams`, 'Usage']} contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '11px', fontWeight: 'bold' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  {/* Center Text */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-lg font-extrabold text-slate-800">{filteredEntries.length}</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Exams</span>
+                  </div>
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-y-2 gap-x-1">
+                  {roomData.map((entry, i) => (
+                    <div key={i} className="flex items-center gap-1.5 text-[10px] font-bold text-slate-600">
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                      <span className="truncate max-w-[70px]" title={entry.name}>{entry.name}</span>
+                      <span className="text-slate-400 ml-auto">{Math.round((entry.value / filteredEntries.length) * 100)}%</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="h-32 flex items-center justify-center text-xs text-slate-400">No room data available</div>
+            )}
+          </div>
+
+          {/* Quick Actions */}
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+            <h3 className="text-sm font-bold text-slate-800 mb-4">Quick Actions</h3>
+            <div className="space-y-2">
+              <button className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-brandAccent/30 hover:bg-blue-50 text-brandNavy text-xs font-bold transition-all text-left">
+                <Plus className="w-4 h-4" /> Add Exam
+              </button>
+              <button className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-brandAccent/30 hover:bg-blue-50 text-brandNavy text-xs font-bold transition-all text-left">
+                <UserPlus className="w-4 h-4" /> Assign Invigilator
+              </button>
+              <button className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-brandAccent/30 hover:bg-blue-50 text-brandNavy text-xs font-bold transition-all text-left">
+                <MapPin className="w-4 h-4" /> Assign Room
+              </button>
+              <button className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-amber-500/30 hover:bg-amber-50 text-amber-600 text-xs font-bold transition-all text-left">
+                <AlertCircle className="w-4 h-4" /> Check Clash
+              </button>
+              <button 
+                onClick={handleCompile}
+                disabled={generating}
+                className="w-full flex items-center gap-3 p-3 rounded-xl border border-transparent bg-brandNavy text-white hover:bg-blue-900 text-xs font-bold transition-all text-left disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${generating ? 'animate-spin' : ''}`} /> 
+                {generating ? 'Processing...' : 'Compile Datesheet'}
+              </button>
+            </div>
+          </div>
+
+          {/* Exam Info */}
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl shadow-sm p-5">
+            <h3 className="text-sm font-bold text-slate-800 mb-4">Exam Info</h3>
+            <div className="space-y-3 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Batch (Year-Term):</span>
+                <span className="font-bold text-slate-800">{selectedBatchObj?.code || '23S'} (2023 Spring)</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Program:</span>
+                <span className="font-bold text-slate-800">BS Computer Science</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Semester:</span>
+                <span className="font-bold text-slate-800">Semester {selectedSemester || 6}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Exam Period:</span>
+                <span className="font-bold text-brandNavy">Jul 13 - Jul 24</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
     </div>
   );
 }
-
-export default DatesheetGenerator;
-export { DatesheetGenerator };

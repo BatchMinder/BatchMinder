@@ -10,8 +10,6 @@ import {
 const CORE_NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'students', label: 'Students', icon: Users },
-  { id: 'batches', label: 'Batches', icon: Layers },
-  { id: 'attendance', label: 'Attendance', icon: CalendarCheck },
 ];
 
 const advisorGroups = {
@@ -71,7 +69,8 @@ export default function AdminLayout({
   const fetchHeaderNotifications = async () => {
     try {
       const response = await fetch('/api/notifications');
-      const data = await response.json();
+      const text = await response.text();
+      const data = text ? JSON.parse(text) : {};
       if (response.ok && data.status === 'success') {
         setNotifications(data.data.slice(0, 5));
       }
@@ -147,6 +146,7 @@ export default function AdminLayout({
   const hodNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'history', label: 'Request History', icon: Clock },
+    { id: 'reporting', label: 'Reporting Dashboard', icon: BarChart2 },
   ];
 
   const currentCoreNavItems = isAdvisor
@@ -267,10 +267,10 @@ export default function AdminLayout({
         </div>
 
         {/* Navigation */}
-        <nav style={{ flex: 1, padding: '16px 12px 0', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <nav className="custom-scrollbar" style={{ flex: 1, padding: '16px 12px 0', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          
           {isAdvisor ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-
+            <>
               {/* OVERVIEW */}
               <div>
                 <p style={{ fontSize: '10px', fontWeight: 800, color: '#475569', letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px 8px' }}>
@@ -309,6 +309,7 @@ export default function AdminLayout({
                 </p>
                 {[
                   { id: 'students', label: 'Students', icon: Users },
+                  { id: 'at_risk_monitoring', label: 'At-Risk Monitoring', icon: AlertTriangle },
                   { id: 'workflowQueue', label: 'Approval Requests', icon: Clock }
                 ].map(item => {
                   const Icon = item.icon;
@@ -393,114 +394,197 @@ export default function AdminLayout({
                   );
                 })}
               </div>
-
+            </>
+          ) : isHOD ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div>
+                <p style={{ fontSize: '10px', fontWeight: 800, color: '#475569', letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px 8px' }}>
+                  HOD Actions
+                </p>
+                {hodNavItems.map(item => {
+                  const Icon = item.icon;
+                  const isActive = activeNav === item.id;
+                  return (
+                    <button key={item.id} onClick={() => onNavigate(item.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
+                        padding: '9px 12px', borderRadius: '9px', marginBottom: '2px',
+                        backgroundColor: isActive ? 'rgba(37,99,235,0.15)' : 'transparent',
+                        border: isActive ? '1px solid rgba(37,99,235,0.2)' : '1px solid transparent',
+                        color: isActive ? '#60A5FA' : '#94A3B8',
+                        fontSize: '13px', fontWeight: isActive ? 700 : 500,
+                        cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s'
+                      }}
+                      onMouseEnter={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#F1F5F9'; } }}
+                      onMouseLeave={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94A3B8'; } }}
+                    >
+                      <Icon size={15} /><span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-
           ) : (
-            currentCoreNavItems.map(item => {
-              const Icon = item.icon;
-              const isActive = activeNav === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => onNavigate(item.id)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                    padding: '9px 12px', borderRadius: 9, marginBottom: 2,
-                    backgroundColor: isActive ? 'rgba(37,99,235,0.15)' : 'transparent',
-                    border: isActive ? '1px solid rgba(37,99,235,0.2)' : '1px solid transparent',
-                    color: isActive ? '#60A5FA' : '#94A3B8',
-                    fontSize: 13, fontWeight: isActive ? 700 : 500,
-                    cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s'
-                  }}
-                  onMouseEnter={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#F1F5F9'; } }}
-                  onMouseLeave={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94A3B8'; } }}
-                >
-                  <Icon size={16} />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })
+            <>
+              {/* OVERVIEW */}
+              <div>
+                <p style={{ fontSize: '10px', fontWeight: 800, color: '#475569', letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px 8px' }}>
+                  Overview
+                </p>
+                {[
+                  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard }
+                ].map(item => {
+                  const Icon = item.icon;
+                  const isActive = activeNav === item.id;
+                  return (
+                    <button key={item.id} onClick={() => onNavigate(item.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
+                        padding: '9px 12px', borderRadius: '9px', marginBottom: '2px',
+                        backgroundColor: isActive ? 'rgba(37,99,235,0.15)' : 'transparent',
+                        border: isActive ? '1px solid rgba(37,99,235,0.2)' : '1px solid transparent',
+                        color: isActive ? '#60A5FA' : '#94A3B8',
+                        fontSize: '13px', fontWeight: isActive ? 700 : 500,
+                        cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s'
+                      }}
+                      onMouseEnter={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#F1F5F9'; } }}
+                      onMouseLeave={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94A3B8'; } }}
+                    >
+                      <Icon size={15} /><span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* STUDENT MANAGEMENT */}
+              <div>
+                <p style={{ fontSize: '10px', fontWeight: 800, color: '#475569', letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px 8px' }}>
+                  Student Management
+                </p>
+                {[
+                  { id: 'students', label: 'Student Records', icon: Users },
+                  { id: 'upload', label: 'CSV/Excel Upload', icon: Upload },
+                  { id: 'migrations', label: 'Migration Records', icon: ArrowRightLeft }
+                ].map(item => {
+                  const Icon = item.icon;
+                  const isActive = activeNav === item.id;
+                  return (
+                    <button key={item.id} onClick={() => onNavigate(item.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
+                        padding: '9px 12px', borderRadius: '9px', marginBottom: '2px',
+                        backgroundColor: isActive ? 'rgba(37,99,235,0.15)' : 'transparent',
+                        border: isActive ? '1px solid rgba(37,99,235,0.2)' : '1px solid transparent',
+                        color: isActive ? '#60A5FA' : '#94A3B8',
+                        fontSize: '13px', fontWeight: isActive ? 700 : 500,
+                        cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s'
+                      }}
+                      onMouseEnter={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#F1F5F9'; } }}
+                      onMouseLeave={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94A3B8'; } }}
+                    >
+                      <Icon size={15} /><span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* ACADEMIC MANAGEMENT */}
+              <div>
+                <p style={{ fontSize: '10px', fontWeight: 800, color: '#475569', letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px 8px' }}>
+                  Academic Management
+                </p>
+                {[
+                  { id: 'curriculum', label: 'Curriculum Management', icon: BookOpen }
+                ].map(item => {
+                  const Icon = item.icon;
+                  const isActive = activeNav === item.id;
+                  return (
+                    <button key={item.id} onClick={() => onNavigate(item.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
+                        padding: '9px 12px', borderRadius: '9px', marginBottom: '2px',
+                        backgroundColor: isActive ? 'rgba(37,99,235,0.15)' : 'transparent',
+                        border: isActive ? '1px solid rgba(37,99,235,0.2)' : '1px solid transparent',
+                        color: isActive ? '#60A5FA' : '#94A3B8',
+                        fontSize: '13px', fontWeight: isActive ? 700 : 500,
+                        cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s'
+                      }}
+                      onMouseEnter={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#F1F5F9'; } }}
+                      onMouseLeave={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94A3B8'; } }}
+                    >
+                      <Icon size={15} /><span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* SCHEDULING */}
+              <div>
+                <p style={{ fontSize: '10px', fontWeight: 800, color: '#475569', letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px 8px' }}>
+                  Scheduling
+                </p>
+                {[
+                  { id: 'timetable_generator', label: 'Timetable Management', icon: Calendar },
+                  { id: 'datesheet_generator', label: 'Exam Schedule', icon: CalendarCheck },
+                  { id: 'schedule_override', label: 'Schedule Override', icon: Clock }
+                ].map(item => {
+                  const Icon = item.icon;
+                  const isActive = activeNav === item.id;
+                  return (
+                    <button key={item.id} onClick={() => onNavigate(item.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
+                        padding: '9px 12px', borderRadius: '9px', marginBottom: '2px',
+                        backgroundColor: isActive ? 'rgba(37,99,235,0.15)' : 'transparent',
+                        border: isActive ? '1px solid rgba(37,99,235,0.2)' : '1px solid transparent',
+                        color: isActive ? '#60A5FA' : '#94A3B8',
+                        fontSize: '13px', fontWeight: isActive ? 700 : 500,
+                        cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s'
+                      }}
+                      onMouseEnter={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#F1F5F9'; } }}
+                      onMouseLeave={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94A3B8'; } }}
+                    >
+                      <Icon size={15} /><span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+
+
+              {/* SYSTEM */}
+              <div style={{ marginBottom: '16px' }}>
+                <p style={{ fontSize: '10px', fontWeight: 800, color: '#475569', letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px 8px' }}>
+                  System
+                </p>
+                {[
+                  { id: 'notifications', label: 'Notifications', icon: Bell },
+                  { id: 'settings', label: 'System Settings', icon: Settings },
+                  { id: 'audit_logs', label: 'Audit Logs', icon: FileText }
+                ].map(item => {
+                  const Icon = item.icon;
+                  const isActive = activeNav === item.id;
+                  return (
+                    <button key={item.id} onClick={() => onNavigate(item.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
+                        padding: '9px 12px', borderRadius: '9px', marginBottom: '2px',
+                        backgroundColor: isActive ? 'rgba(37,99,235,0.15)' : 'transparent',
+                        border: isActive ? '1px solid rgba(37,99,235,0.2)' : '1px solid transparent',
+                        color: isActive ? '#60A5FA' : '#94A3B8',
+                        fontSize: '13px', fontWeight: isActive ? 700 : 500,
+                        cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s'
+                      }}
+                      onMouseEnter={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#F1F5F9'; } }}
+                      onMouseLeave={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94A3B8'; } }}
+                    >
+                      <Icon size={15} /><span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
           )}
-
-          {/* Collapsible Advanced Academic Tools for Academic Admin */}
-          {!isAdvisor && !isHOD && (
-            <div style={{ marginTop: 8 }}>
-              <button
-                onClick={() => setShowAcademicTools(!showAcademicTools)}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%',
-                  padding: '10px 14px', borderRadius: 10,
-                  backgroundColor: 'transparent', border: 'none',
-                  color: '#475569', fontSize: 11, fontWeight: 700,
-                  cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.5px'
-                }}
-                onMouseEnter={e => e.currentTarget.style.color = '#94A3B8'}
-                onMouseLeave={e => e.currentTarget.style.color = '#475569'}
-              >
-                <span>Academic Tools</span>
-                {showAcademicTools ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-              </button>
-
-              {showAcademicTools && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingLeft: 8, marginTop: 4 }}>
-                  {advancedAcademicNavItems.map(item => {
-                    const Icon = item.icon;
-                    const isActive = activeNav === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => onNavigate(item.id)}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                          padding: '8px 12px', borderRadius: 8,
-                          backgroundColor: isActive ? 'rgba(37,99,235,0.15)' : 'transparent',
-                          border: isActive ? '1px solid rgba(37,99,235,0.2)' : '1px solid transparent',
-                          color: isActive ? '#60A5FA' : '#64748B',
-                          fontSize: 12, fontWeight: isActive ? 600 : 500,
-                          cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s'
-                        }}
-                        onMouseEnter={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#F1F5F9'; } }}
-                        onMouseLeave={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#64748B'; } }}
-                      >
-                        <Icon size={14} />
-                        <span>{item.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Spacing & Bottom Actions Container */}
-          <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 2, padding: '16px 0 8px' }}>
-            {/* System Settings (Profile Settings) */}
-            {!isAdvisor && currentSystemNavItems.map(item => {
-              const Icon = item.icon;
-              const isActive = activeNav === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => onNavigate(item.id)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                    padding: '9px 12px', borderRadius: 9, marginBottom: 2,
-                    backgroundColor: isActive ? 'rgba(37,99,235,0.15)' : 'transparent',
-                    border: isActive ? '1px solid rgba(37,99,235,0.2)' : '1px solid transparent',
-                    color: isActive ? '#60A5FA' : '#94A3B8',
-                    fontSize: 13, fontWeight: isActive ? 700 : 500,
-                    cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s'
-                  }}
-                  onMouseEnter={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#F1F5F9'; } }}
-                  onMouseLeave={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94A3B8'; } }}
-                >
-                  <Icon size={16} />
-                  <span>Settings</span>
-                </button>
-              );
-            })}
-          </div>
         </nav>
 
         {/* Logout */}

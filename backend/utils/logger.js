@@ -20,6 +20,7 @@ export const logAudit = async ({
       targetId,
       departmentId,
       batchId,
+      description: metadata.description || metadata.desc || '',
       metadata
     });
   } catch (err) {

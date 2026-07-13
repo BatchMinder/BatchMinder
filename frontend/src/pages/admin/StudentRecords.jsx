@@ -2,14 +2,14 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   Search, Plus, Eye, X, User, Award, Mail, BookOpen, AlertCircle,
   Download, UserPlus, ChevronLeft, ChevronRight, TrendingUp,
-  CheckCircle, AlertTriangle, FileText, Bell
+  CheckCircle, AlertTriangle, FileText, Bell, Edit3, Trash2
 } from 'lucide-react';
 import { CircularProgress } from '@mui/material';
 import {
   ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip
 } from 'recharts';
 
-export default function StudentRecords() {
+export default function StudentRecords({ setActiveNav }) {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -25,7 +25,74 @@ export default function StudentRecords() {
   const [departments, setDepartments] = useState([]);
   const [saving, setSaving] = useState(false);
   const [stats, setStats] = useState({ totalStudents: 0, activeStudents: 0, atRiskStudents: 0, graduatedStudents: 0 });
+  const [cgpaDist, setCgpaDist] = useState(null);
+  const [atRiskTrend, setAtRiskTrend] = useState([]);
+  const [auditLogs, setAuditLogs] = useState([]);
   const limit = 6; // Compact list to fit beautifully next to activities
+
+  // Edit / Delete Student States
+  const [editingStudent, setEditingStudent] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({ rollNumber: '', name: '', email: '', departmentId: '', batchId: '', cgpa: '', status: 'active' });
+
+  const handleEditClick = (s) => {
+    setEditingStudent(s);
+    setEditForm({
+      rollNumber: s.rollNumber,
+      name: s.name,
+      email: s.email || '',
+      departmentId: s.departmentId?._id || s.departmentId || '',
+      batchId: s.batchId?._id || s.batchId || '',
+      cgpa: s.cgpa || '',
+      status: s.status || 'active'
+    });
+    setShowEditModal(true);
+  };
+
+  const handleEditSave = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/students/${editingStudent._id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editForm)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setShowEditModal(false);
+        setEditingStudent(null);
+        fetchStudents();
+        fetchStats();
+      } else {
+        alert(data.message || 'Failed to update student');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to update student');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteClick = async (studentId) => {
+    if (!window.confirm('Are you sure you want to delete this student record?')) return;
+    try {
+      const res = await fetch(`/api/students/${studentId}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        fetchStudents();
+        fetchStats();
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Failed to delete student');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete student');
+    }
+  };
 
 
   const fetchStudents = async () => {
@@ -63,10 +130,37 @@ export default function StudentRecords() {
     } catch (e) {}
   };
 
+  const fetchAuditLogs = async () => {
+    try {
+      const res = await fetch('/api/audit-logs?limit=5');
+      if (res.ok) {
+        const d = await res.json();
+        setAuditLogs(d.data?.logs || []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   useEffect(() => {
     fetch('/api/batches').then(r => r.json()).then(d => { if (d.status === 'success') setBatches(d.data); }).catch(() => {});
     fetch('/api/departments').then(r => r.json()).then(d => { if (d.status === 'success') setDepartments(d.data); }).catch(() => {});
+    fetch('/api/dashboard/cgpa-distribution').then(r => r.json()).then(d => { if (d.status === 'success') setCgpaDist(d.data); }).catch(() => {});
+    fetch('/api/dashboard/at-risk-trend').then(r => r.json()).then(d => {
+      if (d.status === 'success' && d.data) {
+        const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+        setAtRiskTrend(d.data.map(item => {
+          const [year, monthNum] = item.month.split('-');
+          const monthIndex = parseInt(monthNum) - 1;
+          return {
+            name: months[monthIndex] || item.month,
+            value: item.warning + item.critical
+          };
+        }));
+      }
+    }).catch(() => {});
     fetchStats();
+    fetchAuditLogs();
   }, []);
 
   const handleSave = async (e) => {
@@ -120,22 +214,52 @@ export default function StudentRecords() {
     return '#EF4444'; // Red
   };
 
-  // Recharts Data Definitions
-  const cgpaData = [
-    { name: '3.5 - 4.0', value: 45, color: '#2563EB' },
-    { name: '3.0 - 3.5', value: 25, color: '#10B981' },
-    { name: '2.5 - 3.0', value: 20, color: '#F59E0B' },
-    { name: 'Under 2.5', value: 10, color: '#EF4444' },
-  ];
+  const avgGpa = useMemo(() => {
+    if (!students || students.length === 0) return '0.00';
+    const validStudents = students.filter(s => s.cgpa);
+    if (validStudents.length === 0) return '0.00';
+    const sum = validStudents.reduce((acc, s) => acc + parseFloat(s.cgpa || 0), 0);
+    return (sum / validStudents.length).toFixed(2);
+  }, [students]);
 
-  const atRiskTrendData = [
-    { name: 'JAN', value: 150 },
-    { name: 'MAR', value: 220 },
-    { name: 'MAY', value: 180 },
-    { name: 'JUL', value: 290 },
-    { name: 'SEP', value: 260 },
-    { name: 'NOV', value: 340 }
-  ];
+  // Dynamic Recharts Data Definitions
+  const cgpaData = useMemo(() => {
+    if (!cgpaDist || !cgpaDist.labels) {
+      return [
+        { name: 'Good Standing', value: 0, color: '#10B981' },
+        { name: 'Warning', value: 0, color: '#F59E0B' },
+        { name: 'Critical Risk', value: 0, color: '#EF4444' }
+      ];
+    }
+    const totalDist = cgpaDist.counts.reduce((a, b) => a + b, 0) || 1;
+    return [
+      { name: 'Good Standing', value: Math.round((cgpaDist.counts[0] / totalDist) * 100), color: '#10B981' },
+      { name: 'Academic Warning', value: Math.round((cgpaDist.counts[1] / totalDist) * 100), color: '#F59E0B' },
+      { name: 'Critical Risk', value: Math.round((cgpaDist.counts[2] / totalDist) * 100), color: '#EF4444' }
+    ].filter(item => item.value > 0);
+  }, [cgpaDist]);
+
+  const atRiskTrendData = useMemo(() => {
+    if (atRiskTrend.length > 0) return atRiskTrend;
+    return [
+      { name: 'JAN', value: 0 },
+      { name: 'MAR', value: 0 },
+      { name: 'MAY', value: 0 },
+      { name: 'JUL', value: 0 },
+      { name: 'SEP', value: 0 },
+      { name: 'NOV', value: 0 }
+    ];
+  }, [atRiskTrend]);
+
+  const departmentStats = useMemo(() => {
+    if (!stats || !stats.departments) return [];
+    const maxCount = Math.max(...stats.departments.map(d => d.students), 1);
+    return stats.departments.map(d => ({
+      code: d.code || d.name,
+      students: d.students,
+      widthPct: Math.round((d.students / maxCount) * 100)
+    }));
+  }, [stats]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', fontFamily: "'Inter', sans-serif" }}>
@@ -154,7 +278,7 @@ export default function StudentRecords() {
             Student Record Management
           </h1>
           <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748B' }}>
-            Managing 2,847 academic files across 12 departments.
+            Managing {total} academic files across {departments.length} departments.
           </p>
         </div>
 
@@ -254,11 +378,9 @@ export default function StudentRecords() {
                 style={{ padding: '7px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', backgroundColor: '#FFFFFF', color: '#475569', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}
               >
                 <option value="">All Departments</option>
-                <option value="Computer Science">Computer Science</option>
-                <option value="Software Engineering">Software Engineering</option>
-                <option value="Electrical Engineering">Electrical Engineering</option>
-                <option value="Data Science">Data Science</option>
-                <option value="Applied Math">Applied Math</option>
+                {departments.map(d => (
+                  <option key={d._id} value={d.name}>{d.name}</option>
+                ))}
               </select>
 
               {/* Status Dropdown */}
@@ -350,15 +472,34 @@ export default function StudentRecords() {
                         </div>
                       </td>
 
-                      {/* View Action */}
-                      <td style={{ padding: '12px 20px', textAlign: 'right' }}>
+                      {/* View / Edit / Delete Actions */}
+                      <td style={{ padding: '12px 20px', textAlign: 'right', display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
                         <button
                           onClick={() => setSelected(s)}
                           style={{ padding: '6px', border: 'none', backgroundColor: 'transparent', color: '#94A3B8', cursor: 'pointer', borderRadius: '6px', transition: 'all 0.15s' }}
                           onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#F1F5F9'; e.currentTarget.style.color = '#1E293B'; }}
                           onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94A3B8'; }}
+                          title="View Details"
                         >
                           <Eye size={15} />
+                        </button>
+                        <button
+                          onClick={() => handleEditClick(s)}
+                          style={{ padding: '6px', border: 'none', backgroundColor: 'transparent', color: '#F59E0B', cursor: 'pointer', borderRadius: '6px', transition: 'all 0.15s' }}
+                          onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#FEF3C7'; e.currentTarget.style.color = '#D97706'; }}
+                          onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#F59E0B'; }}
+                          title="Edit Student"
+                        >
+                          <Edit3 size={15} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClick(s._id)}
+                          style={{ padding: '6px', border: 'none', backgroundColor: 'transparent', color: '#EF4444', cursor: 'pointer', borderRadius: '6px', transition: 'all 0.15s' }}
+                          onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#FEE2E2'; e.currentTarget.style.color = '#DC2626'; }}
+                          onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#EF4444'; }}
+                          title="Delete Student"
+                        >
+                          <Trash2 size={15} />
                         </button>
                       </td>
                     </tr>
@@ -423,71 +564,35 @@ export default function StudentRecords() {
           <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>Recent Activities</h3>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: '#2563EB', cursor: 'pointer' }}>View All</span>
+              <span 
+                onClick={() => setActiveNav && setActiveNav('audit_logs')}
+                style={{ fontSize: '11px', fontWeight: 700, color: '#2563EB', cursor: 'pointer' }}
+              >
+                View All
+              </span>
             </div>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {/* Activity 1 */}
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                <div style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#2563EB' }}>
-                  <UserPlus size={12} />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#334155', lineHeight: 1.2 }}>New student record added</span>
-                  <span style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.2 }}>Liam Carter (CS-2024-0012) was enrolled in Batch 2024A.</span>
-                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#94A3B8', marginTop: '2px', textTransform: 'uppercase' }}>2 MINS AGO</span>
-                </div>
-              </div>
-
-              {/* Activity 2 */}
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                <div style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: '#DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#16A34A' }}>
-                  <CheckCircle size={12} />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#334155', lineHeight: 1.2 }}>CGPA updated</span>
-                  <span style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.2 }}>Sana Al-Farsi's grade sheet processed for Semester 5.</span>
-                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#94A3B8', marginTop: '2px', textTransform: 'uppercase' }}>45 MINS AGO</span>
-                </div>
-              </div>
-
-              {/* Activity 3 */}
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                <div style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#EF4444' }}>
-                  <AlertTriangle size={12} />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#334155', lineHeight: 1.2 }}>Status Change: At Risk</span>
-                  <span style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.2 }}>System flagged 12 students in Batch 2023C due to attendance.</span>
-                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#94A3B8', marginTop: '2px', textTransform: 'uppercase' }}>2 HOURS AGO</span>
-                </div>
-              </div>
-
-              {/* Activity 4 */}
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                <div style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#2563EB' }}>
-                  <FileText size={12} />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#334155', lineHeight: 1.2 }}>Batch Report Exported</span>
-                  <span style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.2 }}>End of Semester performance summary generated by Admin.</span>
-                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#94A3B8', marginTop: '2px', textTransform: 'uppercase' }}>5 HOURS AGO</span>
-                </div>
-              </div>
-
-              {/* Activity 5 */}
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                <div style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#2563EB' }}>
-                  <Bell size={12} />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#334155', lineHeight: 1.2 }}>Notice Issued</span>
-                  <span style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.2 }}>Probation alerts sent to 4 students in Applied Math.</span>
-                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#94A3B8', marginTop: '2px', textTransform: 'uppercase' }}>YESTERDAY</span>
-                </div>
-              </div>
-            </div>
-          </div>
+               {auditLogs.length > 0 ? (
+                 auditLogs.map((log, i) => (
+                   <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                     <div style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: log.action.includes('FAILED') ? '#FEE2E2' : '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: log.action.includes('FAILED') ? '#EF4444' : '#2563EB' }}>
+                       {log.action.includes('INGESTED') ? <FileText size={12} /> : <UserPlus size={12} />}
+                     </div>
+                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                       <span style={{ fontSize: '12px', fontWeight: 700, color: '#334155', lineHeight: 1.2 }}>{log.action.replace(/_/g, ' ')}</span>
+                       <span style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.2 }}>{log.metadata?.description || log.description || 'System Audit Log'}</span>
+                       <span style={{ fontSize: '9px', fontWeight: 700, color: '#94A3B8', marginTop: '2px', textTransform: 'uppercase' }}>
+                         {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                       </span>
+                     </div>
+                   </div>
+                 ))
+               ) : (
+                 <div style={{ padding: '24px', textAlign: 'center', color: '#94A3B8', fontSize: '12px' }}>No recent activities.</div>
+               )}
+             </div>
+           </div>
 
           {/* System Status Panel */}
           <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
@@ -495,8 +600,8 @@ export default function StudentRecords() {
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10B981', display: 'inline-block' }} />
               SYSTEM STATUS
             </span>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: '#1E3A8A', backgroundColor: '#EFF6FF', padding: '4px 10px', borderRadius: '8px' }}>
-              Database Sync 99.8%
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#10B981', backgroundColor: '#ECFDF5', padding: '4px 10px', borderRadius: '8px' }}>
+              Database Connected
             </span>
           </div>
 
@@ -538,7 +643,7 @@ export default function StudentRecords() {
                 position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
                 textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center'
               }}>
-                <span style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', lineHeight: 1 }}>3.4</span>
+                <span style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', lineHeight: 1 }}>{avgGpa}</span>
                 <span style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 600, marginTop: '2px' }}>Avg GPA</span>
               </div>
             </div>
@@ -564,38 +669,21 @@ export default function StudentRecords() {
             Students by Department
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', justifyContent: 'center', flex: 1 }}>
-            {/* Department 1 */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
-                <span style={{ fontWeight: 600, color: '#475569' }}>CS</span>
-                <span style={{ fontWeight: 700, color: '#1F2937' }}>842</span>
-              </div>
-              <div style={{ height: '6px', backgroundColor: '#F1F5F9', borderRadius: '3px', overflow: 'hidden' }}>
-                <div style={{ width: '85%', height: '100%', backgroundColor: '#2563EB', borderRadius: '3px' }} />
-              </div>
-            </div>
-
-            {/* Department 2 */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
-                <span style={{ fontWeight: 600, color: '#475569' }}>DS</span>
-                <span style={{ fontWeight: 700, color: '#1F2937' }}>654</span>
-              </div>
-              <div style={{ height: '6px', backgroundColor: '#F1F5F9', borderRadius: '3px', overflow: 'hidden' }}>
-                <div style={{ width: '65%', height: '100%', backgroundColor: '#2563EB', borderRadius: '3px' }} />
-              </div>
-            </div>
-
-            {/* Department 3 */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
-                <span style={{ fontWeight: 600, color: '#475569' }}>AM</span>
-                <span style={{ fontWeight: 700, color: '#1F2937' }}>421</span>
-              </div>
-              <div style={{ height: '6px', backgroundColor: '#F1F5F9', borderRadius: '3px', overflow: 'hidden' }}>
-                <div style={{ width: '45%', height: '100%', backgroundColor: '#2563EB', borderRadius: '3px' }} />
-              </div>
-            </div>
+            {departmentStats.length > 0 ? (
+              departmentStats.map((d, idx) => (
+                <div key={idx}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
+                    <span style={{ fontWeight: 600, color: '#475569' }}>{d.code}</span>
+                    <span style={{ fontWeight: 700, color: '#1F2937' }}>{d.students}</span>
+                  </div>
+                  <div style={{ height: '6px', backgroundColor: '#F1F5F9', borderRadius: '3px', overflow: 'hidden' }}>
+                    <div style={{ width: `${d.widthPct}%`, height: '100%', backgroundColor: '#2563EB', borderRadius: '3px' }} />
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div style={{ fontSize: '12px', color: '#94A3B8', textAlign: 'center' }}>No department statistics found.</div>
+            )}
           </div>
         </div>
 
@@ -719,6 +807,78 @@ export default function StudentRecords() {
                 <button type="submit" disabled={saving}
                   style={{ padding: '8px 20px', borderRadius: 10, border: 'none', backgroundColor: '#2563EB', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 13, opacity: saving ? 0.7 : 1, fontFamily: 'inherit' }}>
                   {saving ? 'Saving...' : 'Create Student'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit Student Form Modal ── */}
+      {showEditModal && editingStudent && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: 24, padding: 24, maxWidth: 480, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#1B3A6B' }}>Edit Student Record</h3>
+              <button onClick={() => { setShowEditModal(false); setEditingStudent(null); }} style={{ padding: 4, border: 'none', backgroundColor: 'transparent', cursor: 'pointer', color: '#94A3B8' }}><X size={20} /></button>
+            </div>
+            <form onSubmit={handleEditSave}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Roll Number *</label>
+                  <input required value={editForm.rollNumber} onChange={e => setEditForm(f => ({ ...f, rollNumber: e.target.value }))}
+                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, outline: 'none', fontFamily: 'inherit' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Name *</label>
+                  <input required value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, outline: 'none', fontFamily: 'inherit' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Email</label>
+                  <input type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
+                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, outline: 'none', fontFamily: 'inherit' }} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Department *</label>
+                    <select required value={editForm.departmentId} onChange={e => setEditForm(f => ({ ...f, departmentId: e.target.value }))}
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, backgroundColor: '#fff', outline: 'none', fontFamily: 'inherit' }}>
+                      <option value="">Select...</option>
+                      {departments.map(d => <option key={d._id} value={d._id}>{d.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Batch *</label>
+                    <select required value={editForm.batchId} onChange={e => setEditForm(f => ({ ...f, batchId: e.target.value }))}
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, backgroundColor: '#fff', outline: 'none', fontFamily: 'inherit' }}>
+                      <option value="">Select...</option>
+                      {batches.map(b => <option key={b._id} value={b._id}>{b.code}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>CGPA</label>
+                    <input type="number" step="0.01" min="0" max="4" value={editForm.cgpa} onChange={e => setEditForm(f => ({ ...f, cgpa: e.target.value }))}
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, outline: 'none', fontFamily: 'inherit' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Status *</label>
+                    <select required value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))}
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, backgroundColor: '#fff', outline: 'none', fontFamily: 'inherit' }}>
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20 }}>
+                <button type="button" onClick={() => { setShowEditModal(false); setEditingStudent(null); }}
+                  style={{ padding: '8px 20px', borderRadius: 10, border: '1px solid #E2E8F0', backgroundColor: '#fff', color: '#64748B', fontWeight: 600, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>Cancel</button>
+                <button type="submit" disabled={saving}
+                  style={{ padding: '8px 20px', borderRadius: 10, border: 'none', backgroundColor: '#2563EB', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 13, opacity: saving ? 0.7 : 1, fontFamily: 'inherit' }}>
+                  {saving ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </form>

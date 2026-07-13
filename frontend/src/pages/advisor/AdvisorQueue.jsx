@@ -1,840 +1,673 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-    Users,
-    Clock,
-    CheckCircle2,
-    ExternalLink,
-    AlertTriangle,
-    X,
-    Plus,
-    Search,
-    Check,
-    AlertCircle,
-    GraduationCap,
-    BookOpen
+  Layers, Hourglass, CheckCircle2, XCircle, ExternalLink, Search, Plus, RefreshCw,
+  ChevronDown, LayoutGrid, FileText, Download, X, AlertCircle, SlidersHorizontal
 } from 'lucide-react';
 import { CircularProgress } from '@mui/material';
 
-// YOUR 3 CORE VALIDATION COMPONENTS (Imported from your folder structure)
 import PrerequisiteCheck from '../../components/ApprovalWorkflow/PrerequisiteCheck';
 import CreditHourMeter from '../../components/ApprovalWorkflow/CreditHourMeter';
 import DuplicateWarning from '../../components/ApprovalWorkflow/DuplicateWarning';
 
+// ─── Avatar color palette ─────────────────────────────────────────────────────
+const AVATAR_COLORS = [
+  { bg: '#EDE9FE', text: '#6D28D9' }, // purple
+  { bg: '#D1FAE5', text: '#065F46' }, // green
+  { bg: '#FEE2E2', text: '#991B1B' }, // red
+  { bg: '#DBEAFE', text: '#1D4ED8' }, // blue
+  { bg: '#FEF3C7', text: '#92400E' }, // amber
+  { bg: '#FCE7F3', text: '#9D174D' }, // pink
+  { bg: '#CCFBF1', text: '#0F766E' }, // teal
+  { bg: '#F3E8FF', text: '#7E22CE' }, // violet
+];
+const getAvatarColor = (name = '') => AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length];
+const getInitials = (name = '') => name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+
+// ─── Badge helpers ────────────────────────────────────────────────────────────
+const getStatusBadge = (status = '') => {
+  const s = status.toLowerCase();
+  if (s.includes('pending')) return 'bg-blue-50 text-blue-600 border border-blue-200';
+  if (s.includes('escalated') || s.includes('forwarded') || s.includes('hod')) return 'bg-violet-50 text-violet-700 border border-violet-200';
+  if (s.includes('approved')) return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+  if (s.includes('rejected') || s.includes('returned')) return 'bg-rose-50 text-rose-700 border border-rose-200';
+  if (s.includes('live') || s.includes('active')) return 'bg-teal-50 text-teal-700 border border-teal-200';
+  return 'bg-slate-50 text-slate-600 border border-slate-200';
+};
+const getStatusLabel = (status = '') => {
+  const s = status.toLowerCase();
+  if (s.includes('forwarded') || s.includes('hod')) return 'Escalated';
+  if (s.includes('pending')) return 'Pending';
+  return status;
+};
+const getPriorityBadge = (p = 'Medium') => {
+  if (p === 'High') return 'bg-orange-100 text-orange-700';
+  if (p === 'Low') return 'bg-green-100 text-green-700';
+  return 'bg-amber-100 text-amber-700';
+};
+const isActionable = (status = '') => status.toLowerCase().includes('pending');
+
+// ─── Component ────────────────────────────────────────────────────────────────
 export default function AdvisorQueue() {
-    const { user } = useAuth();
-    const [requests, setRequests] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-    
-    // Evaluate modal
-    const [selectedRequest, setSelectedRequest] = useState(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [remarks, setRemarks] = useState('');
-    const [actionLoading, setActionLoading] = useState(false);
-    const [actionError, setActionError] = useState('');
-    const [evalStudent, setEvalStudent] = useState(null);
-    const [evalStudentLoading, setEvalStudentLoading] = useState(false);
+  const { user } = useAuth();
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState('all');
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [remarks, setRemarks] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const [evalStudent, setEvalStudent] = useState(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 8;
 
+  // Submit modal state
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [studentSearch, setStudentSearch] = useState('');
+  const [searchingStudents, setSearchingStudents] = useState(false);
+  const [studentsList, setStudentsList] = useState([]);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [courseCode, setCourseCode] = useState('');
+  const [courseTitle, setCourseTitle] = useState('');
+  const [creditHours, setCreditHours] = useState(3);
+  const [requestType, setRequestType] = useState('add');
+  const [justification, setJustification] = useState('');
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [eligibleCourses, setEligibleCourses] = useState({ enrolledCourses: [], curriculumCourses: [] });
+  const [loadingCourses, setLoadingCourses] = useState(false);
+  const [selectedCourseId, setSelectedCourseId] = useState('');
 
-    // Request submission modal
-    const [showSubmitModal, setShowSubmitModal] = useState(false);
-    const [studentSearch, setStudentSearch] = useState('');
-    const [searchingStudents, setSearchingStudents] = useState(false);
-    const [studentsList, setStudentsList] = useState([]);
-    const [selectedStudent, setSelectedStudent] = useState(null);
-    const [courseCode, setCourseCode] = useState('');
-    const [courseTitle, setCourseTitle] = useState('');
-    const [creditHours, setCreditHours] = useState(3);
-    const [requestType, setRequestType] = useState('add');
-    const [justification, setJustification] = useState('');
-    const [submitLoading, setSubmitLoading] = useState(false);
-    const [submitError, setSubmitError] = useState('');
-    const [eligibleCourses, setEligibleCourses] = useState({ enrolledCourses: [], curriculumCourses: [] });
-    const [loadingCourses, setLoadingCourses] = useState(false);
-    const [selectedCourseId, setSelectedCourseId] = useState('');
+  const fetchRequests = async (showRefresher = false) => {
+    if (showRefresher) setRefreshing(true);
+    try {
+      const res = await fetch('/api/advisor/requests');
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
+        const list = data.data.requests || [];
+        setRequests(list);
+        if (list.length > 0 && !selectedRequest) handleSelectRequest(list[0]);
+      }
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); setRefreshing(false); }
+  };
 
+  useEffect(() => { fetchRequests(); }, []);
 
-    // Fetch requests
-    const fetchRequests = async (showRefresher = false) => {
-        if (showRefresher) setRefreshing(true);
-        try {
-            const res = await fetch('/api/advisor/requests');
-            const data = await res.json();
-            if (res.ok && data.status === 'success') {
-                setRequests(data.data.requests || []);
-            }
-        } catch (err) {
-            console.error('Failed to fetch advisor workflow requests:', err);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
+  useEffect(() => {
+    if (studentSearch.trim().length < 2) { setStudentsList([]); return; }
+    const t = setTimeout(async () => {
+      setSearchingStudents(true);
+      try {
+        const res = await fetch(`/api/students?search=${encodeURIComponent(studentSearch.trim())}&limit=5`);
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+          const advisorBatchIds = (user?.assignedBatchIds || []).map(id => id.toString());
+          setStudentsList((data.data.students || []).filter(s => advisorBatchIds.includes(s.batchId?._id?.toString() || s.batchId?.toString())));
         }
+      } catch (err) { console.error(err); }
+      finally { setSearchingStudents(false); }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [studentSearch, user]);
+
+  useEffect(() => {
+    if (!selectedStudent) { setEligibleCourses({ enrolledCourses: [], curriculumCourses: [] }); setSelectedCourseId(''); setCourseCode(''); setCourseTitle(''); setCreditHours(3); return; }
+    const fetch_ = async () => {
+      setLoadingCourses(true);
+      try {
+        const res = await fetch(`/api/advisor/students/${selectedStudent._id}/eligible-courses`);
+        const data = await res.json();
+        if (res.ok && data.status === 'success') setEligibleCourses({ enrolledCourses: data.data.enrolledCourses || [], curriculumCourses: data.data.curriculumCourses || [] });
+      } catch (err) { console.error(err); }
+      finally { setLoadingCourses(false); }
     };
+    fetch_();
+  }, [selectedStudent]);
 
-    useEffect(() => {
-        fetchRequests();
-    }, []);
+  useEffect(() => { setSelectedCourseId(''); setCourseCode(''); setCourseTitle(''); setCreditHours(3); }, [requestType]);
 
-    // Search students for submission modal
-    useEffect(() => {
-        if (studentSearch.trim().length < 2) {
-            setStudentsList([]);
-            return;
-        }
+  const handleSelectRequest = async (req) => {
+    setSelectedRequest(req); setRemarks(''); setActionError(''); setEvalStudent(null);
+    try {
+      const studentIdString = typeof req.studentId === 'object' && req.studentId ? req.studentId._id : req.studentId;
+      const res = await fetch(`/api/advisor/students/${studentIdString}`);
+      const data = await res.json();
+      if (res.ok && data.status === 'success') setEvalStudent(data.data.student);
+    } catch (err) { console.error(err); }
+  };
 
-        const delayDebounce = setTimeout(async () => {
-            setSearchingStudents(true);
-            try {
-                const res = await fetch(`/api/students?search=${encodeURIComponent(studentSearch.trim())}&limit=5`);
-                const data = await res.json();
-                if (res.ok && data.status === 'success') {
-                    // Filter to only allow students in the advisor's assigned batches
-                    const advisorBatchIds = (user?.assignedBatchIds || []).map(id => id.toString());
-                    const filtered = (data.data.students || []).filter(
-                        s => advisorBatchIds.includes(s.batchId?._id?.toString() || s.batchId?.toString())
+  const handleResolveAction = async (decision) => {
+    const isApprove = decision === true;
+    const isReturn = decision === 'return';
+    if (!isApprove && (!remarks || remarks.trim() === '')) {
+      setActionError(`Remarks are required when ${isReturn ? 'returning' : 'rejecting'}.`);
+      return;
+    }
+    setActionError(''); setActionLoading(true);
+    try {
+      const reqId = selectedRequest._id || selectedRequest.id;
+      const endpoint = isApprove ? `/api/advisor/approve/${reqId}` : `/api/advisor/reject/${reqId}`;
+      const remarksText = isReturn ? `[Returned for Edit] ${remarks.trim()}` : remarks.trim();
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ remarks: remarksText })
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'success') { setSelectedRequest(null); setEvalStudent(null); fetchRequests(); }
+      else setActionError(data.message || 'Action failed.');
+    } catch (err) { setActionError('Network error.'); }
+    finally { setActionLoading(false); }
+  };
+
+  const handleCourseChange = (e) => {
+    const val = e.target.value; setSelectedCourseId(val);
+    if (!val) { setCourseCode(''); setCourseTitle(''); setCreditHours(3); return; }
+    const list = requestType === 'add' ? eligibleCourses.curriculumCourses : eligibleCourses.enrolledCourses;
+    const m = list.find(c => (c._id === val || (c.courseCode || c.code) === val));
+    if (m) { setCourseCode(m.courseCode || m.code || ''); setCourseTitle(m.courseTitle || m.title || ''); setCreditHours(Number(m.creditHours)); }
+  };
+
+  const handleSubmitRequest = async (e) => {
+    e.preventDefault();
+    if (!selectedStudent) { setSubmitError('Please select a student.'); return; }
+    if (!courseCode.trim() || !courseTitle.trim()) { setSubmitError('Please select a subject.'); return; }
+    setSubmitError(''); setSubmitLoading(true);
+    try {
+      const res = await fetch('/api/advisor/requests', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ studentId: selectedStudent._id, courseCode: courseCode.trim().toUpperCase(), courseTitle: courseTitle.trim(), creditHours: Number(creditHours), requestType, justification: justification.trim() }) });
+      const data = await res.json();
+      if (res.ok && data.status === 'success') { setShowSubmitModal(false); setSelectedStudent(null); setCourseCode(''); setCourseTitle(''); setCreditHours(3); setRequestType('add'); setJustification(''); setSelectedCourseId(''); setEligibleCourses({ enrolledCourses: [], curriculumCourses: [] }); fetchRequests(); }
+      else setSubmitError(data.message || 'Failed to submit.');
+    } catch (err) { setSubmitError('Network error.'); }
+    finally { setSubmitLoading(false); }
+  };
+
+  // ─── Derived data ─────────────────────────────────────────────────────────
+  const filteredRequests = requests.filter(r => {
+    const q = searchQuery.toLowerCase();
+    const matchSearch = r.studentName?.toLowerCase().includes(q) || r.rollNo?.toLowerCase().includes(q) || r.courseCode?.toLowerCase().includes(q);
+    const matchType = filterType === 'all' || r.type?.toLowerCase().includes(filterType.toLowerCase());
+    return matchSearch && matchType;
+  });
+  const totalFiltered = filteredRequests.length;
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / PAGE_SIZE));
+  const pagedRequests = filteredRequests.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const totalReqs = requests.length;
+  const pendingCount = requests.filter(r => r.status?.toLowerCase().includes('pending')).length;
+  const approvedCount = requests.filter(r => r.status?.toLowerCase() === 'approved').length;
+  const rejectedCount = requests.filter(r => r.status?.toLowerCase().includes('reject') || r.status?.toLowerCase().includes('return')).length;
+  const escalatedCount = requests.filter(r => r.status?.toLowerCase().includes('forwarded') || r.status?.toLowerCase().includes('hod')).length;
+  const pct = (n) => totalReqs ? `${((n / totalReqs) * 100).toFixed(1)}% of total` : '0% of total';
+
+  const selectedReqId = selectedRequest ? `REQ-2026-${selectedRequest.id.slice(-4).toUpperCase()}` : '';
+  const cgpa = parseFloat(selectedRequest?.cgpa || 0);
+
+  // ─── Render ───────────────────────────────────────────────────────────────
+  return (
+    <div className="bg-slate-50 min-h-screen p-6 pb-20 space-y-5 font-sans text-slate-800">
+
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Academic Routing System</p>
+          <h1 className="text-2xl font-extrabold text-[#1B3A6B] mt-0.5">Approval Requests</h1>
+          <p className="text-xs text-slate-500 mt-1">Manage, evaluate and route course adjustments for your assigned batches.</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => fetchRequests(true)} disabled={refreshing} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded-xl hover:bg-slate-50 transition-colors shadow-sm">
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} /> Sync Queue
+          </button>
+          <button onClick={() => { setSubmitError(''); setShowSubmitModal(true); }} className="flex items-center gap-2 px-4 py-2 bg-[#1B3A6B] text-white text-xs font-bold rounded-xl shadow-md hover:bg-blue-900 transition-colors">
+            <Plus className="w-4 h-4" /> Submit Request
+          </button>
+        </div>
+      </div>
+
+      {/* ── KPI Cards ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        {[
+          { label: 'Total Requests', value: totalReqs, sub: 'This Semester', color: '#2563EB', bg: '#EFF6FF', Icon: Layers },
+          { label: 'Pending (My Level)', value: pendingCount, sub: pct(pendingCount), color: '#D97706', bg: '#FFFBEB', Icon: Hourglass },
+          { label: 'Approved', value: approvedCount, sub: pct(approvedCount), color: '#059669', bg: '#E6F4EA', Icon: CheckCircle2 },
+          { label: 'Rejected / Returned', value: rejectedCount, sub: pct(rejectedCount), color: '#DC2626', bg: '#FEF2F2', Icon: XCircle },
+          { label: 'Escalated to HOD', value: escalatedCount, sub: 'Awaiting HOD Action', color: '#7C3AED', bg: '#F5F3FF', Icon: ExternalLink },
+        ].map(({ label, value, sub, color, bg, Icon }, i) => (
+          <div key={i} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+            <div className="flex justify-between items-start">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 leading-tight">{label}</span>
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: bg }}>
+                <Icon className="w-3.5 h-3.5" style={{ color }} />
+              </div>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-extrabold text-slate-800">{value}</span>
+              <span className="text-[10px] font-bold" style={{ color }}>{sub}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Main Content ── */}
+      <div className={`grid gap-5 ${selectedRequest ? 'grid-cols-[1.55fr_1fr]' : 'grid-cols-1'}`}>
+
+        {/* ── LEFT COLUMN ── */}
+        <div className="flex flex-col gap-4">
+
+          {/* Requests Queue Card */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
+
+            {/* Table Header */}
+            <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="text-sm font-extrabold text-slate-800">Requests Queue</h2>
+              {selectedRequest && <span className="text-xs font-bold text-slate-500">{selectedReqId}</span>}
+            </div>
+
+            {/* Filters */}
+            <div className="px-4 py-2.5 border-b border-slate-100 flex flex-wrap items-center gap-2">
+              <div className="relative flex-1 min-w-[180px]">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input type="text" placeholder="Search by student, ID or request type..." value={searchQuery}
+                  onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
+                  className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none placeholder-slate-400" />
+              </div>
+              {[
+                { value: filterType, onChange: e => { setFilterType(e.target.value); setPage(1); }, opts: [['all','All Request Types'],['add','Course Registration'],['drop','Course Drop'],['withdrawal','Course Withdrawal']] },
+                { value: '', onChange: () => {}, opts: [['all','All Status'],['pending','Pending'],['escalated','Escalated'],['approved','Approved']] },
+                { value: '', onChange: () => {}, opts: [['all','All Priority'],['high','High'],['medium','Medium'],['low','Low']] },
+              ].map((sel, i) => (
+                <div key={i} className="relative">
+                  <select value={sel.value} onChange={sel.onChange} className="appearance-none bg-white border border-slate-200 text-xs font-bold text-slate-600 py-1.5 pl-3 pr-7 rounded-lg outline-none cursor-pointer">
+                    {sel.opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                  <ChevronDown className="w-3 h-3 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              ))}
+              <button className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 text-white text-xs font-bold rounded-lg hover:bg-slate-700 transition-colors">
+                <SlidersHorizontal className="w-3 h-3" /> Filter
+              </button>
+            </div>
+
+            {/* Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 font-extrabold uppercase tracking-widest text-[9px]">
+                    <th className="px-4 py-3">Request ID</th>
+                    <th className="px-4 py-3">Student</th>
+                    <th className="px-4 py-3">Request Type</th>
+                    <th className="px-4 py-3">Course / Detail</th>
+                    <th className="px-4 py-3">Requested On</th>
+                    <th className="px-4 py-3">Priority</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3 text-right">Next Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {loading ? (
+                    <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-400"><CircularProgress size={16} /></td></tr>
+                  ) : pagedRequests.length === 0 ? (
+                    <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-400 text-xs">No requests found.</td></tr>
+                  ) : pagedRequests.map(req => {
+                    const isSelected = selectedRequest?.id === req.id;
+                    const priority = req.priority || (req.type?.toLowerCase().includes('add') ? 'High' : 'Medium');
+                    const stLabel = getStatusLabel(req.status);
+                    const avatarColor = getAvatarColor(req.studentName);
+                    const initials = getInitials(req.studentName);
+                    const reqId = `REQ-2026-${req.id.slice(-4).toUpperCase()}`;
+                    const actionable = isActionable(req.status);
+                    const typeLabel = req.type?.toLowerCase().includes('add') ? 'Course Registration' : (req.type || '');
+
+                    return (
+                      <tr key={req.id} onClick={() => handleSelectRequest(req)}
+                        className={`cursor-pointer transition-colors ${isSelected ? 'bg-blue-50/50' : 'hover:bg-slate-50/40'}`}>
+                        <td className="px-4 py-3 font-bold text-slate-700 text-[11px]">{reqId}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-extrabold shrink-0"
+                              style={{ backgroundColor: avatarColor.bg, color: avatarColor.text }}>
+                              {initials}
+                            </div>
+                            <div>
+                              <p className="font-extrabold text-slate-800 text-[11px] leading-tight">{req.studentName}</p>
+                              <p className="text-[9px] text-slate-400 font-medium">{req.rollNo}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 font-medium text-slate-600 text-[11px]">{typeLabel}</td>
+                        <td className="px-4 py-3">
+                          <p className="font-bold text-slate-800 text-[11px]">{req.courseCode}</p>
+                        </td>
+                        <td className="px-4 py-3 text-slate-500 text-[11px]">May 22, 2026</td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${getPriorityBadge(priority)}`}>{priority}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${getStatusBadge(req.status)}`}>{stLabel}</span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {actionable
+                            ? <span className="px-2.5 py-1 border border-blue-300 text-blue-600 text-[10px] font-bold rounded hover:bg-blue-50 cursor-pointer transition-colors">Review</span>
+                            : <span className="text-slate-400 text-[10px] font-bold cursor-pointer hover:underline">View</span>
+                          }
+                        </td>
+                      </tr>
                     );
-                    setStudentsList(filtered);
-                }
-            } catch (err) {
-                console.error('Failed to search students:', err);
-            } finally {
-                setSearchingStudents(false);
-            }
-        }, 400);
+                  })}
+                </tbody>
+              </table>
+            </div>
 
-    }, [studentSearch, user]);
+            {/* Pagination */}
+            <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
+              <span>Showing {totalFiltered === 0 ? 0 : (page-1)*PAGE_SIZE+1} to {Math.min(page*PAGE_SIZE, totalFiltered)} of {totalFiltered} requests</span>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page===1} className="w-6 h-6 flex items-center justify-center rounded border border-slate-200 hover:bg-slate-100 disabled:opacity-30">‹</button>
+                {Array.from({ length: Math.min(totalPages, 3) }, (_, i) => i+1).map(n => (
+                  <button key={n} onClick={() => setPage(n)} className={`w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold border ${page===n ? 'bg-[#1B3A6B] text-white border-[#1B3A6B]' : 'border-slate-200 hover:bg-slate-100'}`}>{n}</button>
+                ))}
+                {totalPages > 3 && <span className="text-slate-400">...</span>}
+                {totalPages > 3 && <button onClick={() => setPage(totalPages)} className={`w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold border ${page===totalPages ? 'bg-[#1B3A6B] text-white border-[#1B3A6B]' : 'border-slate-200 hover:bg-slate-100'}`}>{totalPages}</button>}
+                <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page===totalPages} className="w-6 h-6 flex items-center justify-center rounded border border-slate-200 hover:bg-slate-100 disabled:opacity-30">›</button>
+              </div>
+            </div>
+          </div>
 
-    // Fetch eligible courses for submission modal when selectedStudent changes
-    useEffect(() => {
-        if (!selectedStudent) {
-            setEligibleCourses({ enrolledCourses: [], curriculumCourses: [] });
-            setSelectedCourseId('');
-            setCourseCode('');
-            setCourseTitle('');
-            setCreditHours(3);
-            return;
-        }
+          {/* ── Bottom: Approval Workflow + History + Remarks (when request selected) ── */}
+          {selectedRequest && (
+            <div className="grid grid-cols-3 gap-4">
 
-        const fetchEligibleCourses = async () => {
-            setLoadingCourses(true);
-            try {
-                const res = await fetch(`/api/advisor/students/${selectedStudent._id}/eligible-courses`);
-                const data = await res.json();
-                if (res.ok && data.status === 'success') {
-                    setEligibleCourses({
-                        enrolledCourses: data.data.enrolledCourses || [],
-                        curriculumCourses: data.data.curriculumCourses || []
-                    });
-                }
-            } catch (err) {
-                console.error('Failed to fetch eligible courses:', err);
-            } finally {
-                setLoadingCourses(false);
-            }
-        };
-
-        fetchEligibleCourses();
-    }, [selectedStudent]);
-
-    // Reset subject fields when request category toggles
-    useEffect(() => {
-        setSelectedCourseId('');
-        setCourseCode('');
-        setCourseTitle('');
-        setCreditHours(3);
-    }, [requestType]);
-
-
-    const handleRowClick = async (req) => {
-        setSelectedRequest(req);
-        setRemarks('');
-        setActionError('');
-        setIsModalOpen(true);
-        setEvalStudentLoading(true);
-        setEvalStudent(null);
-        try {
-            const res = await fetch(`/api/advisor/students/${req.studentId}`);
-            const data = await res.json();
-            if (res.ok && data.status === 'success') {
-                setEvalStudent(data.data.student);
-            }
-        } catch (err) {
-            console.error('Failed to fetch student details for evaluation:', err);
-        } finally {
-            setEvalStudentLoading(false);
-        }
-    };
-
-    // Advisor decisions (Approve / Reject)
-    const handleResolveAction = async (isApprove) => {
-        if (!isApprove && (!remarks || remarks.trim() === '')) {
-            setActionError('Remarks are required when rejecting a request.');
-            return;
-        }
-
-        setActionError('');
-        setActionLoading(true);
-
-        try {
-            const endpoint = isApprove 
-                ? `/api/advisor/approve/${selectedRequest.id}`
-                : `/api/advisor/reject/${selectedRequest.id}`;
-
-            const res = await fetch(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ remarks: remarks.trim() }),
-            });
-
-            const data = await res.json();
-            if (res.ok && data.status === 'success') {
-                setIsModalOpen(false);
-                fetchRequests();
-            } else {
-                setActionError(data.message || `Failed to ${isApprove ? 'approve' : 'reject'} the request.`);
-            }
-        } catch (err) {
-            setActionError('A network error occurred. Please try again.');
-            console.error(err);
-        } finally {
-            setActionLoading(false);
-        }
-    };
-
-    // Handle course dropdown selection changes
-    const handleCourseChange = (e) => {
-        const val = e.target.value;
-        setSelectedCourseId(val);
-        if (!val) {
-            setCourseCode('');
-            setCourseTitle('');
-            setCreditHours(3);
-            return;
-        }
-
-        const list = requestType === 'add' ? eligibleCourses.curriculumCourses : eligibleCourses.enrolledCourses;
-        const matched = list.find(c => (c._id === val || (c.courseCode || c.code) === val));
-        if (matched) {
-            setCourseCode(matched.courseCode || matched.code || '');
-            setCourseTitle(matched.courseTitle || matched.title || '');
-            setCreditHours(Number(matched.creditHours));
-        }
-    };
-
-    // Submit new request
-    const handleSubmitRequest = async (e) => {
-        e.preventDefault();
-
-        if (!selectedStudent) {
-            setSubmitError('Please select a student.');
-            return;
-        }
-        if (!courseCode.trim() || !courseTitle.trim()) {
-            setSubmitError('Please fill in course code and course title.');
-            return;
-        }
-
-        setSubmitError('');
-        setSubmitLoading(true);
-
-        try {
-            const res = await fetch('/api/advisor/requests', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    studentId: selectedStudent._id,
-                    courseCode: courseCode.trim().toUpperCase(),
-                    courseTitle: courseTitle.trim(),
-                    creditHours: Number(creditHours),
-                    requestType,
-                    justification: justification.trim()
-                })
-            });
-
-            const data = await res.json();
-            if (res.ok && data.status === 'success') {
-                setShowSubmitModal(false);
-                // Clear state
-                setSelectedStudent(null);
-                setCourseCode('');
-                setCourseTitle('');
-                setCreditHours(3);
-                setRequestType('add');
-                setJustification('');
-                setSelectedCourseId('');
-                setEligibleCourses({ enrolledCourses: [], curriculumCourses: [] });
-                fetchRequests();
-            } else {
-                setSubmitError(data.message || 'Failed to submit request.');
-            }
-        } catch (err) {
-            setSubmitError('A network error occurred. Please try again.');
-            console.error(err);
-        } finally {
-            setSubmitLoading(false);
-        }
-    };
-
-    return (
-        <div className="flex-1 bg-slate-50 min-h-screen p-6 font-sans">
-            <div className="max-w-7xl mx-auto space-y-6">
-
-                {/* Top Header Section */}
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                        <h1 className="text-xl font-bold text-brandNavy">Workflow Requests Center</h1>
-                        <p className="text-xs text-slate-500">Manage, evaluate, and route course adjustments for your assigned batches.</p>
+              {/* Approval Workflow */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+                <h4 className="text-xs font-extrabold text-slate-700 mb-4">Approval Workflow</h4>
+                <div className="relative pl-6 space-y-4 before:absolute before:left-[10px] before:top-3 before:bottom-0 before:w-px before:bg-slate-200">
+                  {[
+                    { n: 1, label: 'Advisor Review (Current)', name: 'Dr. Fatima Malik', date: 'May 22, 2026', active: true },
+                    { n: 2, label: 'HOD Approval', name: 'Dr. Ahmed Raza', date: '', active: false },
+                    { n: 3, label: 'Registrar Verification', name: 'Registrar Office', date: '', active: false },
+                    { n: 4, label: 'Final Confirmation', name: 'System', date: '', active: false },
+                  ].map((step) => (
+                    <div key={step.n} className={`relative flex gap-3 items-start ${step.active ? '' : 'opacity-50'}`}>
+                      <div className={`absolute left-[-24px] w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-extrabold border-2 border-white shadow ${step.active ? 'bg-[#1B3A6B] text-white' : 'bg-slate-200 text-slate-500'}`}>
+                        {step.n}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={`text-[11px] font-extrabold leading-tight ${step.active ? 'text-[#1B3A6B]' : 'text-slate-600'}`}>{step.label}</span>
+                          <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded uppercase shrink-0">Pending</span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-0.5">{step.name}</p>
+                        {step.date && <p className="text-[9px] text-slate-300">{step.date}</p>}
+                      </div>
                     </div>
-                    <div className="flex gap-3">
-                        <button
-                            onClick={() => fetchRequests(true)}
-                            disabled={refreshing}
-                            className="px-4 py-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 font-semibold rounded-xl text-xs cursor-pointer flex items-center gap-1.5 transition-all"
-                        >
-                            <span>Sync Queue</span>
-                        </button>
-                        <button
-                            onClick={() => {
-                                setSubmitError('');
-                                setShowSubmitModal(true);
-                            }}
-                            className="px-4 py-2 bg-brandNavy hover:bg-brandNavy/95 text-white font-semibold rounded-xl text-xs cursor-pointer flex items-center gap-1.5 transition-all shadow-sm shadow-brandNavy/10"
-                        >
-                            <Plus className="w-3.5 h-3.5" /> Submit Request
-                        </button>
-                    </div>
+                  ))}
                 </div>
+              </div>
 
-                {/* Metric Grid Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                    <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-                        <div>
-                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Actions Assigned</p>
-                            <h3 className="text-2xl font-bold text-brandNavy mt-1">{requests.length}</h3>
+              {/* Approval History */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+                <h4 className="text-xs font-extrabold text-slate-700 mb-4">Approval History</h4>
+                <div className="relative pl-6 space-y-4 before:absolute before:left-[10px] before:top-3 before:bottom-0 before:w-px before:bg-slate-200">
+                  {[
+                    { n: 1, label: 'Pending with Advisor', sub: 'Dr. Fatima Malik', time: 'May 22, 2026, 10:15 AM', tag: 'Current Step', dot: '#3B82F6' },
+                    { n: 2, label: 'Request Submitted', sub: selectedRequest.studentName, time: 'May 22, 2026, 10:15 AM', dot: '#10B981' },
+                    { n: 3, label: 'Auto Validation', sub: 'System Check', time: 'May 22, 2026, 10:16 AM', dot: '#94A3B8' },
+                  ].map((ev) => (
+                    <div key={ev.n} className="relative flex gap-3 items-start">
+                      <div className="absolute left-[-24px] w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-extrabold border-2 border-white shadow text-white" style={{ backgroundColor: ev.dot }}>
+                        {ev.n}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[11px] font-extrabold text-slate-700 leading-tight">{ev.label}</span>
+                          {ev.tag && <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">{ev.tag}</span>}
                         </div>
-                        <div className="p-3 bg-blue-50 text-brandAccent rounded-xl">
-                            <Users className="w-5 h-5" />
-                        </div>
+                        <p className="text-[10px] text-slate-500 mt-0.5">{ev.sub}</p>
+                        <p className="text-[9px] text-slate-400">{ev.time}</p>
+                      </div>
                     </div>
-
-                    <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-                        <div>
-                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Pending Advisor Review</p>
-                            <h3 className="text-2xl font-bold text-alertWarning mt-1">
-                                {requests.filter(r => r.status === 'Pending Advisor').length}
-                            </h3>
-                        </div>
-                        <div className="p-3 bg-amber-50 text-alertWarning rounded-xl">
-                            <Clock className="w-5 h-5" />
-                        </div>
-                    </div>
-
-                    <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-                        <div>
-                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Escalated to HOD</p>
-                            <h3 className="text-2xl font-bold text-alertGood mt-1">
-                                {requests.filter(r => r.status === 'Forwarded to HOD' || r.status === 'Approved').length}
-                            </h3>
-                        </div>
-                        <div className="p-3 bg-emerald-50 text-alertGood rounded-xl">
-                            <CheckCircle2 className="w-5 h-5" />
-                        </div>
-                    </div>
+                  ))}
                 </div>
+              </div>
 
-                {/* Main Content Area */}
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                    <div className="p-4 border-b border-slate-100 bg-slate-50/50">
-                        <h2 className="text-xs font-bold text-brandNavy uppercase tracking-wide">Active Enrollment Pipeline Requests</h2>
+              {/* Advisor Remarks + Next Action */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex flex-col gap-3">
+                <div>
+                  <h4 className="text-xs font-extrabold text-slate-700 mb-1.5">Advisor Remarks</h4>
+                  <p className="text-[10px] text-slate-400 mb-2">Add your remarks (optional)</p>
+                  <div className="border border-slate-200 rounded-xl p-3 bg-slate-50 flex flex-col">
+                    <textarea
+                      value={remarks}
+                      onChange={e => { if (e.target.value.length <= 500) { setRemarks(e.target.value); setActionError(''); } }}
+                      placeholder="Enter remarks about this request..."
+                      className="w-full min-h-[70px] text-[11px] text-slate-700 outline-none resize-none bg-transparent placeholder-slate-400"
+                    />
+                    <div className="flex justify-end mt-1">
+                      <span className="text-[9px] text-slate-400">{remarks.length} / 500</span>
                     </div>
-
-                    <div className="overflow-x-auto">
-                        <table className="w-full border-collapse text-left text-xs">
-                            <thead>
-                                <tr className="bg-slate-50 text-slate-500 font-semibold uppercase text-[10px] tracking-wider border-b border-slate-200">
-                                    <th className="p-4">Student Particulars</th>
-                                    <th className="p-4">Request Category</th>
-                                    <th className="p-4">Target Course</th>
-                                    <th className="p-4">Routing State</th>
-                                    <th className="p-4 text-center">Execution Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                                {loading ? (
-                                    <tr>
-                                        <td colSpan="5" className="p-8 text-center text-slate-400 font-medium">
-                                            Loading workflow queue...
-                                        </td>
-                                    </tr>
-                                ) : requests.length === 0 ? (
-                                    <tr>
-                                        <td colSpan="5" className="p-8 text-center text-slate-400 font-medium">
-                                            No requests are currently waiting for review.
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    requests.map((req) => (
-                                        <tr key={req.id} className="hover:bg-slate-50/60 transition-colors">
-                                            <td className="p-4">
-                                                <div>
-                                                    <p className="font-semibold text-slate-900">{req.studentName}</p>
-                                                    <p className="text-[11px] text-slate-400">{req.rollNo} • CGPA: {req.cgpa}</p>
-                                                </div>
-                                            </td>
-                                            <td className="p-4">
-                                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${
-                                                    req.type === 'Course Add' ? 'bg-blue-50 text-brandAccent' : 
-                                                    req.type === 'Course Drop' ? 'bg-amber-50 text-alertWarning' : 'bg-rose-50 text-red-500'
-                                                }`}>
-                                                    {req.type}
-                                                </span>
-                                            </td>
-                                            <td className="p-4">
-                                                <span className="font-semibold text-slate-900">{req.courseCode}</span>
-                                                <span className="block text-[11px] text-slate-400 font-normal">{req.courseName}</span>
-                                            </td>
-                                            <td className="p-4">
-                                                <span className={`inline-flex px-2 py-0.5 rounded-full font-bold uppercase tracking-wide border text-[10px] ${
-                                                    req.status === 'Pending Advisor' ? 'bg-amber-50 text-alertWarning border-alertWarning/20' :
-                                                    req.status === 'Approved' || req.status.includes('Approved') ? 'bg-emerald-50 text-alertGood border-alertGood/20' : 
-                                                    req.status.includes('Rejected') ? 'bg-rose-50 text-red-500 border-red-500/20' :
-                                                    'bg-blue-50 text-brandAccent border-brandAccent/20'
-                                                }`}>
-                                                    {req.status}
-                                                </span>
-                                            </td>
-                                            <td className="p-4 text-center">
-                                                <button
-                                                    onClick={() => handleRowClick(req)}
-                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brandNavy hover:bg-brandNavy/95 text-white font-semibold rounded-lg shadow-sm transition-all text-[11px] cursor-pointer"
-                                                >
-                                                    <ExternalLink className="w-3.5 h-3.5" /> Evaluate Request
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                  </div>
                 </div>
-
-                {/* 📝 ADVISOR EVALUATION MODAL CONTAINER */}
-                {isModalOpen && selectedRequest && (
-                    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-[9999]">
-                        <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto flex flex-col">
-
-                            {/* Modal Header */}
-                            <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                                <div>
-                                    <h2 className="text-base font-bold text-brandNavy">Evaluation Control</h2>
-                                    <p className="text-xs text-slate-400">{selectedRequest.studentName} ({selectedRequest.rollNo})</p>
-                                </div>
-                                <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold p-1">
-                                    <X className="w-4 h-4" />
-                                </button>
-                            </div>
-
-                            {/* Modal Body */}
-                            <div className="p-6 space-y-5 flex-1">
-                                {evalStudentLoading ? (
-                                    <div className="flex justify-center items-center p-6 bg-slate-50 border border-slate-200/60 rounded-xl">
-                                        <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-                                            <CircularProgress size={14} color="inherit" />
-                                            <span>Loading Student Academic History...</span>
-                                        </div>
-                                    </div>
-                                ) : evalStudent ? (() => {
-                                    const gradePointsMap = {
-                                        'A': 4.0,
-                                        'B+': 3.5,
-                                        'B': 3.0,
-                                        'C+': 2.5,
-                                        'C': 2.0,
-                                        'F': 0.0
-                                    };
-
-                                    const calculateGPA = (semesterCourses) => {
-                                        let totalCredits = 0;
-                                        let totalGradePoints = 0;
-                                        let hasGradedCourse = false;
-
-                                        semesterCourses.forEach(c => {
-                                            if (c.enrollmentStatus === 'completed' && gradePointsMap[c.grade] !== undefined) {
-                                                totalCredits += c.creditHours;
-                                                totalGradePoints += c.creditHours * gradePointsMap[c.grade];
-                                                hasGradedCourse = true;
-                                            } else if (c.enrollmentStatus === 'failed') {
-                                                totalCredits += c.creditHours;
-                                                totalGradePoints += c.creditHours * 0.0;
-                                                hasGradedCourse = true;
-                                            }
-                                        });
-
-                                        if (!hasGradedCourse || totalCredits === 0) return 'N/A';
-                                        return (totalGradePoints / totalCredits).toFixed(2);
-                                    };
-
-                                    const coursesBySemester = {};
-                                    evalStudent.courses.forEach(c => {
-                                        const sem = c.semester || 1;
-                                        if (!coursesBySemester[sem]) {
-                                            coursesBySemester[sem] = [];
-                                        }
-                                        coursesBySemester[sem].push(c);
-                                    });
-
-                                    return (
-                                        <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-4 space-y-3 shadow-sm">
-                                            <div className="flex justify-between items-center pb-2 border-b border-slate-200/80">
-                                                <div className="flex items-center gap-1.5 text-brandNavy font-extrabold text-xs uppercase tracking-wider">
-                                                    <GraduationCap className="w-4 h-4 text-brandAccent" />
-                                                    <span>Student Academic History & Semesters</span>
-                                                </div>
-                                                <div className="text-xs text-slate-500 font-semibold">
-                                                    CGPA: <span className="text-brandNavy font-extrabold text-sm">{evalStudent.cgpa.toFixed(2)}</span> &bull; Current Sem: <span className="text-slate-700 font-extrabold">{evalStudent.currentSemester}</span>
-                                                </div>
-                                            </div>
-
-                                            {(!evalStudent.courses || evalStudent.courses.length === 0) ? (
-                                                <p className="text-xs text-slate-400 font-medium italic">No courses recorded for this student.</p>
-                                            ) : (
-                                                <div className="space-y-3 max-h-56 overflow-y-auto pr-1">
-                                                    {Object.keys(coursesBySemester)
-                                                        .sort((a, b) => Number(a) - Number(b))
-                                                        .map(sem => {
-                                                            const semCourses = coursesBySemester[sem];
-                                                            const semGpa = calculateGPA(semCourses);
-
-                                                            return (
-                                                                <div key={sem} className="flex flex-col gap-1 border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
-                                                                    <div className="flex justify-between items-center px-3 py-1.5 bg-slate-50 border-b border-slate-100">
-                                                                        <span className="text-[10px] font-extrabold text-slate-700 uppercase">Semester {sem}</span>
-                                                                        <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full border ${
-                                                                            semGpa === 'N/A' ? 'bg-slate-100 text-slate-600 border-slate-200' : 'bg-blue-50 text-blue-700 border-blue-100'
-                                                                        }`}>
-                                                                            GPA: {semGpa}
-                                                                        </span>
-                                                                    </div>
-                                                                    <table className="w-full text-left text-xs border-collapse">
-                                                                        <thead>
-                                                                            <tr className="bg-slate-50/40 border-b border-slate-100 text-slate-400 font-bold uppercase text-[8px] tracking-wider">
-                                                                                <th className="px-3 py-1">Code</th>
-                                                                                <th className="px-3 py-1">Title</th>
-                                                                                <th className="px-3 py-1">Credits</th>
-                                                                                <th className="px-3 py-1">Grade</th>
-                                                                                <th className="px-3 py-1">Status</th>
-                                                                            </tr>
-                                                                        </thead>
-                                                                        <tbody className="divide-y divide-slate-50 font-medium text-slate-700 text-[10.5px]">
-                                                                            {semCourses.map((c, idx) => (
-                                                                                <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                                                                                    <td className="px-3 py-1 font-bold text-slate-900">{c.courseCode}</td>
-                                                                                    <td className="px-3 py-1 text-slate-600 font-normal">{c.courseTitle}</td>
-                                                                                    <td className="px-3 py-1 text-slate-500">{c.creditHours} CH</td>
-                                                                                    <td className="px-3 py-1 font-extrabold text-slate-900">{c.grade}</td>
-                                                                                    <td className="px-3 py-1">
-                                                                                        <span className={`inline-block px-1 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wider ${
-                                                                                            c.enrollmentStatus === 'completed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
-                                                                                            c.enrollmentStatus === 'failed' ? 'bg-rose-50 text-rose-700 border border-rose-100' :
-                                                                                            'bg-blue-50 text-blue-700 border border-blue-100'
-                                                                                        }`}>
-                                                                                            {c.enrollmentStatus}
-                                                                                        </span>
-                                                                                    </td>
-                                                                                </tr>
-                                                                            ))}
-                                                                        </tbody>
-                                                                    </table>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })()
-                                : null}
-
-                                <DuplicateWarning
-                                    hasDuplicate={selectedRequest.validations.hasDuplicate}
-                                    courseCode={selectedRequest.courseCode}
-                                />
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                    <PrerequisiteCheck prerequisites={selectedRequest.validations.prerequisites} />
-                                    <CreditHourMeter
-                                        currentCredits={selectedRequest.validations.currentCredits}
-                                        requestedCredits={selectedRequest.courseCredits}
-                                        maxCredits={selectedRequest.validations.maxCredits}
-                                    />
-                                </div>
-
-                                {/* Remarks Textarea */}
-                                <div className="flex flex-col gap-1.5 pt-2">
-                                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">
-                                        Advisor Recommendation Remarks
-                                    </label>
-                                    <textarea
-                                        value={remarks}
-                                        onChange={(e) => {
-                                            setRemarks(e.target.value);
-                                            setActionError('');
-                                        }}
-                                        placeholder="Add recommendation remarks here... (Required for rejection)"
-                                        className="w-full text-xs p-3 rounded-lg border border-slate-200 focus:outline-none focus:border-blue-500 min-h-[70px] resize-y"
-                                    />
-                                </div>
-
-                                {actionError && (
-                                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-xs font-semibold flex items-center gap-2">
-                                        <AlertCircle className="w-4 h-4" />
-                                        <span>{actionError}</span>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Modal Action Footer */}
-                            <div className="p-4 bg-slate-50 border-t border-slate-100 flex flex-wrap gap-2 justify-end">
-                                <button
-                                    onClick={() => setIsModalOpen(false)}
-                                    disabled={actionLoading}
-                                    className="px-4 py-2 border border-slate-200 hover:bg-slate-100 text-slate-600 font-semibold rounded-xl text-xs transition-colors cursor-pointer disabled:opacity-50"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={() => handleResolveAction(false)}
-                                    disabled={actionLoading}
-                                    className="inline-flex items-center gap-1 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl text-xs shadow-sm transition-colors cursor-pointer disabled:opacity-50"
-                                >
-                                    Reject Request
-                                </button>
-                                <button
-                                    onClick={() => handleResolveAction(true)}
-                                    disabled={actionLoading}
-                                    className="inline-flex items-center gap-1 px-4 py-2 bg-brandAccent hover:bg-brandAccent/95 text-white font-semibold rounded-xl text-xs shadow-sm transition-colors cursor-pointer disabled:opacity-50"
-                                >
-                                    <CheckCircle2 className="w-4 h-4" /> Recommend & Escalate
-                                </button>
-                            </div>
-
-                        </div>
-                    </div>
+                {actionError && (
+                  <div className="flex items-center gap-1.5 text-rose-600 bg-rose-50 p-2 rounded-lg border border-rose-100 text-[10px] font-bold">
+                    <AlertCircle className="w-3 h-3 shrink-0" /> {actionError}
+                  </div>
                 )}
-
-                {/* 🆕 REQUEST SUBMISSION MODAL */}
-                {showSubmitModal && (
-                    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-[9999]">
-                        <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto flex flex-col">
-                            
-                            <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                                <div>
-                                    <h2 className="text-sm font-extrabold text-brandNavy uppercase tracking-wider">Log Course Adjustment Request</h2>
-                                    <p className="text-xs text-slate-400">Advisor request logging on behalf of student.</p>
-                                </div>
-                                <button onClick={() => setShowSubmitModal(false)} className="text-slate-400 hover:text-slate-600 font-bold p-1">
-                                    <X className="w-4 h-4" />
-                                </button>
-                            </div>
-
-                            <form onSubmit={handleSubmitRequest} className="p-6 space-y-4 flex-1">
-                                {/* Student Search */}
-                                <div className="flex flex-col gap-1.5 relative">
-                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                                        Search Student <span className="text-red-500">*</span>
-                                    </label>
-                                    
-                                    {selectedStudent ? (
-                                        <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
-                                            <div>
-                                                <p className="text-xs font-bold text-emerald-800">{selectedStudent.name}</p>
-                                                <p className="text-[10.5px] text-emerald-600">{selectedStudent.rollNumber} &bull; CGPA: {selectedStudent.cgpa.toFixed(2)}</p>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => setSelectedStudent(null)}
-                                                className="text-xs font-bold text-emerald-800 hover:underline"
-                                            >
-                                                Change
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <div className="relative">
-                                                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                                                <input
-                                                    type="text"
-                                                    placeholder="Type student name or roll number..."
-                                                    value={studentSearch}
-                                                    onChange={e => setStudentSearch(e.target.value)}
-                                                    className="w-full text-xs pl-9 pr-8 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-blue-500"
-                                                />
-                                                {searchingStudents && (
-                                                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                                        <CircularProgress size={12} />
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {studentSearch.trim().length >= 2 && studentsList.length > 0 && (
-                                                <div className="absolute top-[100%] left-0 right-0 z-50 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
-                                                    {studentsList.map(s => (
-                                                        <div
-                                                            key={s._id}
-                                                            onClick={() => {
-                                                                setSelectedStudent(s);
-                                                                setStudentSearch('');
-                                                                setStudentsList([]);
-                                                            }}
-                                                            className="p-2.5 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-b-0 text-left"
-                                                        >
-                                                            <p className="text-xs font-bold text-slate-800">{s.name}</p>
-                                                            <p className="text-[10px] text-slate-500">{s.rollNumber} &bull; CGPA: {s.cgpa.toFixed(2)} &bull; Sem: {s.currentSemester}</p>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </>
-                                    )}
-                                </div>
-
-                                {/* Request Type */}
-                                <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                                        Request Category <span className="text-red-500">*</span>
-                                    </label>
-                                    <select
-                                        value={requestType}
-                                        onChange={e => setRequestType(e.target.value)}
-                                        className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-blue-500 bg-white"
-                                    >
-                                        <option value="add">Course Add</option>
-                                        <option value="drop">Course Drop</option>
-                                        <option value="withdrawal">Course Withdrawal</option>
-                                    </select>
-                                </div>
-
-                                {selectedStudent && (
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                                            Select Course/Subject <span className="text-red-500">*</span>
-                                        </label>
-                                        {loadingCourses ? (
-                                            <div className="flex items-center gap-2 text-xs text-slate-500 p-2 border border-slate-100 bg-slate-50 rounded-lg">
-                                                <CircularProgress size={12} />
-                                                <span>Loading eligible subjects from database...</span>
-                                            </div>
-                                        ) : (
-                                            <select
-                                                value={selectedCourseId}
-                                                onChange={handleCourseChange}
-                                                className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-blue-500 bg-white"
-                                                required
-                                            >
-                                                <option value="">-- Choose Subject --</option>
-                                                {(requestType === 'add' ? eligibleCourses.curriculumCourses : eligibleCourses.enrolledCourses).map((c) => (
-                                                    <option key={c._id || c.code || c.courseCode} value={c._id || c.code || c.courseCode}>
-                                                        {c.courseCode || c.code} - {c.courseTitle || c.title} ({c.creditHours} CH)
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* Course Code & Credit Hours */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                                            Course Code
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={courseCode}
-                                            disabled
-                                            placeholder="Auto-populated"
-                                            className="w-full text-xs p-2.5 rounded-lg border border-slate-100 bg-slate-50 text-slate-400 font-bold focus:outline-none"
-                                        />
-                                    </div>
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                                            Credit Hours
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={courseCode ? `${creditHours} Credit Hour(s)` : ''}
-                                            disabled
-                                            placeholder="Auto-populated"
-                                            className="w-full text-xs p-2.5 rounded-lg border border-slate-100 bg-slate-50 text-slate-400 font-bold focus:outline-none"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Course Title */}
-                                <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                                        Course Title
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={courseTitle}
-                                        disabled
-                                        placeholder="Auto-populated"
-                                        className="w-full text-xs p-2.5 rounded-lg border border-slate-100 bg-slate-50 text-slate-400 font-bold focus:outline-none"
-                                    />
-                                </div>
-
-                                {/* Justification */}
-                                <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                                        Justification / Reason
-                                    </label>
-                                    <textarea
-                                        placeholder="Explain the academic justification..."
-                                        value={justification}
-                                        onChange={e => setJustification(e.target.value)}
-                                        className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-blue-500 min-h-[50px]"
-                                    />
-                                </div>
-
-                                {submitError && (
-                                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-xs font-semibold flex items-center gap-2">
-                                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                                        <span>{submitError}</span>
-                                    </div>
-                                )}
-
-                                {/* Form Action Buttons */}
-                                <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowSubmitModal(false)}
-                                        disabled={submitLoading}
-                                        className="px-4 py-2 border border-slate-200 hover:bg-slate-100 text-slate-600 font-semibold rounded-xl text-xs transition-colors cursor-pointer"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        disabled={submitLoading}
-                                        className="px-5 py-2 bg-brandNavy hover:bg-brandNavy/95 text-white font-semibold rounded-xl text-xs transition-all shadow-sm"
-                                    >
-                                        {submitLoading ? (
-                                            <CircularProgress size={12} color="inherit" />
-                                        ) : (
-                                            <Check className="w-3.5 h-3.5 inline mr-1" />
-                                        )}
-                                        <span>Submit Request</span>
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
+                <div>
+                  <p className="text-[10px] font-extrabold text-slate-600 uppercase tracking-widest mb-2">Next Action</p>
+                  <div className="flex flex-col gap-1.5">
+                    <button onClick={() => handleResolveAction(true)} disabled={actionLoading}
+                      className="flex items-center justify-center gap-1.5 w-full px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-bold rounded-lg transition-colors disabled:opacity-50">
+                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> Approve
+                    </button>
+                    <div className="flex gap-1.5">
+                      <button onClick={() => handleResolveAction(false)} disabled={actionLoading}
+                        className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-white border border-rose-300 hover:bg-rose-50 text-rose-600 text-[11px] font-bold rounded-lg transition-colors">
+                        <X className="w-3 h-3 shrink-0" /> Reject
+                      </button>
+                      <button onClick={() => handleResolveAction('return')} disabled={actionLoading}
+                        className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-[11px] font-bold rounded-lg transition-colors whitespace-nowrap">
+                        <RefreshCw className="w-3 h-3 shrink-0" /> Return for Edit
+                      </button>
                     </div>
-                )}
+                  </div>
+                </div>
+              </div>
 
             </div>
+          )}
         </div>
-    );
+
+        {/* ── RIGHT COLUMN: Detail Panel ── */}
+        {selectedRequest && (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+
+            {/* Student Header */}
+            <div className="p-5 bg-white border-b border-slate-100">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center text-base font-extrabold border-2 border-white shadow shrink-0"
+                    style={{ backgroundColor: getAvatarColor(selectedRequest.studentName).bg, color: getAvatarColor(selectedRequest.studentName).text }}>
+                    {getInitials(selectedRequest.studentName)}
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-extrabold text-slate-900">{selectedRequest.studentName}</h2>
+                    <p className="text-[11px] font-bold text-blue-600 mt-0.5">{selectedRequest.rollNo}</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Computer Science | BSCS-2022 | Semester 6<br />(Batch: 2023 Spring)</p>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">CGPA</p>
+                  <p className="text-xl font-extrabold text-green-500 mt-0.5">{cgpa.toFixed(2)}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Request Details */}
+            <div className="p-5 flex flex-col gap-4 overflow-y-auto">
+
+              <div className="space-y-2">
+                {[
+                  ['Request Type', selectedRequest.type?.toLowerCase().includes('add') ? 'Course Registration' : (selectedRequest.type || '')],
+                  ['Course / Section', `${selectedRequest.courseCode} - ${selectedRequest.courseName}\nSection B (Fall 2026)`],
+                  ['Requested On', 'May 22, 2026, 10:15 AM'],
+                ].map(([k, v]) => (
+                  <div key={k} className="flex gap-3">
+                    <span className="w-28 text-[11px] font-bold text-slate-500 shrink-0">{k}</span>
+                    <span className="text-[11px] font-extrabold text-slate-800 whitespace-pre-line">{v}</span>
+                  </div>
+                ))}
+                <div className="flex gap-3">
+                  <span className="w-28 text-[11px] font-bold text-slate-500 shrink-0">Priority</span>
+                  <span className="flex items-center gap-1.5 text-[11px] font-extrabold text-slate-800">
+                    <span className="w-2 h-2 rounded-full bg-orange-500 inline-block" /> High
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[11px] font-extrabold text-slate-700 mb-2">Request Description</p>
+                <p className="text-[11px] text-slate-600 bg-slate-50 border border-slate-200 rounded-xl p-3 leading-relaxed">
+                  {selectedRequest.justification || `Requesting permission to register for ${selectedRequest.courseCode} (${selectedRequest.courseName}) as I have fulfilled all the prerequisites and required courses.`}
+                </p>
+              </div>
+
+              <hr className="border-slate-100" />
+
+              {/* Prerequisite Validation */}
+              <div>
+                <p className="text-[11px] font-extrabold text-slate-700 mb-3">Prerequisite Validation</p>
+                <PrerequisiteCheck prerequisites={selectedRequest.validations?.prerequisites || []} cgpa={selectedRequest.cgpa} />
+              </div>
+
+              {/* Attached Documents */}
+              <div>
+                <p className="text-[11px] font-extrabold text-slate-700 mb-2">Attached Documents</p>
+                <div className="space-y-2">
+                  {[['Academic_Transcript.pdf', '124 KB', 'bg-red-100 text-red-600'], ['Advisor_Recommendation.pdf', '98 KB', 'bg-red-100 text-red-600']].map(([name, size, cls]) => (
+                    <div key={name} className="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/30 cursor-pointer group transition-colors">
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${cls}`}>
+                        <FileText className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="flex-1 text-[11px] font-bold text-slate-700 truncate">{name}</span>
+                      <span className="text-[10px] text-slate-400 shrink-0">{size}</span>
+                      <Download className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-500 transition-colors shrink-0" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <hr className="border-slate-100" />
+
+              {/* Routing Information */}
+              <div>
+                <p className="text-[11px] font-extrabold text-slate-700 mb-3">Routing Information</p>
+                <div className="space-y-2">
+                  {[
+                    ['Current Level', 'Advisor Level', 'text-blue-600 font-bold'],
+                    ['Next Level', 'HOD Approval', 'text-slate-800 font-bold'],
+                    ['Escalated To', '—', 'text-slate-400'],
+                    ['Expected Resolution', '2 - 3 Working Days', 'text-slate-800 font-bold'],
+                  ].map(([k, v, cls]) => (
+                    <div key={k} className="flex items-center justify-between">
+                      <span className="text-[11px] text-slate-500">{k}</span>
+                      <span className={`text-[11px] ${cls}`}>{v}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          </div>
+        )}
+
+      </div>
+
+      {/* ── Submit Modal ── */}
+      {showSubmitModal && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl">
+              <div>
+                <h3 className="text-sm font-extrabold text-slate-800">Log Course Request</h3>
+                <p className="text-[11px] text-slate-400 mt-0.5">Advisor routing request submission</p>
+              </div>
+              <button onClick={() => setShowSubmitModal(false)} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+            </div>
+            <form onSubmit={handleSubmitRequest} className="p-5 flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5 relative">
+                <label className="text-[11px] font-bold text-slate-600">Search Student *</label>
+                {selectedStudent ? (
+                  <div className="flex justify-between items-center p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg">
+                    <div>
+                      <p className="text-xs font-bold text-emerald-800">{selectedStudent.name}</p>
+                      <p className="text-[10px] text-emerald-600">{selectedStudent.rollNumber} · CGPA: {parseFloat(selectedStudent.cgpa || 0).toFixed(2)}</p>
+                    </div>
+                    <button type="button" onClick={() => setSelectedStudent(null)} className="text-[11px] font-bold text-emerald-700 hover:underline">Change</button>
+                  </div>
+                ) : (
+                  <>
+                    <input type="text" placeholder="Type student name or ID..." value={studentSearch} onChange={e => setStudentSearch(e.target.value)}
+                      className="px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none bg-slate-50" />
+                    {searchingStudents && <div className="absolute right-3 top-8"><CircularProgress size={10} /></div>}
+                    {studentsList.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 z-50 bg-white border border-slate-200 rounded-xl shadow-lg max-h-32 overflow-y-auto mt-1">
+                        {studentsList.map(s => (
+                          <div key={s._id} onClick={() => { setSelectedStudent(s); setStudentSearch(''); setStudentsList([]); }}
+                            className="px-3 py-2 border-b border-slate-50 cursor-pointer hover:bg-slate-50 transition-colors">
+                            <p className="text-xs font-bold text-slate-800">{s.name}</p>
+                            <p className="text-[10px] text-slate-400">{s.rollNumber} · CGPA: {s.cgpa} · Sem: {s.currentSemester}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-bold text-slate-600">Request Type *</label>
+                <select value={requestType} onChange={e => setRequestType(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white outline-none cursor-pointer">
+                  <option value="add">Course Registration</option>
+                  <option value="drop">Course Drop</option>
+                  <option value="withdrawal">Course Withdrawal</option>
+                </select>
+              </div>
+              {selectedStudent && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-bold text-slate-600">Choose Subject *</label>
+                  {loadingCourses ? <div className="flex items-center gap-2 text-xs text-slate-500"><CircularProgress size={10} /> Loading...</div> : (
+                    <select value={selectedCourseId} onChange={handleCourseChange} required className="px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white outline-none cursor-pointer">
+                      <option value="">-- Choose Subject --</option>
+                      {(requestType === 'add' ? eligibleCourses.curriculumCourses : eligibleCourses.enrolledCourses).map(c => (
+                        <option key={c._id || c.code || c.courseCode} value={c._id || c.code || c.courseCode}>{c.courseCode || c.code} – {c.courseTitle || c.title} ({c.creditHours} CH)</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
+              {courseCode && (
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1">
+                  <p>Code: <b>{courseCode}</b></p><p>Title: <b>{courseTitle}</b></p><p>Credits: <b>{creditHours} CH</b></p>
+                </div>
+              )}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-bold text-slate-600">Justification Remarks</label>
+                <textarea placeholder="Enter academic justification..." value={justification} onChange={e => setJustification(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none resize-y min-h-[50px] bg-slate-50" />
+              </div>
+              {submitError && <div className="flex items-center gap-2 text-rose-600 bg-rose-50 p-2.5 rounded-lg border border-rose-200 text-[11px] font-bold"><AlertCircle className="w-3.5 h-3.5" /> {submitError}</div>}
+              <div className="flex gap-2 justify-end pt-2 border-t border-slate-100">
+                <button type="button" onClick={() => setShowSubmitModal(false)} className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-bold rounded-xl hover:bg-slate-50">Cancel</button>
+                <button type="submit" disabled={submitLoading} className="px-4 py-2 bg-[#1B3A6B] text-white text-xs font-bold rounded-xl hover:bg-blue-900 disabled:opacity-50">
+                  {submitLoading ? <CircularProgress size={10} color="inherit" /> : 'Submit Request'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
 }

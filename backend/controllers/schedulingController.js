@@ -1,6 +1,8 @@
 import Timetable from '../models/timetable.js';
 import Datesheet from '../models/datesheet.js';
 import Batch from '../models/batch.js';
+import Curriculum from '../models/curriculum.js';
+import User from '../models/user.js';
 import { logAudit } from '../utils/logger.js';
 
 // GET: get weekly timetable
@@ -250,10 +252,85 @@ export const checkTimetableClash = async (req, res, next) => {
 // POST: Auto-generate timetable (FR-5.1)
 export const autoGenerateTimetable = async (req, res, next) => {
   try {
-    // Simulated constraint-based scheduling engine
+    const { batchId, semester } = req.body;
+    
+    if (!batchId || !semester) {
+      return res.status(400).json({ status: 'error', message: 'Batch ID and semester are required' });
+    }
+
+    const batch = await Batch.findById(batchId);
+    if (!batch) {
+      return res.status(404).json({ status: 'error', message: 'Batch not found' });
+    }
+
+    const curriculum = await Curriculum.findOne({ batchId, status: 'active' });
+    if (!curriculum || !curriculum.courses || curriculum.courses.length === 0) {
+      return res.status(404).json({ status: 'error', message: 'No active curriculum found for this batch' });
+    }
+
+    const coursesToSchedule = curriculum.courses.filter(c => c.semester === Number(semester));
+    if (coursesToSchedule.length === 0) {
+      return res.status(404).json({ status: 'error', message: `No courses found for semester ${semester} in curriculum` });
+    }
+
+    let instructors = await User.find({ role: { $in: ['advisor', 'faculty', 'admin'] } }).select('name');
+    let instructorNames = instructors.map(i => i.name);
+    if (instructorNames.length === 0) {
+      instructorNames = ['Dr. Alice Smith', 'Dr. Bob Johnson', 'Prof. Carol Williams', 'Dr. David Brown'];
+    }
+
+    const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+    const TIMESLOTS = [
+      '08:30 AM - 10:00 AM',
+      '10:00 AM - 11:30 AM',
+      '11:30 AM - 01:00 PM',
+      '01:30 PM - 03:00 PM',
+      '03:00 PM - 04:30 PM'
+    ];
+    const ROOMS = ['Room 101', 'Room 102', 'Room 201', 'Room 202', 'Lab A', 'Lab B'];
+
+    // Delete existing timetable for this batch and semester
+    await Timetable.deleteMany({ batch: batch.code, semester: Number(semester) });
+
+    const generatedEntries = [];
+    let slotIndex = 0;
+
+    for (const course of coursesToSchedule) {
+      const day = DAYS[slotIndex % DAYS.length];
+      const timeSlot = TIMESLOTS[Math.floor(slotIndex / DAYS.length) % TIMESLOTS.length];
+      const room = ROOMS[slotIndex % ROOMS.length];
+      const instructor = instructorNames[slotIndex % instructorNames.length];
+
+      generatedEntries.push({
+        day,
+        timeSlot,
+        courseCode: course.code,
+        courseName: course.title,
+        room,
+        instructor,
+        batch: batch.code,
+        semester: Number(semester),
+        departmentId: batch.departmentId
+      });
+      slotIndex++;
+    }
+
+    const savedEntries = await Timetable.insertMany(generatedEntries);
+
+    await logAudit({
+      actorId: req.user._id,
+      actorRole: req.user.role,
+      action: 'TIMETABLE_GENERATED',
+      targetType: 'Timetable',
+      targetId: 'all',
+      departmentId: batch.departmentId.toString(),
+      metadata: { description: `Auto-generated timetable for batch ${batch.code}, semester ${semester}`, count: savedEntries.length }
+    });
+
     res.status(200).json({
       status: 'success',
-      message: 'Automatic Timetable Generation successful. Clash-free schedule generated.'
+      message: 'Automatic Timetable Generation successful.',
+      data: { entries: savedEntries }
     });
   } catch (err) {
     next(err);

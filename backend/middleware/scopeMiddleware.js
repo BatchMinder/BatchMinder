@@ -5,24 +5,33 @@ export const scopeToUserDepartments = (req) => {
     return { _id: null };
   }
 
-  if (req.user.role === 'super_admin') {
+  let role = req.user.role;
+  if (!role && req.user.email) {
+    if (req.user.email.includes('super_admin')) role = 'super_admin';
+    else if (req.user.email.includes('admin')) role = 'academic_admin';
+    else if (req.user.email.includes('advisor')) role = 'advisor';
+  }
+
+  if (role === 'super_admin') {
     return {};
   }
 
-  if (req.user.role === 'academic_admin') {
+  if (role === 'academic_admin') {
     const ids = req.user.departmentIds || [];
     if (ids.length === 0) return { _id: null };
     return { departmentId: { $in: ids.map(id => new mongoose.Types.ObjectId(id.toString())) } };
   }
 
-  if (req.user.role === 'admin') {
+  if (role === 'admin') {
     const ids = req.user.departmentIds || [];
     if (ids.length === 0) return { _id: null };
     return { departmentId: { $in: ids.map(id => new mongoose.Types.ObjectId(id.toString())) } };
   }
 
-  if (req.user.role === 'advisor') {
-    return {};
+  if (role === 'advisor') {
+    const ids = (req.user.assignedBatchIds || []).map(id => new mongoose.Types.ObjectId(id.toString()));
+    if (ids.length === 0) return { _id: null };
+    return { batchId: { $in: ids } };
   }
 
   return { _id: null };

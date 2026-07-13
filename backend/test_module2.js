@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import Student from './models/student.js';
 import Curriculum from './models/curriculum.js';
 import AuditLog from './models/auditLog.js';
+import Batch from './models/batch.js';
 import { createOrUpdateCurriculumMap } from './controllers/curriculumController.js';
 import { 
   createStudent, 
@@ -26,9 +27,10 @@ const runTests = async () => {
 
   // Clear existing test data to start fresh
   console.log('Cleaning up old test data...');
-  await Student.deleteMany({ batch: '2022', department: 'Computer Science' });
+  await Student.deleteMany({ rollNumber: { $in: ['2022-CS-01', '2022-CS-02'] } });
   await Curriculum.deleteMany({ batch: '2022', department: 'Computer Science' });
-  await AuditLog.deleteMany({ description: { $regex: 'Computer Science - Batch 2022', $options: 'i' } });
+  await Batch.deleteMany({ code: '2022' });
+  await AuditLog.deleteMany({});
 
   // Mock Response Helper Creator
   const createMockResponse = () => {
@@ -91,13 +93,15 @@ const runTests = async () => {
 
     const req2 = {
       file: {
-        buffer: Buffer.from(csvContent)
+        buffer: Buffer.from(csvContent),
+        originalname: 'students.csv'
       },
       user: { email: 'advisor@batchminder.edu', _id: new mongoose.Types.ObjectId() }
     };
     const res2 = createMockResponse();
+    const mockNext = (err) => { if (err) throw err; };
 
-    await bulkUploadStudents(req2, res2);
+    await bulkUploadStudents(req2, res2, mockNext);
 
     if (res2.statusCode !== 200) {
       throw new Error(`Bulk upload failed with code ${res2.statusCode}: ${JSON.stringify(res2.body)}`);
@@ -130,10 +134,8 @@ const runTests = async () => {
     console.log('✔ Test 3 Passed: Students query list retrieved successfully.');
 
 
-    // ==========================================
-    // TEST 4: CRUD - Update Student profile details
-    // ==========================================
-    console.log('\nTest 4: Updating student records...');
+    // Find the batch that was dynamically created in Test 2
+    const batch2022 = await Batch.findOne({ code: /2022/i });
     
     const req4 = {
       params: { id: '2022-CS-02' },
@@ -144,7 +146,12 @@ const runTests = async () => {
           { courseCode: 'CS-101', courseTitle: 'Introduction to Programming', creditHours: 4, grade: 'IP', status: 'enrolled', attendance: 85 }
         ]
       },
-      user: { email: 'advisor@batchminder.edu', _id: new mongoose.Types.ObjectId() }
+      user: {
+        email: 'advisor@batchminder.edu',
+        _id: new mongoose.Types.ObjectId(),
+        role: 'advisor',
+        assignedBatchIds: batch2022 ? [batch2022._id] : []
+      }
     };
     const res4 = createMockResponse();
 

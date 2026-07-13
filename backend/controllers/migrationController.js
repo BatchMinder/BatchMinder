@@ -11,7 +11,15 @@ export const getAllMigrations = async (req, res) => {
     }
 
     const migrations = await Migration.find(scope)
-      .populate('studentId', 'name rollNumber')
+      .populate({
+        path: 'studentId',
+        select: 'name rollNumber phone currentSemester batchId',
+        populate: {
+          path: 'batchId',
+          select: 'code startYear'
+        }
+      })
+      .populate('departmentId', 'code name')
       .populate('decidedBy', 'name email')
       .sort({ createdAt: -1 });
 
@@ -35,7 +43,8 @@ export const createMigration = async (req, res) => {
     }
 
     if (scope.departmentId && scope.departmentId.$in) {
-      if (!scope.departmentId.$in.includes(departmentId)) {
+      const allowedDepts = scope.departmentId.$in.map(id => id.toString());
+      if (!allowedDepts.includes(departmentId.toString())) {
         return res.status(403).json({ message: 'Department not in your scope' });
       }
     }
@@ -106,20 +115,71 @@ export const decideMigration = async (req, res) => {
     migration.decidedAt = new Date();
     if (remarks) migration.remarks = remarks;
 
+    // Determine overall status based on whether all are accepted or there is a rejection
+    const hasRejected = migration.transferredCourses.some(c => c.equivalencyStatus === 'rejected');
+    migration.status = hasRejected ? 'rejected' : 'approved';
+
+    const acceptedCredits = migration.transferredCourses
+      .filter(c => c.equivalencyStatus === 'accepted')
+      .reduce((sum, c) => sum + c.credits, 0);
+
+    if (migration.curriculumComparison) {
+      migration.curriculumComparison.toCompletedCredits = acceptedCredits;
+      migration.curriculumComparison.toRemainingCredits = Math.max(0, (migration.curriculumComparison.toRequiredCredits || 120) - acceptedCredits);
+    }
+
     await migration.save();
 
     const student = await Student.findById(migration.studentId);
     let oldCgpaStatus = null;
     if (student) {
       oldCgpaStatus = student.cgpaStatus;
-      const acceptedCredits = migration.transferredCourses
-        .filter(c => c.equivalencyStatus === 'accepted')
-        .reduce((sum, c) => sum + c.credits, 0);
+
+      // Recalculate degree progress & synchronize transferred courses to student profile
+      for (const c of migration.transferredCourses) {
+        const targetCode = c.mappedCourseName || c.courseName;
+        const existingIdx = student.courses.findIndex(sc => sc.courseCode === targetCode);
+        if (existingIdx !== -1) {
+          if (c.equivalencyStatus === 'accepted') {
+            student.courses[existingIdx].grade = 'A';
+            student.courses[existingIdx].enrollmentStatus = 'completed';
+            student.courses[existingIdx].status = 'completed';
+            student.courses[existingIdx].creditHours = c.credits;
+          } else if (c.equivalencyStatus === 'rejected') {
+            student.courses[existingIdx].grade = 'F'; // Credit Loss
+            student.courses[existingIdx].enrollmentStatus = 'failed';
+            student.courses[existingIdx].status = 'failed';
+            student.courses[existingIdx].creditHours = c.credits;
+          }
+        } else {
+          if (c.equivalencyStatus === 'accepted') {
+            student.courses.push({
+              courseCode: targetCode,
+              courseTitle: targetCode,
+              creditHours: c.credits,
+              grade: 'A',
+              enrollmentStatus: 'completed',
+              status: 'completed',
+              semester: student.currentSemester || 1
+            });
+          } else if (c.equivalencyStatus === 'rejected') {
+            student.courses.push({
+              courseCode: targetCode,
+              courseTitle: targetCode,
+              creditHours: c.credits,
+              grade: 'F', // Credit Loss
+              enrollmentStatus: 'failed',
+              status: 'failed',
+              semester: student.currentSemester || 1
+            });
+          }
+        }
+      }
 
       if (acceptedCredits > 0) {
         student.cgpa = Math.min(4.0, student.cgpa + acceptedCredits * 0.01);
-        await student.save();
       }
+      await student.save();
     }
 
     // 1. Log Audit
@@ -157,6 +217,34 @@ export const decideMigration = async (req, res) => {
         deepLinkUrl: `/admin/students`
       });
     }
+
+    res.status(200).json({ status: 'success', data: { migration } });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const updateMigration = async (req, res) => {
+  try {
+    const scope = scopeToUserDepartments(req);
+    if (scope._id === null) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    const { id } = req.params;
+    const { transferredCourses, fromProgram, toProgram, curriculumComparison } = req.body;
+
+    const migration = await Migration.findOne({ _id: id, ...scope });
+    if (!migration) {
+      return res.status(404).json({ message: 'Migration record not found' });
+    }
+
+    if (transferredCourses !== undefined) migration.transferredCourses = transferredCourses;
+    if (fromProgram !== undefined) migration.fromProgram = fromProgram;
+    if (toProgram !== undefined) migration.toProgram = toProgram;
+    if (curriculumComparison !== undefined) migration.curriculumComparison = curriculumComparison;
+
+    await migration.save();
 
     res.status(200).json({ status: 'success', data: { migration } });
   } catch (error) {

@@ -6,6 +6,9 @@ import AuditLog from '../models/auditLog.js';
 import { scopeToUserDepartments, scopeQueryToRole } from '../middleware/scopeMiddleware.js';
 
 import Migration from '../models/migration.js';
+import Curriculum from '../models/curriculum.js';
+import Timetable from '../models/timetable.js';
+import Upload from '../models/upload.js';
 
 // GET /api/dashboard/stats
 // Returns stats compatible with BOTH SuperAdmin dashboard and new Admin dashboard
@@ -45,6 +48,9 @@ export const getDashboardStats = async (req, res) => {
       departments,
       recentLogs,
       pendingMigrations,
+      curriculums,
+      scheduledClasses,
+      recentUploads
     ] = await Promise.all([
       Student.find(studentQuery).lean(),
       Batch.countDocuments(isSuperAdmin ? {} : scopeToUserDepartments(req)),
@@ -53,7 +59,10 @@ export const getDashboardStats = async (req, res) => {
       isSuperAdmin ? User.countDocuments({ status: 'Active' }) : Promise.resolve(0),
       Department.find(isSuperAdmin ? {} : { _id: { $in: req.user.departmentIds || [] } }).lean(),
       isSuperAdmin ? AuditLog.find({}).sort({ timestamp: -1 }).limit(6).lean() : Promise.resolve([]),
-      Migration.countDocuments({ decidedAt: null })
+      Migration.countDocuments({ decidedAt: null }),
+      Curriculum.find(isSuperAdmin ? {} : scopeToUserDepartments(req)).lean(),
+      Timetable.countDocuments(),
+      Upload.find({}).sort({ createdAt: -1 }).limit(4).populate('uploadedBy', 'name').lean()
     ]);
 
     const totalStudents = allStudents.length;
@@ -62,6 +71,15 @@ export const getDashboardStats = async (req, res) => {
     const criticalStudents = allStudents.filter(s => s.cgpaStatus === 'critical' || s.status === 'critical').length;
     const goodStudents = allStudents.filter(s => s.cgpaStatus === 'good' || s.status === 'good_standing').length;
     const atRiskStudents = warningStudents + criticalStudents;
+
+    let totalCourses = 0;
+    if (curriculums) {
+      const courseCodes = new Set();
+      curriculums.forEach(c => {
+        if (c.courses) c.courses.forEach(course => courseCodes.add(course.code));
+      });
+      totalCourses = courseCodes.size;
+    }
 
     // Build department stats for SuperAdmin dashboard
     const deptStats = await Promise.all(departments.map(async (d) => {
@@ -94,6 +112,16 @@ export const getDashboardStats = async (req, res) => {
         batches: { total: totalBatches, allocated: allocatedBatches },
         departments: deptStats,
         pendingMigrations,
+        totalCourses,
+        scheduledClasses,
+        recentUploads: recentUploads.map(u => ({
+          id: u._id,
+          fileName: u.fileName,
+          uploadedBy: u.uploadedBy?.name || 'Unknown',
+          records: u.totalRecords,
+          status: u.status,
+          date: u.createdAt
+        })),
         activityLogs: recentLogs.map(log => ({
           id: log._id,
           action: log.action,

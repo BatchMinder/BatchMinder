@@ -9,7 +9,7 @@ async function run() {
     const Batch = mongoose.model('Batch', new mongoose.Schema({}, { strict: false }));
     const Timetable = mongoose.model('Timetable', new mongoose.Schema({}, { strict: false }));
 
-    const fatima = await User.findOne({ email: 'advisor.fatima@stmu.edu.pk' });
+    const fatima = await User.findOne({ email: 'advisor.cs@stmu.edu.pk' });
     console.log('Fatima assignedBatchIds:', fatima ? fatima.assignedBatchIds : 'Not found');
     
     if (fatima && fatima.assignedBatchIds) {

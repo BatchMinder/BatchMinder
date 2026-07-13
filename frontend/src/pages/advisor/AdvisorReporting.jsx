@@ -1,21 +1,24 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   BarChart2, TrendingUp, Users, AlertTriangle, Download,
-  RefreshCw, Filter, BookOpen, CheckCircle, Layers, FileText
+  RefreshCw, Filter, BookOpen, CheckCircle, Layers, FileText,
+  PieChart as PieIcon, LineChart as LineIcon
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line
 } from 'recharts';
 
-
 export default function AdvisorReporting() {
+  const { user } = useAuth();
   const [stats, setStats] = useState(null);
   const [cgpaDist, setCgpaDist] = useState([]);
   const [studentsByBatch, setStudentsByBatch] = useState([]);
   const [atRiskTrend, setAtRiskTrend] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterBatch, setFilterBatch] = useState('all');
+  const [selectedReportType, setSelectedReportType] = useState('performance');
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -30,7 +33,6 @@ export default function AdvisorReporting() {
       ]);
       if (statsRes.ok) {
         const d = await statsRes.json();
-        // API returns: data.totalStudents, data.atRiskStudents, data.totalBatches, data.departments[]
         const raw = d.data || {};
         setStats({
           students: raw.totalStudents ?? raw.students?.total ?? 0,
@@ -41,7 +43,6 @@ export default function AdvisorReporting() {
       }
       if (distRes.ok) {
         const d = await distRes.json();
-        // API returns: data.labels (array), data.counts (array of numbers)
         const raw = d.data || {};
         const labels = raw.labels || [];
         const counts = raw.counts || [];
@@ -53,7 +54,6 @@ export default function AdvisorReporting() {
       }
       if (trendRes.ok) {
         const d = await trendRes.json();
-        // API returns: [{month, warning, critical, total}]
         const raw = d.data || [];
         setAtRiskTrend(raw.map(p => ({
           label: p.month,
@@ -67,299 +67,423 @@ export default function AdvisorReporting() {
     }
   };
 
+  const fetchAtRiskStudentsList = async () => {
+    let url = '/api/students?limit=200';
+    if (user?.role === 'advisor') {
+      url = '/api/advisor/students?limit=200';
+    }
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
+        return (data.data.students || []).filter(s => s.cgpaStatus === 'warning' || s.cgpaStatus === 'critical');
+      }
+    } catch (e) {
+      console.error('Failed to fetch at risk student list for CSV export:', e);
+    }
+    return [];
+  };
+
   // Filtered batch data
   const batchOptions = studentsByBatch.map(b => b.batchCode).filter(Boolean);
   const filteredBatchData = filterBatch === 'all' ? studentsByBatch : studentsByBatch.filter(b => b.batchCode === filterBatch);
 
   // CGPA band labels
   const cgpaBands = [
-    { label: '3.50 – 4.00', color: '#10B981' },
-    { label: '2.50 – 3.49', color: '#3B82F6' },
-    { label: '2.00 – 2.49', color: '#F59E0B' },
-    { label: 'Below 2.00', color: '#EF4444' }
+    { label: 'Good Standing (≥2.5)', color: '#10B981', labelKey: 'good' },
+    { label: 'Warning (2.0–2.49)', color: '#F59E0B', labelKey: 'warning' },
+    { label: 'Critical (<2.0)', color: '#EF4444', labelKey: 'critical' }
   ];
 
-  // Export summary CSV
-  const exportCSV = () => {
-    const rows = [
-      ['Section', 'Metric', 'Value'],
-      ['Overview', 'Total Students', stats?.students || 0],
-      ['Overview', 'Total Batches', stats?.batches || 0],
-      ['Overview', 'At-Risk Students', stats?.atRisk || 0],
-      ...studentsByBatch.map(b => ['Batch', b.batchCode, b.total]),
-      ...cgpaDist.map((d, i) => ['CGPA Distribution', cgpaBands[i]?.label || `Band ${i + 1}`, d.count !== undefined ? d.count : 0])
-    ];
-    const csv = rows.map(r => r.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
+  // Export report as CSV
+  const exportCSV = async (reportTypeOverride) => {
+    const activeReport = reportTypeOverride || selectedReportType;
+    let rows = [];
+    let filename = 'batchminder_report.csv';
+
+    if (activeReport === 'performance' || activeReport === 'CGPA Distribution Report' || activeReport === 'Batch Performance Report') {
+      filename = `academic_performance_report_${new Date().toISOString().split('T')[0]}.csv`;
+      rows = [
+        ['Report Name', 'Academic Performance & CGPA Distribution Report'],
+        ['Role Scoped', user?.role?.toUpperCase() || 'N/A'],
+        ['Generated At', new Date().toLocaleString()],
+        [],
+        ['CGPA Standing Band', 'Student Count'],
+        ...cgpaDist.map(d => [
+          d.label === 'good' ? 'Good Standing (CGPA >= 2.50)' : d.label === 'warning' ? 'Warning Standing (2.00 <= CGPA < 2.50)' : 'Critical Standing (CGPA < 2.00)',
+          d.count
+        ])
+      ];
+    } else if (activeReport === 'enrollment' || activeReport === 'Enrollment Summary Report') {
+      filename = `batch_enrollment_report_${new Date().toISOString().split('T')[0]}.csv`;
+      rows = [
+        ['Report Name', 'Batch Enrollment Summary Report'],
+        ['Role Scoped', user?.role?.toUpperCase() || 'N/A'],
+        ['Generated At', new Date().toLocaleString()],
+        [],
+        ['Batch Code', 'Total Students', 'Active Students', 'At-Risk Students'],
+        ...studentsByBatch.map(b => [b.batchCode, b.total, b.active, b.atRisk])
+      ];
+    } else if (activeReport === 'risk' || activeReport === 'At-Risk Students Report') {
+      filename = `at_risk_monitoring_report_${new Date().toISOString().split('T')[0]}.csv`;
+      const atRiskStudents = await fetchAtRiskStudentsList();
+      rows = [
+        ['Report Name', 'AI Academic Risk Registry'],
+        ['Role Scoped', user?.role?.toUpperCase() || 'N/A'],
+        ['Generated At', new Date().toLocaleString()],
+        [],
+        ['Roll Number', 'Student Name', 'Email Address', 'Cumulative CGPA', 'Standing Status', 'Semester'],
+        ...atRiskStudents.map(s => [s.rollNumber, s.name, s.email, s.cgpa.toFixed(2), s.cgpaStatus.toUpperCase(), s.currentSemester])
+      ];
+      if (atRiskStudents.length === 0) {
+        rows.push(['No academically at-risk student records found.']);
+      }
+    }
+
+    const csvContent = rows.map(r => r.map(val => `"${String(val).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'academic_report.csv'; a.click();
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
     URL.revokeObjectURL(url);
   };
 
-  const maxBatchStudents = Math.max(...filteredBatchData.map(b => b.total || 0), 1);
-  const maxTrend = Math.max(...atRiskTrend.map(t => t.count || 0), 1);
+  const titlePrefix = user?.role === 'admin' ? 'HOD Departmental' : 'Advisor Batch';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', fontFamily: "'Inter', sans-serif" }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <p style={{ margin: 0, fontSize: '11px', fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '1px' }}>
-            6.2.12 — Reporting Dashboard
+            Academic Intelligence & Monitoring
           </p>
           <h2 style={{ margin: '4px 0 0', fontSize: '22px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>
-            Academic Reports & Analytics
+            {titlePrefix} Reports & Analytics
           </h2>
-          <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#64748B' }}>
-            Real-time academic performance metrics, CGPA distribution, and enrollment trends
+          <p style={{ margin: '4px 0 0', fontSize: '12.5px', color: '#64748B' }}>
+            Generate, analyze, and export student performance summaries and risk assessments.
           </p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button onClick={fetchAll} style={{
             display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px',
             borderRadius: '10px', border: '1px solid #E2E8F0', backgroundColor: '#fff',
-            fontSize: '12px', fontWeight: 700, color: '#475569', cursor: 'pointer'
+            fontSize: '12px', fontWeight: 700, color: '#475569', cursor: 'pointer', fontFamily: 'inherit'
           }}>
-            <RefreshCw size={14} /> Refresh
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh Data
           </button>
-          <button onClick={exportCSV} style={{
+          <button onClick={() => exportCSV()} style={{
             display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px',
             borderRadius: '10px', border: 'none', backgroundColor: '#2563EB',
-            fontSize: '12px', fontWeight: 700, color: '#fff', cursor: 'pointer'
+            fontSize: '12px', fontWeight: 700, color: '#fff', cursor: 'pointer', fontFamily: 'inherit',
+            boxShadow: '0 2px 8px rgba(37, 99, 235, 0.15)'
           }}>
-            <Download size={14} /> Export Dashboard
+            <Download size={14} /> Export Active Report
           </button>
         </div>
       </div>
 
-      {/* Academic Summary Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px' }}>
+      {/* Navigation tabs for Report Selection */}
+      <div style={{ display: 'flex', borderBottom: '1px solid #E2E8F0', gap: '24px', paddingBottom: '2px' }}>
         {[
-          { label: 'Total Students', value: stats?.students ?? '—', color: '#2563EB', bg: '#EFF6FF', icon: Users },
-          { label: 'Active Batches', value: stats?.batches ?? '—', color: '#7C3AED', bg: '#F5F3FF', icon: Layers },
-          { label: 'At-Risk Students', value: stats?.atRisk ?? '—', color: '#EF4444', bg: '#FEF2F2', icon: AlertTriangle },
-          { label: 'Departments', value: stats?.departments ?? '—', color: '#16A34A', bg: '#F0FDF4', icon: BookOpen }
-        ].map(({ label, value, color, bg, icon: Icon }) => (
-          <div key={label} style={{
-            backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '14px',
-            padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '10px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ width: '36px', height: '36px', borderRadius: '9px', backgroundColor: bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Icon size={17} color={color} />
+          { id: 'performance', label: 'Academic Performance', icon: BarChart2 },
+          { id: 'enrollment', label: 'Batch Enrollment', icon: Layers },
+          { id: 'risk', label: 'Risk Assessment', icon: AlertTriangle }
+        ].map(tab => {
+          const TabIcon = tab.icon;
+          const isSelected = selectedReportType === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setSelectedReportType(tab.id)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px 14px',
+                border: 'none', background: 'none', borderBottom: isSelected ? '3px solid #2563EB' : '3px solid transparent',
+                color: isSelected ? '#2563EB' : '#64748B', fontWeight: isSelected ? 800 : 500, fontSize: '13px',
+                cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s'
+              }}
+            >
+              <TabIcon size={15} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Dynamic Content Views */}
+      {selectedReportType === 'performance' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Performance Summary Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+            {[
+              { label: 'Total Enrolled', value: stats?.students ?? '—', color: '#2563EB', bg: '#EFF6FF', icon: Users },
+              { label: 'Good Standing', value: cgpaDist.find(d => d.label === 'good')?.count ?? 0, color: '#10B981', bg: '#EFFDF5', icon: CheckCircle },
+              { label: 'Academic Warning', value: cgpaDist.find(d => d.label === 'warning')?.count ?? 0, color: '#F59E0B', bg: '#FFFBEB', icon: AlertTriangle },
+              { label: 'Critical / At-Risk', value: cgpaDist.find(d => d.label === 'critical')?.count ?? 0, color: '#EF4444', bg: '#FEF2F2', icon: AlertTriangle }
+            ].map(({ label, value, color, bg, icon: Icon }) => (
+              <div key={label} style={{
+                backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '14px',
+                padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '10px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ width: '36px', height: '36px', borderRadius: '9px', backgroundColor: bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Icon size={17} color={color} />
+                  </div>
+                </div>
+                <div>
+                  <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</p>
+                  <h3 style={{ margin: '4px 0 0', fontSize: '24px', fontWeight: 800, color: loading ? '#CBD5E1' : '#1F2937' }}>
+                    {loading ? '...' : value}
+                  </h3>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '16px' }}>
+            {/* CGPA Distribution Bar Chart */}
+            <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid #F1F5F9' }}>
+                <BarChart2 size={16} color="#4F46E5" />
+                <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>CGPA Metrics Summary</h3>
+              </div>
+              <div style={{ height: '280px', width: '100%' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={cgpaDist} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                    <XAxis dataKey="label" axisLine={false} tickLine={false} tickFormatter={(v) => v === 'good' ? 'Good Standing' : v === 'warning' ? 'Warning' : 'Critical'} tick={{ fontSize: 11, fill: '#64748B' }} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} />
+                    <RechartsTooltip cursor={{ fill: '#F8FAFC' }} contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0' }} />
+                    <Bar dataKey="count" fill="#4F46E5" radius={[4, 4, 0, 0]}>
+                      {cgpaDist.map((entry, idx) => {
+                        const colors = { good: '#10B981', warning: '#F59E0B', critical: '#EF4444' };
+                        return <Cell key={`cell-${idx}`} fill={colors[entry.label] || '#4F46E5'} />;
+                      })}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </div>
-            <div>
-              <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</p>
-              <h3 style={{ margin: '4px 0 0', fontSize: '26px', fontWeight: 800, color: loading ? '#CBD5E1' : color, letterSpacing: '-0.5px' }}>
-                {loading ? '...' : value}
-              </h3>
-            </div>
-          </div>
-        ))}
-      </div>
 
-      {/* Filter Panel + Enrollment Trends */}
-      <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px 24px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px', paddingBottom: '14px', borderBottom: '1px solid #F1F5F9' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <TrendingUp size={16} color="#2563EB" />
-            <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>Enrollment by Batch</h3>
-          </div>
-          {/* Academic Filter Panel */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Filter size={13} color="#94A3B8" />
-            <select value={filterBatch} onChange={e => setFilterBatch(e.target.value)} style={{
-              padding: '5px 10px', borderRadius: '8px', border: '1px solid #E2E8F0',
-              fontSize: '12px', fontWeight: 700, color: '#1E293B', outline: 'none',
-              backgroundColor: '#F8FAFC', cursor: 'pointer', fontFamily: 'inherit'
-            }}>
-              <option value="all">All Batches</option>
-              {batchOptions.map(b => <option key={b} value={b}>{b}</option>)}
-            </select>
-          </div>
-        </div>
-
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '32px', color: '#94A3B8', fontSize: '12px' }}>Loading...</div>
-        ) : filteredBatchData.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '32px', color: '#94A3B8', fontSize: '12px' }}>No enrollment data available</div>
-        ) : (
-          <div style={{ height: '300px', width: '100%', marginTop: '20px' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={filteredBatchData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                <XAxis dataKey="batchCode" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} />
-                <RechartsTooltip cursor={{ fill: '#F8FAFC' }} contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '20px' }} />
-                <Bar dataKey="total" name="Total Students" fill="#2563EB" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="active" name="Active Students" fill="#10B981" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="atRisk" name="At-Risk Students" fill="#EF4444" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </div>
-
-      {/* Bottom Row: CGPA Distribution + At-Risk Trend + Alerts */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
-
-        {/* CGPA Distribution Graph */}
-        <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid #F1F5F9' }}>
-            <BarChart2 size={15} color="#7C3AED" />
-            <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>CGPA Distribution</h3>
-          </div>
-          {loading ? (
-            <p style={{ textAlign: 'center', color: '#94A3B8', fontSize: '12px', padding: '16px 0' }}>Loading...</p>
-          ) : cgpaDist.length === 0 ? (
-            <p style={{ textAlign: 'center', color: '#94A3B8', fontSize: '12px', padding: '16px 0' }}>No distribution data</p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div style={{ height: '220px', width: '100%' }}>
+            {/* CGPA Bands Breakdown Card */}
+            <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid #F1F5F9' }}>
+                <PieIcon size={16} color="#059669" />
+                <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>CGPA Standing Division</h3>
+              </div>
+              <div style={{ height: '200px', width: '100%' }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={cgpaDist.map((d, i) => {
-                        const displayMap = {
-                          good: { display: 'Good Standing (≥2.5)', color: '#10B981' },
-                          warning: { display: 'Warning (2.0–2.49)', color: '#F59E0B' },
-                          critical: { display: 'Critical (<2.0)', color: '#EF4444' }
-                        };
-                        const cfg = displayMap[d.label] || { display: d.label, color: '#94A3B8' };
-                        return { name: cfg.display, value: d.count ?? 0, color: cfg.color };
-                      })}
-                      cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5}
-                      dataKey="value" stroke="none"
+                      data={cgpaDist}
+                      cx="50%" cy="50%" innerRadius={50} outerRadius={70} paddingAngle={4}
+                      dataKey="count" nameKey="label"
                     >
                       {cgpaDist.map((entry, index) => {
                         const displayMap = { good: '#10B981', warning: '#F59E0B', critical: '#EF4444' };
                         return <Cell key={`cell-${index}`} fill={displayMap[entry.label] || '#94A3B8'} />;
                       })}
                     </Pie>
-                    <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
+                    <RechartsTooltip />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '12px', marginTop: '10px' }}>
-                {cgpaDist.map((band, i) => {
-                  const displayMap = { good: '#10B981', warning: '#F59E0B', critical: '#EF4444' };
-                  const color = displayMap[band.label] || '#94A3B8';
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+                {cgpaBands.map((band, idx) => {
+                  const val = cgpaDist.find(d => d.label === band.labelKey)?.count ?? 0;
                   return (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: color }} />
-                      <span style={{ fontSize: '11px', color: '#475569', fontWeight: 600 }}>{band.label.charAt(0).toUpperCase() + band.label.slice(1)}</span>
+                    <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', justifyContent: 'space-between', fontSize: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: band.color }} />
+                        <span style={{ color: '#475569', fontWeight: 500 }}>{band.label}</span>
+                      </div>
+                      <span style={{ fontWeight: 700, color: '#1E293B' }}>{val} ({stats?.students > 0 ? ((val / stats.students) * 100).toFixed(0) : 0}%)</span>
                     </div>
                   );
                 })}
               </div>
             </div>
-          )}
+          </div>
+        </div>
+      )}
+
+      {selectedReportType === 'enrollment' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Active Batches list & chart */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '16px' }}>
+            
+            <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px', paddingBottom: '12px', borderBottom: '1px solid #F1F5F9' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <TrendingUp size={16} color="#2563EB" />
+                  <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>Batch Distribution</h3>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Filter size={12} color="#94A3B8" />
+                  <select value={filterBatch} onChange={e => setFilterBatch(e.target.value)} style={{
+                    padding: '4px 8px', borderRadius: '6px', border: '1px solid #E2E8F0',
+                    fontSize: '11px', fontWeight: 700, color: '#1E293B', backgroundColor: '#F8FAFC', outline: 'none'
+                  }}>
+                    <option value="all">All Batches</option>
+                    {batchOptions.map(b => <option key={b} value={b}>{b}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div style={{ height: '300px', width: '100%' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={filteredBatchData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                    <XAxis dataKey="batchCode" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748B' }} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748B' }} />
+                    <RechartsTooltip contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0' }} />
+                    <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                    <Bar dataKey="total" name="Total Enrolled" fill="#2563EB" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="active" name="Active Students" fill="#10B981" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="atRisk" name="At-Risk" fill="#EF4444" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid #F1F5F9' }}>
+                <Layers size={16} color="#7C3AED" />
+                <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>Batch Allocations Summary</h3>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {studentsByBatch.map((b, i) => (
+                  <div key={i} style={{ border: '1px solid #F1F5F9', borderRadius: '10px', padding: '12px 14px', backgroundColor: '#FAFAFA' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '12.5px', fontWeight: 800, color: '#1B3A6B' }}>{b.batchCode}</span>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569', backgroundColor: '#E2E8F0', padding: '2px 8px', borderRadius: '12px' }}>
+                        {b.total} Students
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748B' }}>
+                      <span>Active: <b>{b.active}</b></span>
+                      <span style={{ color: b.atRisk > 0 ? '#EF4444' : '#10B981' }}>At-Risk: <b>{b.atRisk}</b></span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {selectedReportType === 'risk' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '16px' }}>
+            {/* Risk Trend */}
+            <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid #F1F5F9' }}>
+                <LineIcon size={16} color="#EF4444" />
+                <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>Risk Trend Analysis</h3>
+              </div>
+              <div style={{ height: '300px', width: '100%' }}>
+                {atRiskTrend.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '80px 0', color: '#94A3B8', fontSize: '12.5px' }}>
+                    No significant risk trend data found.
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={atRiskTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                      <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748B' }} dy={10} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748B' }} />
+                      <RechartsTooltip contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0' }} />
+                      <Line type="monotone" dataKey="count" name="At-Risk Students" stroke="#EF4444" strokeWidth={3.5} dot={{ fill: '#EF4444', r: 4 }} activeDot={{ r: 6, strokeWidth: 0 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+
+            {/* Alerts & Insights Panel */}
+            <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid #F1F5F9' }}>
+                <AlertTriangle size={16} color="#F59E0B" />
+                <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>Risk Alerts & Insights</h3>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {stats?.atRisk > 0 ? (
+                  <>
+                    <div style={{ padding: '12px 14px', borderRadius: '10px', backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5' }}>
+                      <h4 style={{ margin: 0, fontSize: '12px', fontWeight: 800, color: '#991B1B' }}>Attention Needed</h4>
+                      <p style={{ margin: '4px 0 0', fontSize: '11.5px', color: '#B91C1C', lineHeight: 1.4 }}>
+                        There are <b>{stats.atRisk}</b> students classified with Warning or Critical standing. Review their profiles to avoid academic probation.
+                      </p>
+                    </div>
+
+                    <div style={{ padding: '12px 14px', borderRadius: '10px', backgroundColor: '#FFFBEB', border: '1px solid #FDE68A' }}>
+                      <h4 style={{ margin: 0, fontSize: '12px', fontWeight: 800, color: '#92400E' }}>Credit-hour Rule Alert</h4>
+                      <p style={{ margin: '4px 0 0', fontSize: '11.5px', color: '#B45309', lineHeight: 1.4 }}>
+                        Students on academic warning (CGPA &le; 2.1) are cap-restricted to a maximum of 12 credits. Oversee approval requests carefully (BR-2).
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                    <CheckCircle size={32} color="#10B981" style={{ margin: '0 auto 10px' }} />
+                    <p style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#10B981' }}>All Clear</p>
+                    <p style={{ margin: '4px 0 0', fontSize: '11.5px', color: '#64748B' }}>No students currently fall under risk status bounds.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Quick Downloads and Specific Reports */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px', marginTop: '8px' }}>
+        <div style={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 800, color: '#334155' }}>Need a detailed raw dataset?</h4>
+            <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#64748B' }}>Download the complete academic statistics table in spreadsheet CSV format.</p>
+          </div>
+          <button onClick={() => exportCSV()} style={{
+            display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px',
+            borderRadius: '8px', border: '1px solid #CBD5E1', backgroundColor: '#fff',
+            fontSize: '11.5px', fontWeight: 700, color: '#475569', cursor: 'pointer', fontFamily: 'inherit'
+          }}>
+            <Download size={13} /> Download Active Data
+          </button>
         </div>
 
-        {/* At-Risk Trend Chart */}
-        <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid #F1F5F9' }}>
-            <AlertTriangle size={15} color="#EF4444" />
-            <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>At-Risk Trend</h3>
+        <div style={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+            <FileText size={14} color="#64748B" />
+            <h3 style={{ margin: 0, fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Custom Reports Export</h3>
           </div>
-          {loading ? (
-            <p style={{ textAlign: 'center', color: '#94A3B8', fontSize: '12px', padding: '16px 0' }}>Loading...</p>
-          ) : atRiskTrend.length === 0 ? (
-            <p style={{ textAlign: 'center', color: '#94A3B8', fontSize: '12px', padding: '16px 0' }}>No trend data available</p>
-          ) : (
-            <div style={{ height: '240px', width: '100%', marginTop: '10px' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={atRiskTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                  <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748B' }} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748B' }} />
-                  <RechartsTooltip contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
-                  <Line type="monotone" dataKey="count" name="At-Risk Students" stroke="#EF4444" strokeWidth={3} dot={{ fill: '#EF4444', r: 4 }} activeDot={{ r: 6, strokeWidth: 0 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </div>
-
-        {/* Alerts & Insights + Quick Reports */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-
-          {/* Alerts & Insights Section */}
-          <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '18px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)', flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', paddingBottom: '12px', borderBottom: '1px solid #F1F5F9' }}>
-              <AlertTriangle size={15} color="#F59E0B" />
-              <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>Alerts & Insights</h3>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {loading ? (
-                <p style={{ color: '#94A3B8', fontSize: '12px' }}>Loading insights...</p>
-              ) : [
-                stats?.atRisk > 0 && {
-                  type: 'warning',
-                  msg: `${stats.atRisk} students currently at-risk — review immediately`,
-                  color: '#D97706', bg: '#FFFBEB', border: '#FDE68A'
-                },
-                cgpaDist.find((d, i) => i === 3 && (d.count ?? d) > 0) && {
-                  type: 'critical',
-                  msg: `${cgpaDist[3].count ?? cgpaDist[3]} students below CGPA 2.0 (FR-3.4)`,
-                  color: '#DC2626', bg: '#FEF2F2', border: '#FECACA'
-                },
-                studentsByBatch.length > 0 && {
-                  type: 'info',
-                  msg: `${studentsByBatch.length} active batches with enrollment data available`,
-                  color: '#2563EB', bg: '#EFF6FF', border: '#BFDBFE'
-                }
-              ].filter(Boolean).length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '16px 0' }}>
-                  <CheckCircle size={24} color="#16A34A" style={{ display: 'block', margin: '0 auto 8px' }} />
-                  <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, color: '#16A34A' }}>No Active Alerts</p>
-                </div>
-              ) : [
-                stats?.atRisk > 0 && { type: 'warning', msg: `${stats.atRisk} students currently at-risk`, color: '#D97706', bg: '#FFFBEB', border: '#FDE68A' },
-                cgpaDist[3] && (cgpaDist[3].count ?? cgpaDist[3]) > 0 && { type: 'critical', msg: `${cgpaDist[3].count ?? cgpaDist[3]} students below CGPA 2.0`, color: '#DC2626', bg: '#FEF2F2', border: '#FECACA' },
-                { type: 'info', msg: `${stats?.students || 0} total students enrolled across ${stats?.batches || 0} batches`, color: '#2563EB', bg: '#EFF6FF', border: '#BFDBFE' }
-              ].filter(Boolean).map((alert, i) => (
-                <div key={i} style={{ padding: '9px 12px', borderRadius: '8px', backgroundColor: alert.bg, border: `1px solid ${alert.border}` }}>
-                  <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: alert.color, lineHeight: 1.4 }}>{alert.msg}</p>
-                </div>
-              ))}
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            {[
+              { label: 'CGPA Distribution', type: 'performance' },
+              { label: 'At-Risk Registry', type: 'risk' },
+              { label: 'Enrollment Summary', type: 'enrollment' }
+            ].map(item => (
+              <button key={item.label} onClick={() => exportCSV(item.type)} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '8px 10px', borderRadius: '8px',
+                backgroundColor: '#fff', border: '1px solid #E2E8F0',
+                fontSize: '11px', fontWeight: 700, color: '#334155', cursor: 'pointer',
+                textAlign: 'left', fontFamily: 'inherit', transition: 'all 0.15s'
+              }}
+                onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#EFF6FF'; e.currentTarget.style.borderColor = '#BFDBFE'; }}
+                onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#fff'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+              >
+                <span>{item.label}</span>
+                <Download size={11} color="#94A3B8" />
+              </button>
+            ))}
           </div>
-
-          {/* Quick Reports Panel */}
-          <div style={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-              <FileText size={14} color="#64748B" />
-              <h3 style={{ margin: 0, fontSize: '12px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Quick Reports</h3>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {[
-                'CGPA Distribution Report',
-                'At-Risk Students Report',
-                'Enrollment Summary Report',
-                'Batch Performance Report'
-              ].map(label => (
-                <button key={label} onClick={exportCSV} style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '8px 10px', borderRadius: '8px',
-                  backgroundColor: '#fff', border: '1px solid #E2E8F0',
-                  fontSize: '11px', fontWeight: 700, color: '#334155', cursor: 'pointer',
-                  textAlign: 'left', fontFamily: 'inherit', transition: 'all 0.15s'
-                }}
-                  onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#EFF6FF'; e.currentTarget.style.borderColor = '#BFDBFE'; }}
-                  onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#fff'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
-                >
-                  {label}
-                  <Download size={11} color="#94A3B8" />
-                </button>
-              ))}
-            </div>
-          </div>
-
         </div>
       </div>
 

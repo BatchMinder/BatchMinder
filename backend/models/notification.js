@@ -6,13 +6,18 @@ const notificationSchema = new mongoose.Schema({
     ref: 'User',
     required: false
   },
+  targetUserID: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: false
+  },
   recipientRole: {
     type: String,
     required: false
   },
   type: {
     type: String,
-    enum: ['info', 'warning', 'critical'],
+    enum: ['info', 'warning', 'critical', 'CGPA_WARNING', 'CGPA_CRITICAL', 'APPROVAL_PENDING'],
     default: 'info'
   },
   message: {
@@ -31,6 +36,10 @@ const notificationSchema = new mongoose.Schema({
   isRead: {
     type: Boolean,
     default: false
+  },
+  sentDate: {
+    type: Date,
+    default: Date.now
   },
   createdAt: {
     type: Date,

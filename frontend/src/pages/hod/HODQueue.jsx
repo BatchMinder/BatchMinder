@@ -7,7 +7,6 @@ import {
 import { CircularProgress } from '@mui/material';
 import RequestDetail from '../../components/ApprovalWorkflow/RequestDetail';
 import SpecialPermissionForm from '../../components/ApprovalWorkflow/SpecialPermissionForm';
-import StatusBadge from '../../components/ApprovalWorkflow/StatusBadge';
 
 export default function HODQueue() {
   const { user } = useAuth();
@@ -19,7 +18,7 @@ export default function HODQueue() {
   const [searchQuery, setSearchQuery] = useState('');
   const [requestTypeFilter, setRequestTypeFilter] = useState('');
 
-  // Modals state
+  // Split-pane selection state
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showSpecialForm, setShowSpecialForm] = useState(false);
 
@@ -30,7 +29,11 @@ export default function HODQueue() {
       const res = await fetch('/api/hod/requests');
       const data = await res.json();
       if (res.ok && data.status === 'success') {
-        setRequests(data.data.requests || []);
+        const list = data.data.requests || [];
+        setRequests(list);
+        if (list.length > 0 && !selectedRequest) {
+          setSelectedRequest(list[0]);
+        }
       }
     } catch (err) {
       console.error('Failed to fetch HOD pending requests:', err);
@@ -59,10 +62,10 @@ export default function HODQueue() {
   const filteredRequests = requests.filter((r) => {
     const student = r.studentId || {};
     const matchesSearch =
-      student.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.rollNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.courseCode?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.courseTitle?.toLowerCase().includes(searchQuery.toLowerCase());
+      (student.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (student.rollNumber || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (r.courseCode || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (r.courseTitle || '').toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesType = requestTypeFilter === '' || r.requestType === requestTypeFilter;
 
@@ -151,190 +154,199 @@ export default function HODQueue() {
         </div>
       </div>
 
-      {/* Main Table Card Layout */}
-      <div
-        style={{
-          backgroundColor: '#FFFFFF',
-          borderRadius: '16px',
-          border: '1px solid #E2E8F0',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
-        {/* Table Filters header */}
+      {/* Split-pane Workspace Layout */}
+      <div style={{ display: 'grid', gridTemplateColumns: selectedRequest ? '1.3fr 1.2fr' : '1fr', gap: '20px', transition: 'all 0.2s' }}>
+
+        {/* Left Column: Requests List Table Card */}
         <div
           style={{
-            padding: '20px 24px',
-            borderBottom: '1px solid #F1F5F9',
+            backgroundColor: '#FFFFFF',
+            borderRadius: '16px',
+            border: '1px solid #E2E8F0',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '16px',
+            flexDirection: 'column',
           }}
         >
-          {/* Search bar */}
-          <div style={{ position: 'relative' }}>
-            <Search size={15} color="#94A3B8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-            <input
-              type="text"
-              placeholder="Search student, ID, or course..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                padding: '8px 12px 8px 36px',
-                borderRadius: '10px',
-                border: '1px solid #CBD5E1',
-                fontSize: '13px',
-                outline: 'none',
-                width: '240px',
-                backgroundColor: '#FFFFFF',
-                color: '#1E293B',
-                fontFamily: 'inherit',
-              }}
-            />
+          {/* Table Filters header */}
+          <div
+            style={{
+              padding: '20px 24px',
+              borderBottom: '1px solid #F1F5F9',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '16px',
+            }}
+          >
+            {/* Search bar */}
+            <div style={{ position: 'relative' }}>
+              <Search size={15} color="#94A3B8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+              <input
+                type="text"
+                placeholder="Search student, ID, or course..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  padding: '8px 12px 8px 36px',
+                  borderRadius: '10px',
+                  border: '1px solid #CBD5E1',
+                  fontSize: '13px',
+                  outline: 'none',
+                  width: '240px',
+                  backgroundColor: '#FFFFFF',
+                  color: '#1E293B',
+                  fontFamily: 'inherit',
+                }}
+              />
+            </div>
+
+            {/* Dropdown Filter by request type */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <SlidersHorizontal size={14} color="#64748B" />
+              <select
+                value={requestTypeFilter}
+                onChange={(e) => setRequestTypeFilter(e.target.value)}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '10px',
+                  border: '1px solid #CBD5E1',
+                  fontSize: '13px',
+                  color: '#475569',
+                  backgroundColor: '#FFFFFF',
+                  fontFamily: 'inherit',
+                  cursor: 'pointer',
+                  outline: 'none',
+                }}
+              >
+                <option value="">All Request Types</option>
+                <option value="Prerequisite Bypass">Prerequisite Bypass</option>
+                <option value="Credit Limit Extension">Credit Limit Extension</option>
+                <option value="Duplicate Course">Duplicate Course</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
           </div>
 
-          {/* Dropdown Filter by request type */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <SlidersHorizontal size={14} color="#64748B" />
-            <select
-              value={requestTypeFilter}
-              onChange={(e) => setRequestTypeFilter(e.target.value)}
-              style={{
-                padding: '8px 14px',
-                borderRadius: '10px',
-                border: '1px solid #CBD5E1',
-                fontSize: '13px',
-                color: '#475569',
-                backgroundColor: '#FFFFFF',
-                fontFamily: 'inherit',
-                cursor: 'pointer',
-                outline: 'none',
-              }}
-            >
-              <option value="">All Request Types</option>
-              <option value="Prerequisite Bypass">Prerequisite Bypass</option>
-              <option value="Credit Limit Extension">Credit Limit Extension</option>
-              <option value="Duplicate Course">Duplicate Course</option>
-              <option value="Other">Other</option>
-            </select>
+          {/* Requests Table */}
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '600px' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid #F1F5F9', backgroundColor: '#F8FAFC' }}>
+                  <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>Roll Number</th>
+                  <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>Student</th>
+                  <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>Requested Course</th>
+                  <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>Request Type</th>
+                  <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>Advisor Recommendation</th>
+                  <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan="6" style={{ padding: '50px', textAlign: 'center' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                        <CircularProgress size={24} />
+                        <span style={{ fontSize: '13px', color: '#64748B' }}>Loading request queue...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : filteredRequests.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" style={{ padding: '50px', textAlign: 'center' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                        <Clock size={36} color="#94A3B8" />
+                        <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#475569' }}>Queue is Clear</h4>
+                        <p style={{ margin: 0, fontSize: '12.5px', color: '#94A3B8' }}>No requests are currently waiting for HOD approval.</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredRequests.map((r) => {
+                    const student = r.studentId || {};
+                    const advisor = r.advisorId || {};
+                    return (
+                      <tr key={r._id} style={{
+                        borderBottom: '1px solid #F1F5F9',
+                        backgroundColor: selectedRequest?._id === r._id ? '#EFF6FF' : 'transparent',
+                        cursor: 'pointer'
+                      }} onClick={() => setSelectedRequest(r)}>
+                        <td style={{ padding: '14px 24px', fontSize: '13.5px', fontWeight: 700, color: '#0F172A' }}>
+                          {student.rollNumber || 'N/A'}
+                        </td>
+                        <td style={{ padding: '14px 24px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontSize: '13.5px', fontWeight: 700, color: '#1E293B' }}>{student.name || 'N/A'}</span>
+                            <span style={{ fontSize: '11px', color: '#94A3B8' }}>CGPA: {student.cgpa !== undefined ? student.cgpa.toFixed(2) : 'N/A'} &bull; Sem: {student.currentSemester}</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '14px 24px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontSize: '13.5px', fontWeight: 700, color: '#1E293B' }}>{r.courseCode}</span>
+                            <span style={{ fontSize: '12px', color: '#64748B' }}>{r.courseTitle} &bull; {r.creditHours} Cr. Hr.</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '14px 24px' }}>
+                          <span style={{ fontSize: '12px', fontWeight: 600, color: '#4F46E5', backgroundColor: '#EEF2FF', padding: '3px 8px', borderRadius: '6px' }}>
+                            {r.requestType}
+                          </span>
+                        </td>
+                        <td style={{ padding: '14px 24px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontSize: '12px', color: '#047857', fontWeight: 700 }}>Approved by {advisor.name || 'Advisor'}</span>
+                            {r.advisorRemarks && (
+                              <span style={{ fontSize: '11px', color: '#64748B', fontStyle: 'italic', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.advisorRemarks}>
+                                "{r.advisorRemarks}"
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td style={{ padding: '14px 24px', textAlign: 'right' }}>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setSelectedRequest(r); }}
+                            style={{
+                              padding: '6px 14px',
+                              borderRadius: '8px',
+                              border: '1px solid #2563EB',
+                              backgroundColor: '#FFFFFF',
+                              color: '#2563EB',
+                              fontSize: '12.5px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontFamily: 'inherit',
+                              transition: 'all 0.15s',
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#2563EB'; e.currentTarget.style.color = '#FFFFFF'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#FFFFFF'; e.currentTarget.style.color = '#2563EB'; }}
+                          >
+                            <span>Review</span>
+                            <ArrowRight size={13} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        {/* Requests Table */}
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '700px' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid #F1F5F9', backgroundColor: '#F8FAFC' }}>
-                <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>Roll Number</th>
-                <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>Student</th>
-                <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>Requested Course</th>
-                <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>Request Type</th>
-                <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>Advisor Recommendation</th>
-                <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan="6" style={{ padding: '50px', textAlign: 'center' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-                      <CircularProgress size={24} />
-                      <span style={{ fontSize: '13px', color: '#64748B' }}>Loading request queue...</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : filteredRequests.length === 0 ? (
-                <tr>
-                  <td colSpan="6" style={{ padding: '50px', textAlign: 'center' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                      <Clock size={36} color="#94A3B8" />
-                      <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#475569' }}>Queue is Clear</h4>
-                      <p style={{ margin: 0, fontSize: '12.5px', color: '#94A3B8' }}>No requests are currently waiting for HOD approval.</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filteredRequests.map((r) => {
-                  const student = r.studentId || {};
-                  const advisor = r.advisorId || {};
-                  return (
-                    <tr key={r._id} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                      <td style={{ padding: '14px 24px', fontSize: '13.5px', fontWeight: 700, color: '#0F172A' }}>
-                        {student.rollNumber || 'N/A'}
-                      </td>
-                      <td style={{ padding: '14px 24px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontSize: '13.5px', fontWeight: 700, color: '#1E293B' }}>{student.name || 'N/A'}</span>
-                          <span style={{ fontSize: '11px', color: '#94A3B8' }}>CGPA: {student.cgpa !== undefined ? student.cgpa.toFixed(2) : 'N/A'} &bull; Sem: {student.currentSemester}</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '14px 24px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontSize: '13.5px', fontWeight: 700, color: '#1E293B' }}>{r.courseCode}</span>
-                          <span style={{ fontSize: '12px', color: '#64748B' }}>{r.courseTitle} &bull; {r.creditHours} Cr. Hr.</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '14px 24px' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 600, color: '#4F46E5', backgroundColor: '#EEF2FF', padding: '3px 8px', borderRadius: '6px' }}>
-                          {r.requestType}
-                        </span>
-                      </td>
-                      <td style={{ padding: '14px 24px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontSize: '12px', color: '#047857', fontWeight: 700 }}>Approved by {advisor.name || 'Advisor'}</span>
-                          {r.advisorRemarks && (
-                            <span style={{ fontSize: '11px', color: '#64748B', fontStyle: 'italic', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.advisorRemarks}>
-                              "{r.advisorRemarks}"
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td style={{ padding: '14px 24px', textAlign: 'right' }}>
-                        <button
-                          onClick={() => setSelectedRequest(r)}
-                          style={{
-                            padding: '6px 14px',
-                            borderRadius: '8px',
-                            border: '1px solid #2563EB',
-                            backgroundColor: '#FFFFFF',
-                            color: '#2563EB',
-                            fontSize: '12.5px',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            fontFamily: 'inherit',
-                            transition: 'all 0.15s',
-                          }}
-                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#2563EB'; e.currentTarget.style.color = '#FFFFFF'; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#FFFFFF'; e.currentTarget.style.color = '#2563EB'; }}
-                        >
-                          <span>Review</span>
-                          <ArrowRight size={13} />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+        {/* Right Column: Request Detail Inline Panel */}
+        {selectedRequest && (
+          <RequestDetail
+            request={selectedRequest}
+            userRole="hod"
+            onClose={() => setSelectedRequest(null)}
+            onActionSuccess={handleReviewSuccess}
+            inline={true}
+          />
+        )}
       </div>
-
-      {/* Request Detail Modal Review Dialog */}
-      {selectedRequest && (
-        <RequestDetail
-          request={selectedRequest}
-          userRole="hod"
-          onClose={() => setSelectedRequest(null)}
-          onActionSuccess={handleReviewSuccess}
-        />
-      )}
 
       {/* Special Permission Bypass Form Modal Dialog */}
       {showSpecialForm && (
@@ -342,7 +354,6 @@ export default function HODQueue() {
           onClose={() => setShowSpecialForm(false)}
           onSuccess={() => {
             fetchRequests();
-            // Optional success notification could be triggered here
           }}
         />
       )}

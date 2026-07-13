@@ -40,6 +40,15 @@ const curriculumSchema = new mongoose.Schema({
     ref: 'Batch',
     required: [true, 'Please specify batch'],
   },
+  department: {
+    type: String,
+  },
+  batch: {
+    type: String,
+  },
+  semester: {
+    type: Number,
+  },
   version: {
     type: String,
     required: [true, 'Please specify curriculum version'],

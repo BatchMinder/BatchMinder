@@ -140,9 +140,14 @@ function detectDatesheetConflicts(entries) {
   return conflicts;
 }
 
-function ScheduleOverride() {
+function ScheduleOverride({ initialTab = "timetable" }) {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState("timetable"); // "timetable" | "datesheet"
+  const [activeTab, setActiveTab] = useState(initialTab); // "timetable" | "datesheet"
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
   const [entries, setEntries] = useState([]);
   const [conflicts, setConflicts] = useState([]);
   const [hasData, setHasData] = useState(false);

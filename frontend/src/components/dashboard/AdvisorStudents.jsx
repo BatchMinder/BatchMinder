@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
   Search, ShieldAlert, ShieldCheck, AlertTriangle, 
-  X, Eye, BookOpen, Clock, Mail, Calendar, GraduationCap
+  X, Eye, BookOpen, Clock, Mail, Calendar, GraduationCap, Brain, Play
 } from 'lucide-react';
+import { CircularProgress } from '@mui/material';
 
 export default function AdvisorStudents({ selectedBatch }) {
   const { user } = useAuth();
@@ -18,6 +19,31 @@ export default function AdvisorStudents({ selectedBatch }) {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+
+  const [predictionResult, setPredictionResult] = useState(null);
+  const [predicting, setPredicting] = useState(false);
+  const [degreeProgress, setDegreeProgress] = useState(null);
+
+  const handlePredictRisk = async (studentId) => {
+    setPredicting(true);
+    try {
+      const res = await fetch(`/api/students/${studentId}/predict-risk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
+        setPredictionResult(data.data);
+      } else {
+        alert(data.message || 'Failed to analyze risk.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Network error during risk calculation.');
+    } finally {
+      setPredicting(false);
+    }
+  };
 
   const assignedBatches = user?.assignedBatchIds || [];
   const hasNoBatches = assignedBatches.length === 0;
@@ -53,11 +79,20 @@ export default function AdvisorStudents({ selectedBatch }) {
 
   const handleOpenDetails = async (studentId) => {
     setStudentDetailsLoading(true);
+    setPredictionResult(null);
+    setDegreeProgress(null);
     try {
       const res = await fetch(`/api/advisor/students/${studentId}`);
       const data = await res.json();
       if (res.ok && data.status === 'success') {
         setSelectedStudent(data.data.student);
+        
+        // Fetch student degree completion progress
+        const progRes = await fetch(`/api/students/${studentId}/degree-progress`);
+        const progData = await progRes.json();
+        if (progRes.ok && progData.status === 'success') {
+          setDegreeProgress(progData.data.progress);
+        }
       } else {
         alert(data.message || 'Failed to fetch student details.');
       }
@@ -330,6 +365,107 @@ export default function AdvisorStudents({ selectedBatch }) {
                   <Clock size={14} color="#94A3B8" />
                   <span>Account Status: <b style={{ color: selectedStudent.status === 'active' ? '#10B981' : '#64748B' }}>{selectedStudent.status.toUpperCase()}</b></span>
                 </div>
+              </div>
+
+              {/* Degree Progress Section */}
+              {degreeProgress && (
+                <div style={{
+                  padding: '16px', borderRadius: '12px', border: '1px solid #E2E8F0',
+                  backgroundColor: '#FFFFFF', display: 'flex', flexDirection: 'column', gap: '10px',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <GraduationCap size={16} color="#10B981" />
+                    <span style={{ fontSize: '13px', fontWeight: 800, color: '#1E293B' }}>Degree Completion Progress</span>
+                  </div>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginTop: '4px' }}>
+                    <div>
+                      <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Completed Credits:</span>
+                      <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 800, color: '#1E293B' }}>{degreeProgress.completedCredits} CH</p>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Remaining Credits:</span>
+                      <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 800, color: '#4F46E5' }}>{degreeProgress.remainingCredits} CH</p>
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Completion Ratio</span>
+                      <span style={{ fontSize: '11.5px', color: '#10B981', fontWeight: 800 }}>{degreeProgress.completionPercentage}%</span>
+                    </div>
+                    <div style={{ width: '100%', height: '8px', backgroundColor: '#F1F5F9', borderRadius: '4px', overflow: 'hidden' }}>
+                      <div style={{
+                        width: `${degreeProgress.completionPercentage}%`, height: '100%',
+                        backgroundColor: '#10B981', borderRadius: '4px', transition: 'width 0.5s ease-out'
+                      }} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* AI Risk Prediction Panel */}
+              <div style={{ padding: '16px', borderRadius: '12px', border: '1px solid #E2E8F0', backgroundColor: '#F8FAFC', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Brain size={16} color="#2563EB" />
+                  <span style={{ fontSize: '13px', fontWeight: 800, color: '#1E293B' }}>AI Academic Risk Assistant</span>
+                </div>
+
+                {!predictionResult ? (
+                  <button
+                    onClick={() => handlePredictRisk(selectedStudent._id)}
+                    disabled={predicting}
+                    style={{
+                      width: '100%', padding: '8px 12px', borderRadius: '8px', border: 'none',
+                      backgroundColor: '#2563EB', color: '#fff', fontSize: '12.5px', fontWeight: 700,
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                      fontFamily: 'inherit'
+                    }}
+                  >
+                    {predicting ? <CircularProgress size={12} color="inherit" /> : <Play size={11} fill="#fff" style={{ border: 'none' }} />}
+                    <span>Run AI Academic Risk Diagnostic</span>
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {predictionResult.message === 'Insufficient data for prediction' || (predictionResult.historicalCGPA && predictionResult.historicalCGPA.length < 2) ? (
+                      <div style={{ padding: '10px', borderRadius: '8px', backgroundColor: '#FFFBEB', border: '1px solid #FDE68A', fontSize: '11px', color: '#B45309', lineHeight: 1.4 }}>
+                        <b>Prediction Limitation Notice:</b> Insufficient academic history. Student profile currently only holds {predictionResult.historicalCGPA?.length || 1} semester(s) of history, but the forecaster model requires at least 2.
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 600 }}>Risk Level:</span>
+                          <span style={{
+                            fontSize: '11px', fontWeight: 800, padding: '2px 8px', borderRadius: '12px',
+                            color: predictionResult.riskLevel === 'CRITICAL' ? '#DC2626' : predictionResult.riskLevel === 'WARNING' ? '#D97706' : '#059669',
+                            backgroundColor: predictionResult.riskLevel === 'CRITICAL' ? '#FCE8E6' : predictionResult.riskLevel === 'WARNING' ? '#FEF7E0' : '#E6F4EA'
+                          }}>
+                            {predictionResult.riskLevel} ({Math.round(predictionResult.riskScore * 100)}%)
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#475569', lineHeight: 1.4 }}>
+                          <b>AI Advisor Recommendation:</b>
+                          <ul style={{ margin: '4px 0 0', paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            {predictionResult.riskLevel === 'CRITICAL' ? (
+                              <>
+                                <li>Restrict registration load to maximum 12 CH (BR-2).</li>
+                                <li>Direct referral to peer tutoring and department helpdesk.</li>
+                              </>
+                            ) : predictionResult.riskLevel === 'WARNING' ? (
+                              <>
+                                <li>Advise student to limit credit load to 15 CH.</li>
+                                <li>Schedule bi-weekly advising check-ins.</li>
+                              </>
+                            ) : (
+                              <li>Low academic risk. Maintain standard 18 CH enrollment.</li>
+                            )}
+                          </ul>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Courses Enrollments Grouped by Semester */}

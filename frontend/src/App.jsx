@@ -40,6 +40,7 @@ import AdvisorTimetable from './pages/advisor/AdvisorTimetable';
 import AdvisorReporting from './pages/advisor/AdvisorReporting';
 import AdvisorMyBatch from './pages/advisor/AdvisorMyBatch';
 import AttendanceDashboard from './pages/advisor/AttendanceDashboard';
+import AdvisorRiskDashboard from './pages/advisor/AdvisorRiskDashboard';
 
 import {
   Layers,
@@ -81,6 +82,7 @@ function App() {
 
   // 🚀 FORCED STATE: Starts automatically into the Timetable view
   const [adminActiveNav, setAdminActiveNav] = useState('timetable_generator');
+  const [overrideInitialTab, setOverrideInitialTab] = useState('timetable');
 
   const [advisorActiveNav, setAdvisorActiveNav] = useState('dashboard');
   const [hodActiveNav, setHodActiveNav] = useState('dashboard');
@@ -92,7 +94,8 @@ function App() {
       const fetchBatches = async () => {
         try {
           const res = await fetch('/api/advisor/dashboard-summary');
-          const data = await res.json();
+          const text = await res.text();
+          const data = text ? JSON.parse(text) : {};
           if (res.ok && data.status === 'success') {
             setAdvisorBatches(data.data.batches || []);
           }
@@ -132,14 +135,15 @@ function App() {
     setLogsError('');
     try {
       const response = await fetch('/api/auth/audit-logs');
-      const resData = await response.json();
+      const text = await response.text();
+      const resData = text ? JSON.parse(text) : {};
       if (response.ok) {
         setAuditLogs(resData.data.logs || []);
       } else {
         setLogsError(resData.message || 'Failed to fetch logs');
       }
     } catch (err) {
-      logsError('Network error reading audit logs');
+      setLogsError('Network error reading audit logs');
     } finally {
       setLogsLoading(false);
     }
@@ -148,7 +152,8 @@ function App() {
   const fetchTotalStudents = async () => {
     try {
       const response = await fetch('/api/students?limit=1');
-      const data = await response.json();
+      const text = await response.text();
+      const data = text ? JSON.parse(text) : {};
       if (response.ok) {
         setTotalStudents(data.total || data.results || 0);
       }
@@ -301,28 +306,28 @@ function App() {
       };
 
       const pages = {
-        dashboard: <Dashboard />,
-        students: <StudentRecords />,
-        upload: <CsvUpload />,
+        dashboard: <Dashboard setActiveNav={setAdminActiveNav} />,
+        students: <StudentRecords setActiveNav={setAdminActiveNav} />,
+        upload: <DataIngestionHub />,
         migrations: <MigrationRecords />,
         curriculum: <CurriculumSetup />,
         batches: <Batches />,
-        timetable: <TimetableGenerator />,
-        datesheet: <DatesheetGenerator />,
-        override: <ScheduleOverride />,
+        timetable: <TimetableGenerator setActiveNav={(nav) => { setAdminActiveNav(nav); if (nav === 'schedule_override' || nav === 'override') setOverrideInitialTab('timetable'); }} />,
+        datesheet: <DatesheetGenerator setActiveNav={(nav) => { setAdminActiveNav(nav); if (nav === 'schedule_override' || nav === 'override') setOverrideInitialTab('datesheet'); }} />,
+        override: <ScheduleOverride initialTab={overrideInitialTab} />,
         audit_logs: <AuditLogsPage setActiveNav={setAdminActiveNav} />,
         settings: <ProfileSettingsPage />,
 
         // 🗓️ Switched paths to load their individual separate view screens!
-        timetable_generator: <TimetableGenerator />,
-        datesheet_generator: <DatesheetGenerator />,
-        schedule_override: <ScheduleOverride />,
+        timetable_generator: <TimetableGenerator setActiveNav={(nav) => { setAdminActiveNav(nav); if (nav === 'schedule_override') setOverrideInitialTab('timetable'); }} />,
+        datesheet_generator: <DatesheetGenerator setActiveNav={(nav) => { setAdminActiveNav(nav); if (nav === 'schedule_override') setOverrideInitialTab('datesheet'); }} />,
+        schedule_override: <ScheduleOverride initialTab={overrideInitialTab} />,
         notifications: <NotificationsPage setActiveNav={setAdminActiveNav} />,
         attendance: <AttendanceDashboard user={user} />,
         reports: <AdvisorReporting />,
         special_permission: <HODQueue />,
       };
-      return <AdminLayout activeNav={adminActiveNav} onNavigate={setAdminActiveNav}>{pages[adminActiveNav] || <Dashboard />}</AdminLayout>;
+      return <AdminLayout activeNav={adminActiveNav} onNavigate={setAdminActiveNav}>{pages[adminActiveNav] || <Dashboard setActiveNav={setAdminActiveNav} />}</AdminLayout>;
     }
 
     if (user.role === 'advisor') {
@@ -330,6 +335,7 @@ function App() {
         dashboard: <AdvisorDashboard selectedBatch={selectedAdvisorBatch} setActiveNav={setAdvisorActiveNav} />,
         myBatch: <AdvisorMyBatch selectedBatch={selectedAdvisorBatch} />,
         students: <AdvisorStudents selectedBatch={selectedAdvisorBatch} />,
+        at_risk_monitoring: <AdvisorRiskDashboard />,
         workflowQueue: <AdvisorQueue />,
         timetable: <AdvisorTimetable />,
         attendance: <AttendanceDashboard user={user} />,
@@ -355,6 +361,7 @@ function App() {
       const pages = {
         dashboard: <HODQueue />,
         history: <RequestHistory />,
+        reporting: <AdvisorReporting />,
         settings: <ProfileSettingsPage />,
         notifications: <NotificationsPage setActiveNav={setHodActiveNav} />,
       };

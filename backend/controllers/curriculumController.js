@@ -1,6 +1,26 @@
 import Curriculum from '../models/curriculum.js';
+import Department from '../models/department.js';
+import Batch from '../models/batch.js';
 import { scopeToUserDepartments } from '../middleware/scopeMiddleware.js';
 import { logAudit } from '../utils/logger.js';
+
+export const getAllCurriculums = async (req, res) => {
+  try {
+    const scope = scopeToUserDepartments(req);
+    if (scope._id === null) {
+      return res.status(200).json({ status: 'success', data: { curriculums: [] } });
+    }
+
+    const curriculums = await Curriculum.find(scope)
+      .populate('departmentId', 'name code')
+      .populate('batchId', 'code name')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({ status: 'success', data: { curriculums } });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 export const getCurriculumByBatch = async (req, res) => {
   try {
@@ -41,7 +61,8 @@ export const createOrUpdateCurriculum = async (req, res) => {
     }
 
     if (scope.departmentId && scope.departmentId.$in) {
-      if (!scope.departmentId.$in.includes(departmentId)) {
+      const allowedDepts = scope.departmentId.$in.map(id => id.toString());
+      if (!allowedDepts.includes(departmentId.toString())) {
         return res.status(403).json({ message: 'Department not in your scope' });
       }
     }
@@ -94,6 +115,63 @@ export const createOrUpdateCurriculum = async (req, res) => {
 
     res.status(200).json({ status: 'success', data: { curriculum } });
   } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const createOrUpdateCurriculumMap = async (req, res) => {
+  try {
+    const { department, batch, semester, courses } = req.body;
+
+    let dept = await Department.findOne({ name: department });
+    if (!dept) {
+      dept = await Department.create({ name: department, code: 'CS', color: '#6366F1' });
+    }
+
+    let batchDoc = await Batch.findOne({ code: batch });
+    if (!batchDoc) {
+      batchDoc = await Batch.create({
+        code: batch,
+        dept: department,
+        departmentId: dept._id,
+        startYear: parseInt(batch) || 2022,
+        advisor: 'Unassigned',
+      });
+    }
+
+    const curriculum = await Curriculum.findOneAndUpdate(
+      { batchId: batchDoc._id, departmentId: dept._id, semester: Number(semester) || 1 },
+      {
+        batchId: batchDoc._id,
+        departmentId: dept._id,
+        department,
+        batch,
+        semester: Number(semester) || 1,
+        version: '1.0',
+        courses: courses.map(c => ({
+          code: c.courseCode,
+          title: c.title,
+          creditHours: c.creditHours,
+          semester: Number(semester) || 1
+        })),
+        status: 'active'
+      },
+      { new: true, upsert: true, runValidators: true }
+    );
+
+    await logAudit({
+      actorId: req.user?._id || new mongoose.Types.ObjectId(),
+      actorRole: req.user?.role || 'admin',
+      action: 'CURRICULUM_MAP_CREATED',
+      targetType: 'Curriculum',
+      targetId: curriculum._id.toString(),
+      departmentId: dept._id.toString(),
+      metadata: { description: `Created curriculum map for ${department} (Batch ${batch}, Semester ${semester})` }
+    });
+
+    res.status(200).json({ status: 'success', data: { curriculum } });
+  } catch (error) {
+    console.error('createOrUpdateCurriculumMap error:', error);
     res.status(500).json({ message: error.message });
   }
 };

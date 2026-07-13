@@ -62,7 +62,8 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
         ? `/api/advisor/dashboard-summary?batchId=${selectedBatch}`
         : '/api/advisor/dashboard-summary';
       const summaryRes = await fetch(summaryUrl);
-      const summaryData = await summaryRes.json();
+      const summaryText = await summaryRes.text();
+      const summaryData = summaryText ? JSON.parse(summaryText) : {};
       if (summaryRes.ok && summaryData.status === 'success') {
         setStats(summaryData.data.stats || { total: 0, good: 0, warning: 0, critical: 0 });
       }
@@ -72,14 +73,16 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
         ? `/api/advisor/students?limit=500&batchId=${selectedBatch}`
         : '/api/advisor/students?limit=500';
       const studentsRes = await fetch(studentsUrl);
-      const studentsData = await studentsRes.json();
+      const studentsText = await studentsRes.text();
+      const studentsData = studentsText ? JSON.parse(studentsText) : {};
       if (studentsRes.ok && studentsData.status === 'success') {
         setStudents(studentsData.data.students || []);
       }
 
       // 3. Fetch workflow approval requests
       const requestsRes = await fetch('/api/advisor/requests');
-      const requestsData = await requestsRes.json();
+      const requestsText = await requestsRes.text();
+      const requestsData = requestsText ? JSON.parse(requestsText) : {};
       if (requestsRes.ok && requestsData.status === 'success') {
         setRequests(requestsData.data.requests || []);
       }
