@@ -123,16 +123,7 @@ export default function Header({ title, subtitle, setActiveNav, children }) {
           >
             <Menu size={18} />
           </button>
-          <div style={{ minWidth: 0 }}>
-            <h1 style={{ margin: 0, fontSize: isMobile ? '18px' : '22px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {title}
-            </h1>
-            {!isMobile && (
-              <p style={{ margin: '3px 0 0', fontSize: '13px', color: '#94A3B8' }}>
-                {subtitle || 'BatchMinder ERP \u2022 Super Admin'}
-              </p>
-            )}
-          </div>
+
         </div>
 
         {/* Right Side: Children + Bell + Date (Desktop) + Live System (Desktop) */}
