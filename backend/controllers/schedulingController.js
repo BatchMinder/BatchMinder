@@ -3,6 +3,7 @@ import Datesheet from '../models/datesheet.js';
 import Batch from '../models/batch.js';
 import Curriculum from '../models/curriculum.js';
 import User from '../models/user.js';
+import Student from '../models/student.js';
 import { logAudit } from '../utils/logger.js';
 
 // GET: get weekly timetable
@@ -149,6 +150,65 @@ export const saveOverride = async (req, res, next) => {
 
     let savedCount = 0;
     if (type === 'timetable') {
+      // 1. Fetch batches and calculate sizes dynamically for capacity check
+      const batches = await Batch.find({});
+      const batchMap = {};
+      for (const b of batches) {
+        const studentCount = await Student.countDocuments({ batchId: b._id });
+        batchMap[b.code] = studentCount > 0 ? studentCount : 35;
+      }
+
+      const roomCapacityMap = {
+        'Room 101': 50,
+        'Room 102': 45,
+        'Lab A': 30,
+        'Lab B': 30,
+        'Room 201': 60,
+        'Room 202': 60
+      };
+
+      // 2. Validate all incoming entries against hard constraints (FR-5.4)
+      for (let i = 0; i < entries.length; i++) {
+        const a = entries[i];
+        
+        // Validation 1: Room Capacity Constraint (FR-5.5)
+        const batchSize = batchMap[a.batch] || 35;
+        const capacity = roomCapacityMap[a.room] || 40;
+        if (capacity < batchSize) {
+          return res.status(400).json({
+            status: 'error',
+            message: `Constraint Violation: ${a.room} (Capacity: ${capacity}) is too small for Batch ${a.batch} (Size: ${batchSize}).`
+          });
+        }
+
+        for (let j = i + 1; j < entries.length; j++) {
+          const b = entries[j];
+          if (a.day === b.day && a.timeSlot === b.timeSlot) {
+            // Validation 2: Room Clash
+            if (a.room === b.room) {
+              return res.status(400).json({
+                status: 'error',
+                message: `Constraint Violation: Room Double-Booking in ${a.room} at ${a.day} ${a.timeSlot} (${a.courseCode} & ${b.courseCode}).`
+              });
+            }
+            // Validation 3: Faculty Clash
+            if (a.instructor === b.instructor) {
+              return res.status(400).json({
+                status: 'error',
+                message: `Constraint Violation: Instructor Double-Booking for ${a.instructor} at ${a.day} ${a.timeSlot} (${a.courseCode} & ${b.courseCode}).`
+              });
+            }
+            // Validation 4: Student Cohort Overlap
+            if (a.batch === b.batch) {
+              return res.status(400).json({
+                status: 'error',
+                message: `Constraint Violation: Student Cohort Overlap for Batch ${a.batch} at ${a.day} ${a.timeSlot} (${a.courseCode} & ${b.courseCode}).`
+              });
+            }
+          }
+        }
+      }
+
       await Timetable.deleteMany({});
       const formatted = entries.map(e => {
         const entry = { ...e };
@@ -160,6 +220,44 @@ export const saveOverride = async (req, res, next) => {
       const saved = await Timetable.insertMany(formatted);
       savedCount = saved.length;
     } else {
+      // Validate datesheet override constraints
+      for (let i = 0; i < entries.length; i++) {
+        const a = entries[i];
+        for (let j = i + 1; j < entries.length; j++) {
+          const b = entries[j];
+          
+          const aDate = a.date || a.examDate;
+          const bDate = b.date || b.examDate;
+          const aSlot = a.examSlot || a.timeSlot;
+          const bSlot = b.examSlot || b.timeSlot;
+          const aRoom = a.room || a.roomNo;
+          const bRoom = b.room || b.roomNo;
+          const aInv = a.invigilator || a.invigilatorId;
+          const bInv = b.invigilator || b.invigilatorId;
+
+          if (aDate && bDate && new Date(aDate).getTime() === new Date(bDate).getTime() && aSlot === bSlot) {
+            if (aRoom && bRoom && aRoom === bRoom) {
+              return res.status(400).json({
+                status: 'error',
+                message: `Datesheet Violation: Room Double-Booking in ${aRoom} on ${new Date(aDate).toLocaleDateString()} (${a.courseCode} & ${b.courseCode}).`
+              });
+            }
+            if (aInv && bInv && aInv === bInv) {
+              return res.status(400).json({
+                status: 'error',
+                message: `Datesheet Violation: Invigilator Double-Booking for ${aInv} on ${new Date(aDate).toLocaleDateString()} (${a.courseCode} & ${b.courseCode}).`
+              });
+            }
+            if (a.batch === b.batch) {
+              return res.status(400).json({
+                status: 'error',
+                message: `Datesheet Violation: Cohort Overlap for Batch ${a.batch} on ${new Date(aDate).toLocaleDateString()} (${a.courseCode} & ${b.courseCode}).`
+              });
+            }
+          }
+        }
+      }
+
       await Datesheet.deleteMany({});
       const formatted = entries.map(e => {
         const entry = { ...e };
@@ -292,6 +390,18 @@ export const autoGenerateTimetable = async (req, res, next) => {
     // Delete existing timetable for this batch and semester
     await Timetable.deleteMany({ batch: batch.code, semester: Number(semester) });
 
+    const studentCount = await Student.countDocuments({ batchId });
+    const batchSize = studentCount > 0 ? studentCount : 35;
+
+    const roomCapacityMap = {
+      'Room 101': 50,
+      'Room 102': 45,
+      'Lab A': 30,
+      'Lab B': 30,
+      'Room 201': 60,
+      'Room 202': 60
+    };
+
     const existing = await Timetable.find({});
     const generatedEntries = [];
 
@@ -308,6 +418,13 @@ export const autoGenerateTimetable = async (req, res, next) => {
         if (assigned) break;
         for (const room of ROOMS) {
           if (assigned) break;
+
+          // Check Capacity Constraint (Hard Constraint FR-5.5)
+          const roomCapacity = roomCapacityMap[room] || 40;
+          if (roomCapacity < batchSize) {
+            continue; // Skip room if it doesn't fit the batch size
+          }
+
           for (const instructor of instructorNames) {
             const roomTaken = existing.some(e => e.day === slot.day && e.timeSlot === slot.timeSlot && e.room === room);
             const instructorTaken = existing.some(e => e.day === slot.day && e.timeSlot === slot.timeSlot && e.instructor === instructor);
@@ -333,11 +450,10 @@ export const autoGenerateTimetable = async (req, res, next) => {
         }
       }
       if (!assigned) {
-        generatedEntries.push({
-          day: DAYS[0], timeSlot: TIMESLOTS[0],
-          courseCode: course.code, courseName: course.title,
-          room: ROOMS[0], instructor: instructorNames[0],
-          batch: batch.code, semester: Number(semester), departmentId: batch.departmentId
+        // According to Section 8.3: Overlap returns a FAILED response instead of forcing a clashing schedule
+        return res.status(400).json({
+          status: 'fail',
+          message: `Failed to auto-allocate course ${course.code}. All compliant rooms/slots are exhausted or capacity constraints are not met.`
         });
       }
     }

@@ -188,7 +188,14 @@ export default function AdvisorReporting() {
       </div>
 
       {/* Navigation tabs for Report Selection */}
-      <div style={{ display: 'flex', borderBottom: '1px solid #E2E8F0', gap: '24px', paddingBottom: '2px' }}>
+      <div className="no-scrollbar" style={{ 
+        display: 'flex', 
+        borderBottom: '1px solid #E2E8F0', 
+        gap: '24px', 
+        paddingBottom: '2px',
+        overflowX: 'auto',
+        whiteSpace: 'nowrap'
+      }}>
         {[
           { id: 'performance', label: 'Academic Performance', icon: BarChart2 },
           { id: 'enrollment', label: 'Batch Enrollment', icon: Layers },
@@ -204,7 +211,9 @@ export default function AdvisorReporting() {
                 display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px 14px',
                 border: 'none', background: 'none', borderBottom: isSelected ? '3px solid #2563EB' : '3px solid transparent',
                 color: isSelected ? '#2563EB' : '#64748B', fontWeight: isSelected ? 800 : 500, fontSize: '13px',
-                cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s'
+                cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+                flexShrink: 0,
+                whiteSpace: 'nowrap'
               }}
             >
               <TabIcon size={15} />

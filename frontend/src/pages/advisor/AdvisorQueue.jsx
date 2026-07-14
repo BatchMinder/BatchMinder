@@ -135,6 +135,11 @@ export default function AdvisorQueue() {
 
   const handleSelectRequest = async (req) => {
     setSelectedRequest(req); setRemarks(''); setActionError(''); setEvalStudent(null);
+    if (window.innerWidth < 1280) {
+      setTimeout(() => {
+        document.getElementById('details-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
     try {
       const studentIdString = typeof req.studentId === 'object' && req.studentId ? req.studentId._id : req.studentId;
       const res = await fetch(`/api/advisor/students/${studentIdString}`);
@@ -268,11 +273,8 @@ export default function AdvisorQueue() {
       {/* ── Main Content ── */}
       <div className={`grid gap-5 ${selectedRequest ? 'grid-cols-1 xl:grid-cols-[1.55fr_1fr]' : 'grid-cols-1'}`}>
 
-        {/* ── LEFT COLUMN ── */}
-        <div className="flex flex-col gap-4 min-w-0">
-
-          {/* Requests Queue Card */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
+        {/* Requests Queue Card */}
+        <div className="order-1 xl:col-start-1 xl:row-start-1 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden min-w-0">
 
             {/* Table Header */}
             <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
@@ -364,8 +366,8 @@ export default function AdvisorQueue() {
                         </td>
                         <td className="px-4 py-3 text-right">
                           {actionable
-                            ? <span className="px-2.5 py-1 border border-blue-300 text-blue-600 text-[10px] font-bold rounded hover:bg-blue-50 cursor-pointer transition-colors">Review</span>
-                            : <span className="text-slate-400 text-[10px] font-bold cursor-pointer hover:underline">View</span>
+                            ? <button type="button" onClick={(e) => { e.stopPropagation(); handleSelectRequest(req); }} className="px-2.5 py-1 border border-blue-300 text-blue-600 text-[10px] font-bold rounded hover:bg-blue-50 cursor-pointer transition-colors">Review</button>
+                            : <button type="button" onClick={(e) => { e.stopPropagation(); handleSelectRequest(req); }} className="text-slate-400 text-[10px] font-bold cursor-pointer hover:underline bg-transparent border-none">View</button>
                           }
                         </td>
                       </tr>
@@ -376,9 +378,9 @@ export default function AdvisorQueue() {
             </div>
 
             {/* Pagination */}
-            <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
+            <div className="px-4 py-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-4 text-[11px] text-slate-500 font-medium">
               <span>Showing {totalFiltered === 0 ? 0 : (page-1)*PAGE_SIZE+1} to {Math.min(page*PAGE_SIZE, totalFiltered)} of {totalFiltered} requests</span>
-              <div className="flex items-center gap-1">
+              <div className="flex flex-wrap items-center gap-1">
                 <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page===1} className="w-6 h-6 flex items-center justify-center rounded border border-slate-200 hover:bg-slate-100 disabled:opacity-30">‹</button>
                 {Array.from({ length: Math.min(totalPages, 3) }, (_, i) => i+1).map(n => (
                   <button key={n} onClick={() => setPage(n)} className={`w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold border ${page===n ? 'bg-[#1B3A6B] text-white border-[#1B3A6B]' : 'border-slate-200 hover:bg-slate-100'}`}>{n}</button>
@@ -388,11 +390,11 @@ export default function AdvisorQueue() {
                 <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page===totalPages} className="w-6 h-6 flex items-center justify-center rounded border border-slate-200 hover:bg-slate-100 disabled:opacity-30">›</button>
               </div>
             </div>
-          </div>
+        </div>
 
-          {/* ── Bottom: Approval Workflow + History + Remarks (when request selected) ── */}
-          {selectedRequest && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* ── Bottom: Approval Workflow + History + Remarks (when request selected) ── */}
+        {selectedRequest && (
+          <div className="order-3 xl:col-start-1 xl:row-start-2 grid grid-cols-1 lg:grid-cols-3 gap-4 min-w-0">
 
               {/* Approval Workflow */}
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
@@ -469,20 +471,18 @@ export default function AdvisorQueue() {
                     <AlertCircle className="w-3 h-3 shrink-0" /> {actionError}
                   </div>
                 )}
-                {selectedRequest.status === 'pending' ? (
+                {isActionable(selectedRequest.status) ? (
                   <div>
                     <p className="text-[10px] font-extrabold text-slate-600 uppercase tracking-widest mb-2">Next Action</p>
-                    <div className="flex flex-col gap-1.5">
+                    <div className="flex gap-2">
                       <button onClick={() => handleResolveAction(true)} disabled={actionLoading}
-                        className="flex items-center justify-center gap-1.5 w-full px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-bold rounded-lg transition-colors disabled:opacity-50">
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-bold rounded-lg transition-colors disabled:opacity-50">
                         <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> Approve
                       </button>
-                      <div className="flex gap-1.5">
-                        <button onClick={() => handleResolveAction(false)} disabled={actionLoading}
-                          className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-white border border-rose-300 hover:bg-rose-50 text-rose-600 text-[11px] font-bold rounded-lg transition-colors">
-                          <X className="w-3 h-3 shrink-0" /> Reject
-                        </button>
-                      </div>
+                      <button onClick={() => handleResolveAction(false)} disabled={actionLoading}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-rose-300 hover:bg-rose-50 text-rose-600 text-[11px] font-bold rounded-lg transition-colors">
+                        <X className="w-3 h-3 shrink-0" /> Reject
+                      </button>
                     </div>
                   </div>
                 ) : (
@@ -492,13 +492,12 @@ export default function AdvisorQueue() {
                 )}
               </div>
 
-            </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* ── RIGHT COLUMN: Detail Panel ── */}
         {selectedRequest && (
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+          <div id="details-panel" className="order-2 xl:col-start-2 xl:row-start-1 xl:row-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-w-0">
 
             {/* Student Header */}
             <div className="p-5 bg-white border-b border-slate-100">

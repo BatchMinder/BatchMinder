@@ -419,12 +419,13 @@ export default function AuditLogsPage({ setActiveNav }) {
           {!loading && !error && totalLogs > 0 && (
             <div style={{
               padding: '11px 16px', borderTop: '1px solid #F1F5F9',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              flexWrap: 'wrap', gap: '12px'
             }}>
               <span style={{ fontSize: '11px', color: '#94A3B8' }}>
                 Showing {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, totalLogs)} of {totalLogs} logs
               </span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
                 <button
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
@@ -437,22 +438,44 @@ export default function AuditLogsPage({ setActiveNav }) {
                 >
                   ←
                 </button>
-                {Array.from({ length: totalPages }, (_, idx) => idx + 1).map(n => (
-                  <button
-                    key={n}
-                    onClick={() => setCurrentPage(n)}
-                    style={{
-                      width: '28px', height: '28px', borderRadius: '6px', border: '1px solid',
-                      borderColor: currentPage === n ? '#2563EB' : '#E2E8F0',
-                      backgroundColor: currentPage === n ? '#2563EB' : '#fff',
-                      color: currentPage === n ? '#fff' : '#374151',
-                      fontSize: '11px', fontWeight: currentPage === n ? 700 : 400,
-                      cursor: 'pointer', fontFamily: 'inherit'
-                    }}
-                  >
-                    {n}
-                  </button>
-                ))}
+                {(() => {
+                  const buttons = [];
+                  const maxVisible = 5;
+                  if (totalPages <= maxVisible) {
+                    for (let i = 1; i <= totalPages; i++) buttons.push(i);
+                  } else {
+                    buttons.push(1);
+                    let start = Math.max(2, currentPage - 1);
+                    let end = Math.min(totalPages - 1, currentPage + 1);
+                    if (currentPage <= 2) end = 3;
+                    if (currentPage >= totalPages - 1) start = totalPages - 2;
+                    if (start > 2) buttons.push('...');
+                    for (let i = start; i <= end; i++) buttons.push(i);
+                    if (end < totalPages - 1) buttons.push('...');
+                    buttons.push(totalPages);
+                  }
+                  return buttons.map((n, idx) => {
+                    if (n === '...') {
+                      return <span key={`ellipsis-${idx}`} style={{ fontSize: '11px', color: '#94A3B8', padding: '0 4px' }}>...</span>;
+                    }
+                    return (
+                      <button
+                        key={n}
+                        onClick={() => setCurrentPage(n)}
+                        style={{
+                          width: '28px', height: '28px', borderRadius: '6px', border: '1px solid',
+                          borderColor: currentPage === n ? '#2563EB' : '#E2E8F0',
+                          backgroundColor: currentPage === n ? '#2563EB' : '#fff',
+                          color: currentPage === n ? '#fff' : '#374151',
+                          fontSize: '11px', fontWeight: currentPage === n ? 700 : 400,
+                          cursor: 'pointer', fontFamily: 'inherit'
+                        }}
+                      >
+                        {n}
+                      </button>
+                    );
+                  });
+                })()}
                 <button
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}

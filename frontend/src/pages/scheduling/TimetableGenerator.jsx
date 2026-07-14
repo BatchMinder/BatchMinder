@@ -223,13 +223,13 @@ export default function TimetableGenerator({ setActiveNav }) {
   }
 
   return (
-    <div className="bg-slate-50 min-h-screen text-slate-800 p-6 pb-20 font-sans">
+    <div className="bg-slate-50 min-h-screen text-slate-800 p-4 sm:p-6 pb-20 font-sans max-w-full overflow-x-hidden">
       
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-extrabold text-[#1B3A6B] font-display">Timetable Management</h1>
-          <div className="text-xs text-slate-500 font-medium mt-1 flex items-center gap-1.5">
+          <div className="text-xs text-slate-500 font-medium mt-1 flex flex-wrap items-center gap-1.5">
             <span className="hover:text-brandAccent cursor-pointer transition-colors">BatchMinder ERP</span>
             <span className="text-slate-300">/</span>
             <span className="hover:text-brandAccent cursor-pointer transition-colors">Academic Management</span>
@@ -246,8 +246,8 @@ export default function TimetableGenerator({ setActiveNav }) {
       </div>
 
       {/* Top Filter Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4 mb-6">
-        <div className="flex flex-wrap items-center gap-4 flex-1">
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center gap-4 flex-1">
           <div className="flex flex-col gap-1 w-full sm:w-40">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Department</label>
             <div className="relative">
@@ -316,7 +316,7 @@ export default function TimetableGenerator({ setActiveNav }) {
           
           {/* Main Grid Card */}
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
-            <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white">
+            <div className="px-5 py-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white">
               <div className="flex items-center gap-3">
                 <h3 className="text-sm font-extrabold text-slate-800">Weekly Timetable - BSCS {batchLabel} - Semester {selectedSemester || 6}</h3>
                 <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase tracking-wider rounded border border-emerald-200">Published</span>
@@ -333,7 +333,7 @@ export default function TimetableGenerator({ setActiveNav }) {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full text-left border-collapse min-w-[1000px]">
                 <thead>
                   <tr className="bg-slate-50/50 text-slate-500 text-[11px] font-bold uppercase tracking-wider border-b border-slate-200">
                     <th className="px-4 py-3 w-36 text-center border-r border-slate-100">Time / Day</th>
@@ -379,10 +379,10 @@ export default function TimetableGenerator({ setActiveNav }) {
 
           <div className="grid lg:grid-cols-3 gap-6">
             {/* Bottom Table: Class Timing Details */}
-            <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+            <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl shadow-sm p-5 overflow-hidden">
               <h3 className="text-sm font-bold text-slate-800 mb-4">Class Timing Details</h3>
               <div className="overflow-x-auto rounded-xl border border-slate-200">
-                <table className="w-full text-left text-xs">
+                <table className="w-full text-left text-xs min-w-[700px]">
                   <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200">
                     <tr>
                       <th className="px-4 py-3">Code</th>

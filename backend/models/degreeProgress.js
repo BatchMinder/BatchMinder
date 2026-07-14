@@ -21,6 +21,10 @@ const degreeProgressSchema = new mongoose.Schema({
     type: Number,
     required: true,
     default: 0.0
+  },
+  backlog: {
+    type: [String],
+    default: []
   }
 }, {
   timestamps: true

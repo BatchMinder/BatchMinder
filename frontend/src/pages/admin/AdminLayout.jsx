@@ -413,7 +413,6 @@ export default function AdminLayout({
               <SidebarSection
                 title="Academic"
                 items={[
-                  { id: 'timetable', label: 'Timetable Management', icon: Calendar },
                   { id: 'reporting', label: 'Reporting Dashboard', icon: BarChart2 }
                 ]}
                 activeNav={activeNav} handleNavigate={handleNavigate} expandedFolders={expandedFolders} toggleFolder={toggleFolder}
@@ -714,6 +713,7 @@ export default function AdminLayout({
             whiteSpace: 'nowrap',
             order: isMobile ? 10 : 0,
             width: isMobile ? '100%' : 'auto',
+            boxSizing: 'border-box',
             justifyContent: 'center'
           }}>
             <Calendar size={14} color="#94A3B8" />

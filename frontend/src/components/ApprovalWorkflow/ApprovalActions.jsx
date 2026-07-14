@@ -6,6 +6,13 @@ export default function ApprovalActions({ requestId, mode = 'hod', onSuccess, on
   const [remarks, setRemarks] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
+
+  React.useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleAction = async (isApprove) => {
     if (!isApprove && (!remarks || remarks.trim() === '')) {
@@ -106,7 +113,13 @@ export default function ApprovalActions({ requestId, mode = 'hod', onSuccess, on
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: isMobile ? 'column' : 'row', 
+        gap: '10px', 
+        justifyContent: 'flex-end', 
+        alignItems: 'stretch' 
+      }}>
         {onCancel && (
           <button
             onClick={onCancel}
@@ -121,6 +134,8 @@ export default function ApprovalActions({ requestId, mode = 'hod', onSuccess, on
               fontSize: '13px',
               cursor: 'pointer',
               fontFamily: 'inherit',
+              textAlign: 'center',
+              width: isMobile ? '100%' : 'auto',
               transition: 'background-color 0.15s',
             }}
             onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#F8FAFC')}
@@ -145,8 +160,10 @@ export default function ApprovalActions({ requestId, mode = 'hod', onSuccess, on
             fontFamily: 'inherit',
             display: 'flex',
             alignItems: 'center',
+            justifyContent: 'center',
             gap: '6px',
             boxShadow: '0 2px 4px rgba(239,68,68,0.1)',
+            width: isMobile ? '100%' : 'auto',
             transition: 'opacity 0.15s',
           }}
           onMouseEnter={(e) => (e.currentTarget.style.opacity = 0.9)}
@@ -171,8 +188,10 @@ export default function ApprovalActions({ requestId, mode = 'hod', onSuccess, on
             fontFamily: 'inherit',
             display: 'flex',
             alignItems: 'center',
+            justifyContent: 'center',
             gap: '6px',
             boxShadow: '0 2px 4px rgba(16,185,129,0.1)',
+            width: isMobile ? '100%' : 'auto',
             transition: 'opacity 0.15s',
           }}
           onMouseEnter={(e) => (e.currentTarget.style.opacity = 0.9)}

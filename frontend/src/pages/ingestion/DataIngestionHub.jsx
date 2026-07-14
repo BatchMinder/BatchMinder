@@ -25,6 +25,13 @@ import { useModal } from '../../contexts/ModalContext';
 export default function DataIngestionHub({ onUploadSuccess }) {
   const { showAlert, showSuccess } = useModal();
   const [activeTab, setActiveTab] = useState('upload'); // 'upload' or 'sync'
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Upload States
   const [file, setFile] = useState(null);
@@ -663,15 +670,42 @@ export default function DataIngestionHub({ onUploadSuccess }) {
 
           </div>
 
-          {/* Footer Action Bar */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '16px 24px', boxShadow: '0 1px 3px rgba(0,0,0,0.01)' }}>
+          {/* Responsive Footer Action Bar */}
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: isMobile ? 'column' : 'row',
+            justifyContent: 'space-between', 
+            alignItems: 'stretch', 
+            backgroundColor: '#fff', 
+            border: '1px solid #E2E8F0', 
+            borderRadius: '16px', 
+            padding: isMobile ? '16px' : '16px 24px', 
+            boxShadow: '0 1px 3px rgba(0,0,0,0.01)',
+            gap: '12px',
+            marginTop: '16px'
+          }}>
             <button 
               onClick={cancelUpload}
-              style={{ padding: '10px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, color: '#64748B', backgroundColor: 'transparent', border: '1px solid #E2E8F0', cursor: 'pointer' }}
+              style={{ 
+                padding: '10px 20px', 
+                borderRadius: '10px', 
+                fontSize: '13px', 
+                fontWeight: 700, 
+                color: '#64748B', 
+                backgroundColor: 'transparent', 
+                border: '1px solid #E2E8F0', 
+                cursor: 'pointer',
+                width: isMobile ? '100%' : 'auto'
+              }}
             >
               Cancel Upload
             </button>
-            <div style={{ display: 'flex', gap: '12px' }}>
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: isMobile ? 'column' : 'row', 
+              gap: '12px',
+              width: isMobile ? '100%' : 'auto'
+            }}>
               <button 
                 onClick={() => {
                   if (file) {
@@ -680,7 +714,21 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                     showAlert('Notice', 'Please select a file first.');
                   }
                 }}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, color: '#334155', backgroundColor: '#fff', border: '1px solid #CBD5E1', cursor: 'pointer' }}
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  gap: '6px', 
+                  padding: '10px 20px', 
+                  borderRadius: '10px', 
+                  fontSize: '13px', 
+                  fontWeight: 700, 
+                  color: '#334155', 
+                  backgroundColor: '#fff', 
+                  border: '1px solid #CBD5E1', 
+                  cursor: 'pointer',
+                  width: '100%'
+                }}
               >
                 <RefreshCw size={14} /> Validate Again
               </button>
@@ -692,7 +740,21 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                     showAlert('Notice', 'No valid records to import. Please upload a file first.');
                   }
                 }}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, color: '#fff', backgroundColor: '#2563EB', border: 'none', cursor: 'pointer' }}
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  gap: '6px', 
+                  padding: '10px 20px', 
+                  borderRadius: '10px', 
+                  fontSize: '13px', 
+                  fontWeight: 700, 
+                  color: '#fff', 
+                  backgroundColor: '#2563EB', 
+                  border: 'none', 
+                  cursor: 'pointer',
+                  width: '100%'
+                }}
               >
                 <CheckCircle size={14} /> Import Valid Records
               </button>

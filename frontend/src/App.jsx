@@ -100,7 +100,7 @@ function App() {
     const path = window.location.pathname;
     if (path.startsWith('/dashboard/')) {
       const subPage = path.substring('/dashboard/'.length);
-      const validPages = ['dashboard', 'myBatch', 'students', 'at_risk_monitoring', 'workflowQueue', 'timetable', 'attendance', 'reporting', 'settings', 'notifications'];
+      const validPages = ['dashboard', 'myBatch', 'students', 'at_risk_monitoring', 'workflowQueue', 'attendance', 'reporting', 'settings', 'notifications'];
       if (validPages.includes(subPage)) {
         return subPage;
       }
@@ -188,7 +188,7 @@ function App() {
         if (validPages.includes(subPage)) setAdminActiveNav(subPage);
       }
       if (user?.role === 'advisor') {
-        const validPages = ['dashboard', 'myBatch', 'students', 'at_risk_monitoring', 'workflowQueue', 'timetable', 'attendance', 'reporting', 'settings', 'notifications'];
+        const validPages = ['dashboard', 'myBatch', 'students', 'at_risk_monitoring', 'workflowQueue', 'attendance', 'reporting', 'settings', 'notifications'];
         if (validPages.includes(subPage)) setAdvisorActiveNav(subPage);
       }
       if (user?.role === 'admin') {
@@ -449,7 +449,6 @@ function App() {
         students: <AdvisorStudents selectedBatch={selectedAdvisorBatch} />,
         at_risk_monitoring: <AdvisorRiskDashboard />,
         workflowQueue: <AdvisorQueue />,
-        timetable: <AdvisorTimetable />,
         attendance: <AttendanceDashboard user={user} />,
         reporting: <AdvisorReporting />,
         settings: <ProfileSettingsPage />,

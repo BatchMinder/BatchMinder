@@ -20,7 +20,7 @@ router.use(protect);
 router.get('/timetable', getTimetable);
 router.get('/datesheet', getDatesheet);
 router.post('/timetable/check-clash', checkTimetableClash);
-router.post('/auto-generate', restrictTo('academic_admin', 'super_admin', 'advisor'), autoGenerateTimetable);
+router.post('/auto-generate', restrictTo('academic_admin', 'super_admin'), autoGenerateTimetable);
 router.post('/validate-capacity', validateRoomCapacity);
 
 // Writing/Mutating schedules requires academic admin or super admin privileges
