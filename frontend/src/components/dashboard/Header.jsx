@@ -105,6 +105,7 @@ export default function Header({ title, subtitle, setActiveNav, children }) {
         {/* Left Side: Hamburger (All) + Title (All) + Subtitle (Desktop only) */}
         <div style={{ display: 'flex', alignItems: 'center', minWidth: 0, flex: 1 }}>
           <button
+            className="global-header-menu-btn"
             onClick={() => window.dispatchEvent(new CustomEvent('toggle-mobile-sidebar'))}
             style={{
               marginRight: '12px',

@@ -32,7 +32,8 @@ import {
   ChevronLeft,
   ChevronUp,
   ChevronDown,
-  Menu
+  Menu,
+  X
 } from 'lucide-react';
 
 export default function SuperAdminDashboard({ onLogout }) {
@@ -290,6 +291,9 @@ export default function SuperAdminDashboard({ onLogout }) {
           -ms-overflow-style: none !important;
           scrollbar-width: none !important;
         }
+        @media (min-width: 1024px) {
+          ${sidebarOpen ? '.global-header-menu-btn { display: none !important; }' : ''}
+        }
       `}</style>
       {/* Mobile Backdrop Overlay */}
       {isMobile && sidebarOpen && (
@@ -321,7 +325,7 @@ export default function SuperAdminDashboard({ onLogout }) {
       }}>
 
         {/* Logo */}
-        <div style={{ padding: '24px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ padding: '12px 20px 8px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
               width: '36px', height: '36px', borderRadius: '10px',
@@ -335,15 +339,30 @@ export default function SuperAdminDashboard({ onLogout }) {
               BatchMinder
             </span>
           </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            style={{
+              width: '32px', height: '32px', borderRadius: '8px',
+              backgroundColor: 'transparent',
+              border: 'none',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', color: '#94A3B8', flexShrink: 0,
+              transition: 'color 0.2s'
+            }}
+            onMouseEnter={e => e.currentTarget.style.color = '#F8FAFC'}
+            onMouseLeave={e => e.currentTarget.style.color = '#94A3B8'}
+          >
+            <X size={20} />
+          </button>
         </div>
 
         {/* User Profile */}
-        <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
+        <div style={{ padding: '8px 20px', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
           {/* Badge */}
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: '6px',
             backgroundColor: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)',
-            borderRadius: '20px', padding: '3px 10px', marginBottom: '12px', alignSelf: 'flex-start'
+            borderRadius: '20px', padding: '3px 10px', marginBottom: '6px', alignSelf: 'flex-start'
           }}>
             <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#F59E0B', animation: 'pulse 2s infinite' }} />
             <span style={{ fontSize: '10px', fontWeight: 800, color: '#F59E0B', letterSpacing: '1px', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
@@ -381,10 +400,10 @@ export default function SuperAdminDashboard({ onLogout }) {
         </div>
 
         {/* Navigation */}
-        <nav className="no-scrollbar" style={{ flex: 1, padding: '8px 12px 0', overflowY: 'auto', msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
+        <nav className="no-scrollbar" style={{ flex: 1, padding: '4px 12px 0', overflowY: 'auto', msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
           {/* Overview */}
-          <div style={{ marginBottom: '20px' }}>
-            <p style={{ fontSize: '10px', fontWeight: 800, color: '#475569', letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px 8px' }}>
+          <div style={{ marginBottom: '6px' }}>
+            <p style={{ fontSize: '10px', fontWeight: 800, color: '#475569', letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 4px 8px' }}>
               Overview
             </p>
             {navItems.overview.map(item => {
@@ -414,10 +433,10 @@ export default function SuperAdminDashboard({ onLogout }) {
           </div>
 
           {/* Management */}
-          <div style={{ marginBottom: '20px' }}>
+          <div style={{ marginBottom: '6px' }}>
             <div
               onClick={() => setManagementExpanded(!managementExpanded)}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', padding: '6px 8px', marginBottom: '6px', borderRadius: '6px', transition: 'all 0.15s' }}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', padding: '4px 8px', marginBottom: '2px', borderRadius: '6px', transition: 'all 0.15s' }}
               onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)'}
               onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
             >
@@ -453,10 +472,10 @@ export default function SuperAdminDashboard({ onLogout }) {
           </div>
 
           {/* System */}
-          <div style={{ marginBottom: '20px' }}>
+          <div style={{ marginBottom: '6px' }}>
             <div
               onClick={() => setSystemExpanded(!systemExpanded)}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', padding: '6px 8px', marginBottom: '6px', borderRadius: '6px', transition: 'all 0.15s' }}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', padding: '4px 8px', marginBottom: '2px', borderRadius: '6px', transition: 'all 0.15s' }}
               onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)'}
               onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
             >

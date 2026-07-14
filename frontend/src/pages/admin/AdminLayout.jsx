@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Upload, ArrowRightLeft, BookOpen, Layers,
   LogOut, GraduationCap, ChevronDown, ChevronUp, Building2, Calendar,
   BarChart2, Settings, Bell, Clock, Plus, Search, CalendarCheck, FileText,
-  AlertTriangle, HelpCircle, CheckCircle, Menu
+  AlertTriangle, HelpCircle, CheckCircle, Menu, X
 } from 'lucide-react';
 
 const CORE_NAV_ITEMS = [
@@ -46,7 +46,7 @@ const SYSTEM_NAV_ITEMS = [
 const SidebarSection = ({ title, items, activeNav, handleNavigate, expandedFolders, toggleFolder }) => {
   const isExpanded = expandedFolders[title];
   return (
-    <div style={{ marginBottom: '16px' }}>
+    <div style={{ marginBottom: 0 }}>
       <button 
         onClick={() => toggleFolder(title)}
         style={{ 
@@ -69,7 +69,7 @@ const SidebarSection = ({ title, items, activeNav, handleNavigate, expandedFolde
               <button key={item.id} onClick={() => handleNavigate(item.id)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
-                  padding: '9px 12px', borderRadius: '9px', marginBottom: '2px',
+                  padding: '6px 12px', borderRadius: '8px', marginBottom: '1px',
                   backgroundColor: isActive ? 'rgba(37,99,235,0.15)' : 'transparent',
                   border: isActive ? '1px solid rgba(37,99,235,0.2)' : '1px solid transparent',
                   color: isActive ? '#60A5FA' : '#94A3B8',
@@ -319,7 +319,7 @@ export default function AdminLayout({
         transition: 'width 0.2s ease, min-width 0.2s ease'
       }}>
         {/* Logo */}
-        <div style={{ padding: '24px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ padding: '12px 20px 8px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
               width: '36px', height: '36px', borderRadius: '10px',
@@ -333,15 +333,30 @@ export default function AdminLayout({
               BatchMinder
             </span>
           </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            style={{
+              width: '32px', height: '32px', borderRadius: '8px',
+              backgroundColor: 'transparent',
+              border: 'none',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', color: '#94A3B8', flexShrink: 0,
+              transition: 'color 0.2s'
+            }}
+            onMouseEnter={e => e.currentTarget.style.color = '#F8FAFC'}
+            onMouseLeave={e => e.currentTarget.style.color = '#94A3B8'}
+          >
+            <X size={20} />
+          </button>
         </div>
 
         {/* User Profile */}
-        <div style={{ padding: '16px 20px' }}>
+        <div style={{ padding: '8px 20px' }}>
           {/* Badge */}
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: '6px',
             backgroundColor: badgeConfig.bg, border: `1px solid ${badgeConfig.border}`,
-            borderRadius: '20px', padding: '3px 10px', marginBottom: '12px'
+            borderRadius: '20px', padding: '3px 10px', marginBottom: '6px'
           }}>
             <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: badgeConfig.color }} />
             <span style={{ fontSize: '10px', fontWeight: 800, color: badgeConfig.color, letterSpacing: '1px', textTransform: 'uppercase' }}>
@@ -377,13 +392,13 @@ export default function AdminLayout({
         </div>
 
         {/* Navigation */}
-        <nav className="no-scrollbar" style={{ flex: 1, padding: '16px 12px 0', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <nav className="no-scrollbar" style={{ flex: 1, padding: '4px 12px 0', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
 
           {isAdvisor ? (
             <>
               {/* OVERVIEW */}
               <div>
-                <p style={{ fontSize: '10px', fontWeight: 800, color: '#475569', letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px 8px' }}>
+                <p style={{ fontSize: '10px', fontWeight: 800, color: '#475569', letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 4px 8px' }}>
                   Overview
                 </p>
                 {[
@@ -453,7 +468,7 @@ export default function AdminLayout({
             <>
               {/* OVERVIEW */}
               <div>
-                <p style={{ fontSize: '10px', fontWeight: 800, color: '#475569', letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px 8px' }}>
+                <p style={{ fontSize: '10px', fontWeight: 800, color: '#475569', letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 4px 8px' }}>
                   Overview
                 </p>
                 {[
@@ -465,7 +480,7 @@ export default function AdminLayout({
                     <button key={item.id} onClick={() => handleNavigate(item.id)}
                       style={{
                         display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
-                        padding: '9px 12px', borderRadius: '9px', marginBottom: '2px',
+                        padding: '6px 12px', borderRadius: '8px', marginBottom: '1px',
                         backgroundColor: isActive ? 'rgba(37,99,235,0.15)' : 'transparent',
                         border: isActive ? '1px solid rgba(37,99,235,0.2)' : '1px solid transparent',
                         color: isActive ? '#60A5FA' : '#94A3B8',
@@ -553,19 +568,18 @@ export default function AdminLayout({
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden', backgroundColor: '#F8FAFC' }}>
 
         {/* Top Header */}
-        <div className="bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0"
+        <div className="bg-white border-b border-slate-200 flex flex-wrap items-center gap-3 shrink-0"
           style={{ padding: isMobile ? '12px 16px' : '18px 32px' }}
         >
           <button
             onClick={() => setSidebarOpen(o => !o)}
             style={{
-              marginRight: 'auto',
               width: '38px',
               height: '38px',
               borderRadius: '10px',
               backgroundColor: '#F8FAFC',
               border: '1px solid #E2E8F0',
-              display: 'flex',
+              display: (!isMobile && sidebarOpen) ? 'none' : 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
@@ -574,6 +588,9 @@ export default function AdminLayout({
           >
             <Menu size={18} />
           </button>
+          
+          <div style={{ flex: 1, minWidth: 0 }} />
+
 
           {/* Advisor Batch Switcher — multi-batch */}
           {isAdvisor && batches.length > 1 && (
