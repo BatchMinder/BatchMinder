@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
   Search, ChevronDown, Plus, Bell, AlertTriangle,
-  Home, Check, Calendar, Trash2, X, RefreshCw,
+  Home, Check, Calendar, Trash2, X, RefreshCw, Eye, Edit2,
   Layers, Users, BookOpen
 } from 'lucide-react';
 import Header from './Header';
+import { useModal } from '../../contexts/ModalContext';
 
 const STATUS_OPTIONS = ['All Status', 'Active', 'Inactive'];
 
@@ -61,6 +62,7 @@ function Dropdown({ value, options, onChange }) {
 }
 
 export default function DepartmentManagement({ setActiveNav }) {
+  const { showConfirm, showAlert, showSuccess } = useModal();
   const [depts, setDepts]           = useState([]);
   const [users, setUsers]           = useState([]);
   const [loading, setLoading]       = useState(true);
@@ -73,6 +75,7 @@ export default function DepartmentManagement({ setActiveNav }) {
 
   // Form state
   const [editingDeptId, setEditingDeptId] = useState(null);
+  const [viewingDeptId, setViewingDeptId] = useState(null);
   const [form, setForm] = useState({
     code: '',
     name: '',
@@ -118,6 +121,22 @@ export default function DepartmentManagement({ setActiveNav }) {
 
   const handleRowClick = (d) => {
     setEditingDeptId(d.id);
+    setViewingDeptId(null);
+    setForm({
+      code: d.code || '',
+      name: d.name || '',
+      hod: d.hod || 'Unassigned',
+      established: d.established || new Date().getFullYear(),
+      status: d.status || 'Active',
+      color: d.color || '#2563EB'
+    });
+    setFormError('');
+    setFormSuccess('');
+  };
+
+  const handleViewClick = (d) => {
+    setViewingDeptId(d.id);
+    setEditingDeptId(null);
     setForm({
       code: d.code || '',
       name: d.name || '',
@@ -132,6 +151,7 @@ export default function DepartmentManagement({ setActiveNav }) {
 
   const handleClearForm = () => {
     setEditingDeptId(null);
+    setViewingDeptId(null);
     setForm({
       code: '',
       name: '',
@@ -166,7 +186,9 @@ export default function DepartmentManagement({ setActiveNav }) {
       const data = await response.json();
 
       if (response.ok && data.status === 'success') {
-        setFormSuccess(editingDeptId ? 'Department details updated successfully!' : 'Department created successfully!');
+        const msg = editingDeptId ? 'Department details updated successfully!' : 'Department created successfully!';
+        setFormSuccess(msg);
+        showSuccess(msg);
         if (!editingDeptId) {
           handleClearForm();
         }
@@ -180,7 +202,14 @@ export default function DepartmentManagement({ setActiveNav }) {
   };
 
   const handleDeleteDept = async (deptId) => {
-    if (!window.confirm('Are you sure you want to permanently delete this department? All active batch link counts will clear.')) return;
+    const confirmed = await showConfirm(
+      'Delete Department',
+      'Are you sure you want to permanently delete this department? All active batch link counts will clear.',
+      'Delete',
+      'Cancel',
+      '#EF4444'
+    );
+    if (!confirmed) return;
     setFormError('');
     setFormSuccess('');
 
@@ -192,6 +221,7 @@ export default function DepartmentManagement({ setActiveNav }) {
 
       if (response.ok) {
         setFormSuccess('Department deleted successfully.');
+        showSuccess('Department deleted successfully.');
         handleClearForm();
         fetchData();
       } else {
@@ -249,7 +279,7 @@ export default function DepartmentManagement({ setActiveNav }) {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, padding: '18px 24px', backgroundColor: '#F8FAFC', overflowY: 'auto' }}>
 
         {/* Stats Row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '12px', marginBottom: '18px' }}>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-[18px]">
           {stats.map((s, i) => {
             const Icon = s.icon;
             return (
@@ -281,7 +311,7 @@ export default function DepartmentManagement({ setActiveNav }) {
         </div>
 
         {/* Two-column layout */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '16px', alignItems: 'stretch', flex: 1 }}>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-4 items-stretch flex-1">
 
           {/* ── Left Side: Departments List ── */}
           <div style={{
@@ -294,7 +324,7 @@ export default function DepartmentManagement({ setActiveNav }) {
             {/* Filter Bar */}
             <div style={{
               padding: '12px 16px', borderBottom: '1px solid #F1F5F9',
-              display: 'flex', alignItems: 'center', gap: '10px',
+              display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap',
               backgroundColor: '#FAFAFA'
             }}>
               <div style={{ position: 'relative', flex: 1 }}>
@@ -311,10 +341,24 @@ export default function DepartmentManagement({ setActiveNav }) {
                 />
               </div>
               <Dropdown value={statusFilter} options={STATUS_OPTIONS} onChange={setStatus} />
+              <button
+                onClick={handleClearForm}
+                title="Add New Department"
+                style={{
+                  padding: '7px 14px', borderRadius: '8px', border: 'none',
+                  backgroundColor: '#2563EB', color: '#FFFFFF', fontSize: '12px', fontWeight: 600,
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit',
+                  marginLeft: '4px', boxShadow: '0 2px 4px rgba(37,99,235,0.1)', transition: 'background 0.15s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.backgroundColor = '#1D4ED8'}
+                onMouseLeave={e => e.currentTarget.style.backgroundColor = '#2563EB'}
+              >
+                <Plus size={14} /> Add Dept
+              </button>
             </div>
 
             {/* Table or States */}
-            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+            <div className="overflow-x-auto w-full" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
               {loading ? (
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px', gap: '12px' }}>
                   <RefreshCw size={24} color="#2563EB" style={{ animation: 'spin 1s linear infinite' }} />
@@ -349,7 +393,7 @@ export default function DepartmentManagement({ setActiveNav }) {
                       <th style={{ width: '34px', padding: '9px 13px' }}>
                         <input type="checkbox" style={{ cursor: 'pointer' }} />
                       </th>
-                      {['DEPT','HOD / CHAIRPERSON','ESTABLISHED','STUDENTS','BATCHES','STATUS'].map(col => (
+                      {['DEPT','HOD / CHAIRPERSON','ESTABLISHED','STUDENTS','BATCHES','STATUS', 'ACTIONS'].map(col => (
                         <th key={col} style={{
                           padding: '9px 10px', textAlign: 'left',
                           fontSize: '9.5px', fontWeight: 800, color: '#94A3B8',
@@ -404,6 +448,52 @@ export default function DepartmentManagement({ setActiveNav }) {
                               border: `1px solid ${ss.border}`, whiteSpace: 'nowrap'
                             }}>{d.status}</span>
                           </td>
+                          <td style={{ padding: '9px 10px' }} onClick={e => e.stopPropagation()}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <button
+                                title="Edit Department"
+                                onClick={() => handleRowClick(d)}
+                                style={{
+                                  padding: '5px', border: 'none', backgroundColor: 'transparent',
+                                  color: '#64748B', cursor: 'pointer', borderRadius: '4px',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  transition: 'all 0.15s'
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#F1F5F9'; e.currentTarget.style.color = '#2563EB'; }}
+                                onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#64748B'; }}
+                              >
+                                <Edit2 size={13} />
+                              </button>
+                              <button
+                                title="View Department"
+                                onClick={() => handleViewClick(d)}
+                                style={{
+                                  padding: '5px', border: 'none', backgroundColor: 'transparent',
+                                  color: '#64748B', cursor: 'pointer', borderRadius: '4px',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  transition: 'all 0.15s'
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#F1F5F9'; e.currentTarget.style.color = '#10B981'; }}
+                                onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#64748B'; }}
+                              >
+                                <Eye size={13} />
+                              </button>
+                              <button
+                                title="Delete Department"
+                                onClick={() => handleDeleteDept(d.id)}
+                                style={{
+                                  padding: '5px', border: 'none', backgroundColor: 'transparent',
+                                  color: '#64748B', cursor: 'pointer', borderRadius: '4px',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  transition: 'all 0.15s'
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#FEE2E2'; e.currentTarget.style.color = '#EF4444'; }}
+                                onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#64748B'; }}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       );
                     })}
@@ -451,10 +541,10 @@ export default function DepartmentManagement({ setActiveNav }) {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '13px' }}>
                 <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  {editingDeptId ? <BookOpen size={13} color="#7C3AED" /> : <Plus size={13} color="#2563EB" />}
-                  {editingDeptId ? 'Modify Department' : 'Create Department'}
+                  {viewingDeptId ? <Eye size={13} color="#10B981" /> : editingDeptId ? <BookOpen size={13} color="#7C3AED" /> : <Plus size={13} color="#2563EB" />}
+                  {viewingDeptId ? 'View Department Details' : editingDeptId ? 'Modify Department' : 'Create Department'}
                 </h3>
-                {editingDeptId && (
+                {(editingDeptId || viewingDeptId) && (
                   <button 
                     onClick={handleClearForm}
                     style={{ border: 'none', backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#94A3B8' }}
@@ -490,10 +580,10 @@ export default function DepartmentManagement({ setActiveNav }) {
                   <input
                     type="text"
                     required
-                    disabled={editingDeptId ? true : false}
+                    disabled={!!viewingDeptId || !!editingDeptId}
                     value={form.code}
                     onChange={e => setForm(p => ({ ...p, code: e.target.value }))}
-                    style={{ ...inputStyle, textTransform: 'uppercase', backgroundColor: editingDeptId ? '#F1F5F9' : '#FFFFFF' }}
+                    style={{ ...inputStyle, textTransform: 'uppercase', backgroundColor: editingDeptId ? '#F1F5F9' : '#FFFFFF', opacity: viewingDeptId ? 0.7 : 1, cursor: viewingDeptId ? 'not-allowed' : 'text' }}
                   />
                 </div>
 
@@ -502,9 +592,10 @@ export default function DepartmentManagement({ setActiveNav }) {
                   <input
                     type="text"
                     required
+                    disabled={!!viewingDeptId}
                     value={form.name}
                     onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                    style={inputStyle}
+                    style={{ ...inputStyle, opacity: viewingDeptId ? 0.7 : 1, cursor: viewingDeptId ? 'not-allowed' : 'text' }}
                   />
                 </div>
 
@@ -513,8 +604,9 @@ export default function DepartmentManagement({ setActiveNav }) {
                   <div style={{ position: 'relative' }}>
                     <select
                       value={form.hod}
+                      disabled={!!viewingDeptId}
                       onChange={e => setForm(p => ({ ...p, hod: e.target.value }))}
-                      style={selectStyle}
+                      style={{ ...selectStyle, opacity: viewingDeptId ? 0.7 : 1, cursor: viewingDeptId ? 'not-allowed' : 'pointer' }}
                     >
                       <option value="Unassigned">Unassigned</option>
                       {hodCandidates.map(c => (
@@ -530,9 +622,10 @@ export default function DepartmentManagement({ setActiveNav }) {
                   <input
                     type="number"
                     required
+                    disabled={!!viewingDeptId}
                     value={form.established}
                     onChange={e => setForm(p => ({ ...p, established: Number(e.target.value) }))}
-                    style={inputStyle}
+                    style={{ ...inputStyle, opacity: viewingDeptId ? 0.7 : 1, cursor: viewingDeptId ? 'not-allowed' : 'text' }}
                   />
                 </div>
 
@@ -541,8 +634,9 @@ export default function DepartmentManagement({ setActiveNav }) {
                   <div style={{ position: 'relative' }}>
                     <select
                       value={form.status}
+                      disabled={!!viewingDeptId}
                       onChange={e => setForm(p => ({ ...p, status: e.target.value }))}
-                      style={selectStyle}
+                      style={{ ...selectStyle, opacity: viewingDeptId ? 0.7 : 1, cursor: viewingDeptId ? 'not-allowed' : 'pointer' }}
                     >
                       <option value="Active">Active</option>
                       <option value="Inactive">Inactive</option>
@@ -555,27 +649,30 @@ export default function DepartmentManagement({ setActiveNav }) {
                   <label style={labelStyle}>Visual Accent Color</label>
                   <input
                     type="color"
+                    disabled={!!viewingDeptId}
                     value={form.color}
                     onChange={e => setForm(p => ({ ...p, color: e.target.value }))}
-                    style={{ width: '100%', height: '36px', padding: '2px', border: '1px solid #E2E8F0', borderRadius: '7px', cursor: 'pointer', boxSizing: 'border-box' }}
+                    style={{ width: '100%', height: '36px', padding: '2px', border: '1px solid #E2E8F0', borderRadius: '7px', cursor: viewingDeptId ? 'not-allowed' : 'pointer', boxSizing: 'border-box', opacity: viewingDeptId ? 0.7 : 1 }}
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  style={{
-                    width: '100%', marginTop: '6px', padding: '9px',
-                    borderRadius: '8px', border: 'none',
-                    backgroundColor: editingDeptId ? '#7C3AED' : '#2563EB', color: '#fff',
-                    fontSize: '12px', fontWeight: 700, cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                    fontFamily: 'inherit', transition: 'filter 0.15s'
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.filter = 'brightness(90%)'}
-                  onMouseLeave={e => e.currentTarget.style.filter = 'brightness(100%)'}
-                >
-                  <Check size={13} /> {editingDeptId ? 'Save Changes' : 'Create Department'}
-                </button>
+                {!viewingDeptId && (
+                  <button
+                    type="submit"
+                    style={{
+                      width: '100%', marginTop: '6px', padding: '9px',
+                      borderRadius: '8px', border: 'none',
+                      backgroundColor: editingDeptId ? '#7C3AED' : '#2563EB', color: '#fff',
+                      fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                      fontFamily: 'inherit', transition: 'filter 0.15s'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.filter = 'brightness(90%)'}
+                    onMouseLeave={e => e.currentTarget.style.filter = 'brightness(100%)'}
+                  >
+                    <Check size={13} /> {editingDeptId ? 'Save Changes' : 'Create Department'}
+                  </button>
+                )}
               </form>
 
               {editingDeptId && (

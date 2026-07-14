@@ -329,8 +329,8 @@ export default function RecordsDirectory() {
       <Dialog
         open={Boolean(selectedStudent)}
         onClose={() => setSelectedStudent(null)}
-        PaperProps={{
-          style: {
+        sx={{
+          '& .MuiDialog-paper': {
             borderRadius: '24px',
             padding: '8px',
             maxWidth: '500px',

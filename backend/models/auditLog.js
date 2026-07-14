@@ -47,6 +47,10 @@ const auditLogSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
+  ipAddress: {
+    type: String,
+    required: false
+  },
   metadata: {
     type: mongoose.Schema.Types.Mixed,
     default: {}

@@ -156,8 +156,8 @@ export default function AdvisorReporting() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', fontFamily: "'Inter', sans-serif" }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-        <div>
+      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+        <div className="w-full md:flex-1">
           <p style={{ margin: 0, fontSize: '11px', fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '1px' }}>
             Academic Intelligence & Monitoring
           </p>
@@ -168,20 +168,20 @@ export default function AdvisorReporting() {
             Generate, analyze, and export student performance summaries and risk assessments.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div className="flex flex-col sm:flex-row flex-wrap gap-2 w-full md:w-auto">
           <button onClick={fetchAll} style={{
-            display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '9px 16px',
             borderRadius: '10px', border: '1px solid #E2E8F0', backgroundColor: '#fff',
             fontSize: '12px', fontWeight: 700, color: '#475569', cursor: 'pointer', fontFamily: 'inherit'
-          }}>
+          }} className="w-full sm:w-auto">
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh Data
           </button>
           <button onClick={() => exportCSV()} style={{
-            display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '9px 16px',
             borderRadius: '10px', border: 'none', backgroundColor: '#2563EB',
             fontSize: '12px', fontWeight: 700, color: '#fff', cursor: 'pointer', fontFamily: 'inherit',
             boxShadow: '0 2px 8px rgba(37, 99, 235, 0.15)'
-          }}>
+          }} className="w-full sm:w-auto">
             <Download size={14} /> Export Active Report
           </button>
         </div>
@@ -218,7 +218,7 @@ export default function AdvisorReporting() {
       {selectedReportType === 'performance' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Performance Summary Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { label: 'Total Enrolled', value: stats?.students ?? '—', color: '#2563EB', bg: '#EFF6FF', icon: Users },
               { label: 'Good Standing', value: cgpaDist.find(d => d.label === 'good')?.count ?? 0, color: '#10B981', bg: '#EFFDF5', icon: CheckCircle },
@@ -245,7 +245,7 @@ export default function AdvisorReporting() {
             ))}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '16px' }}>
+          <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-4">
             {/* CGPA Distribution Bar Chart */}
             <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid #F1F5F9' }}>
@@ -315,7 +315,7 @@ export default function AdvisorReporting() {
       {selectedReportType === 'enrollment' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Active Batches list & chart */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '16px' }}>
+          <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-4">
             
             <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px', paddingBottom: '12px', borderBottom: '1px solid #F1F5F9' }}>
@@ -379,7 +379,7 @@ export default function AdvisorReporting() {
 
       {selectedReportType === 'risk' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '16px' }}>
+          <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-4">
             {/* Risk Trend */}
             <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid #F1F5F9' }}>
@@ -443,8 +443,8 @@ export default function AdvisorReporting() {
       )}
 
       {/* Quick Downloads and Specific Reports */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px', marginTop: '8px' }}>
-        <div style={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="grid grid-cols-1 xl:grid-cols-[2fr_1fr] gap-4 mt-2">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4" style={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '16px 20px' }}>
           <div>
             <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 800, color: '#334155' }}>Need a detailed raw dataset?</h4>
             <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#64748B' }}>Download the complete academic statistics table in spreadsheet CSV format.</p>
@@ -452,7 +452,8 @@ export default function AdvisorReporting() {
           <button onClick={() => exportCSV()} style={{
             display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px',
             borderRadius: '8px', border: '1px solid #CBD5E1', backgroundColor: '#fff',
-            fontSize: '11.5px', fontWeight: 700, color: '#475569', cursor: 'pointer', fontFamily: 'inherit'
+            fontSize: '11.5px', fontWeight: 700, color: '#475569', cursor: 'pointer', fontFamily: 'inherit',
+            whiteSpace: 'nowrap'
           }}>
             <Download size={13} /> Download Active Data
           </button>
@@ -463,7 +464,7 @@ export default function AdvisorReporting() {
             <FileText size={14} color="#64748B" />
             <h3 style={{ margin: 0, fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Custom Reports Export</h3>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {[
               { label: 'CGPA Distribution', type: 'performance' },
               { label: 'At-Risk Registry', type: 'risk' },

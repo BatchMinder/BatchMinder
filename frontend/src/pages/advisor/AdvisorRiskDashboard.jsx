@@ -149,7 +149,7 @@ export default function AdvisorRiskDashboard() {
       </div>
 
       {/* Metrics Grid Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Total Batch Size', value: totalStudents, bg: '#EFF6FF', color: '#2563EB', icon: Users },
           { label: 'AI Predictions Run', value: predictedCount, bg: '#F5F3FF', color: '#7C3AED', icon: Activity },
@@ -175,7 +175,7 @@ export default function AdvisorRiskDashboard() {
       </div>
 
       {/* Main Workspace Layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: selectedStudent ? '1.2fr 0.8fr' : '1fr', gap: '20px', transition: 'all 0.2s' }}>
+      <div className={`grid grid-cols-1 ${selectedStudent ? 'xl:grid-cols-[1.2fr_0.8fr]' : ''} gap-5 transition-all duration-200`}>
         
         {/* Left Side: Directory Table */}
         <div style={{

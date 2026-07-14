@@ -30,7 +30,8 @@ const getStatusBadge = (status = '') => {
   if (s.includes('pending')) return 'bg-blue-50 text-blue-600 border border-blue-200';
   if (s.includes('escalated') || s.includes('forwarded') || s.includes('hod')) return 'bg-violet-50 text-violet-700 border border-violet-200';
   if (s.includes('approved')) return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
-  if (s.includes('rejected') || s.includes('returned')) return 'bg-rose-50 text-rose-700 border border-rose-200';
+  if (s.includes('returned')) return 'bg-amber-50 text-amber-700 border border-amber-200';
+  if (s.includes('rejected')) return 'bg-rose-50 text-rose-700 border border-rose-200';
   if (s.includes('live') || s.includes('active')) return 'bg-teal-50 text-teal-700 border border-teal-200';
   return 'bg-slate-50 text-slate-600 border border-slate-200';
 };
@@ -38,7 +39,8 @@ const getStatusLabel = (status = '') => {
   const s = status.toLowerCase();
   if (s.includes('forwarded') || s.includes('hod')) return 'Escalated';
   if (s.includes('pending')) return 'Pending';
-  return status;
+  if (s.includes('returned')) return 'Returned';
+  return status.replace(/_/g, ' ');
 };
 const getPriorityBadge = (p = 'Medium') => {
   if (p === 'High') return 'bg-orange-100 text-orange-700';
@@ -55,6 +57,8 @@ export default function AdvisorQueue() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterPriority, setFilterPriority] = useState('all');
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [remarks, setRemarks] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
@@ -141,19 +145,21 @@ export default function AdvisorQueue() {
 
   const handleResolveAction = async (decision) => {
     const isApprove = decision === true;
-    const isReturn = decision === 'return';
     if (!isApprove && (!remarks || remarks.trim() === '')) {
-      setActionError(`Remarks are required when ${isReturn ? 'returning' : 'rejecting'}.`);
+      setActionError(`Remarks are required when rejecting.`);
       return;
     }
     setActionError(''); setActionLoading(true);
     try {
       const reqId = selectedRequest._id || selectedRequest.id;
       const endpoint = isApprove ? `/api/advisor/approve/${reqId}` : `/api/advisor/reject/${reqId}`;
-      const remarksText = isReturn ? `[Returned for Edit] ${remarks.trim()}` : remarks.trim();
+      const remarksText = remarks.trim();
       const res = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
         body: JSON.stringify({ remarks: remarksText })
       });
       const data = await res.json();
@@ -190,7 +196,15 @@ export default function AdvisorQueue() {
     const q = searchQuery.toLowerCase();
     const matchSearch = r.studentName?.toLowerCase().includes(q) || r.rollNo?.toLowerCase().includes(q) || r.courseCode?.toLowerCase().includes(q);
     const matchType = filterType === 'all' || r.type?.toLowerCase().includes(filterType.toLowerCase());
-    return matchSearch && matchType;
+    const st = r.status?.toLowerCase() || '';
+    const matchStatus = filterStatus === 'all'
+      || (filterStatus === 'pending' && st.includes('pending'))
+      || (filterStatus === 'approved' && st.includes('approved'))
+      || (filterStatus === 'rejected' && st.includes('rejected'))
+      || (filterStatus === 'escalated' && (st.includes('forwarded') || st.includes('hod')));
+    const p = (r.priority || (r.type?.toLowerCase().includes('add') ? 'High' : 'Medium')).toLowerCase();
+    const matchPriority = filterPriority === 'all' || p === filterPriority;
+    return matchSearch && matchType && matchStatus && matchPriority;
   });
   const totalFiltered = filteredRequests.length;
   const totalPages = Math.max(1, Math.ceil(totalFiltered / PAGE_SIZE));
@@ -199,7 +213,7 @@ export default function AdvisorQueue() {
   const totalReqs = requests.length;
   const pendingCount = requests.filter(r => r.status?.toLowerCase().includes('pending')).length;
   const approvedCount = requests.filter(r => r.status?.toLowerCase() === 'approved').length;
-  const rejectedCount = requests.filter(r => r.status?.toLowerCase().includes('reject') || r.status?.toLowerCase().includes('return')).length;
+  const rejectedCount = requests.filter(r => r.status?.toLowerCase().includes('reject')).length;
   const escalatedCount = requests.filter(r => r.status?.toLowerCase().includes('forwarded') || r.status?.toLowerCase().includes('hod')).length;
   const pct = (n) => totalReqs ? `${((n / totalReqs) * 100).toFixed(1)}% of total` : '0% of total';
 
@@ -233,7 +247,7 @@ export default function AdvisorQueue() {
           { label: 'Total Requests', value: totalReqs, sub: 'This Semester', color: '#2563EB', bg: '#EFF6FF', Icon: Layers },
           { label: 'Pending (My Level)', value: pendingCount, sub: pct(pendingCount), color: '#D97706', bg: '#FFFBEB', Icon: Hourglass },
           { label: 'Approved', value: approvedCount, sub: pct(approvedCount), color: '#059669', bg: '#E6F4EA', Icon: CheckCircle2 },
-          { label: 'Rejected / Returned', value: rejectedCount, sub: pct(rejectedCount), color: '#DC2626', bg: '#FEF2F2', Icon: XCircle },
+          { label: 'Rejected', value: rejectedCount, sub: pct(rejectedCount), color: '#DC2626', bg: '#FEF2F2', Icon: XCircle },
           { label: 'Escalated to HOD', value: escalatedCount, sub: 'Awaiting HOD Action', color: '#7C3AED', bg: '#F5F3FF', Icon: ExternalLink },
         ].map(({ label, value, sub, color, bg, Icon }, i) => (
           <div key={i} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col gap-2">
@@ -252,10 +266,10 @@ export default function AdvisorQueue() {
       </div>
 
       {/* ── Main Content ── */}
-      <div className={`grid gap-5 ${selectedRequest ? 'grid-cols-[1.55fr_1fr]' : 'grid-cols-1'}`}>
+      <div className={`grid gap-5 ${selectedRequest ? 'grid-cols-1 xl:grid-cols-[1.55fr_1fr]' : 'grid-cols-1'}`}>
 
         {/* ── LEFT COLUMN ── */}
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 min-w-0">
 
           {/* Requests Queue Card */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
@@ -276,8 +290,8 @@ export default function AdvisorQueue() {
               </div>
               {[
                 { value: filterType, onChange: e => { setFilterType(e.target.value); setPage(1); }, opts: [['all','All Request Types'],['add','Course Registration'],['drop','Course Drop'],['withdrawal','Course Withdrawal']] },
-                { value: '', onChange: () => {}, opts: [['all','All Status'],['pending','Pending'],['escalated','Escalated'],['approved','Approved']] },
-                { value: '', onChange: () => {}, opts: [['all','All Priority'],['high','High'],['medium','Medium'],['low','Low']] },
+                { value: filterStatus, onChange: e => { setFilterStatus(e.target.value); setPage(1); }, opts: [['all','All Status'],['pending','Pending'],['approved','Approved'],['rejected','Rejected'],['escalated','Escalated']] },
+                { value: filterPriority, onChange: e => { setFilterPriority(e.target.value); setPage(1); }, opts: [['all','All Priority'],['high','High'],['medium','Medium'],['low','Low']] },
               ].map((sel, i) => (
                 <div key={i} className="relative">
                   <select value={sel.value} onChange={sel.onChange} className="appearance-none bg-white border border-slate-200 text-xs font-bold text-slate-600 py-1.5 pl-3 pr-7 rounded-lg outline-none cursor-pointer">
@@ -293,7 +307,7 @@ export default function AdvisorQueue() {
 
             {/* Table */}
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
+              <table className="w-full text-left text-xs border-collapse whitespace-nowrap">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 font-extrabold uppercase tracking-widest text-[9px]">
                     <th className="px-4 py-3">Request ID</th>
@@ -378,7 +392,7 @@ export default function AdvisorQueue() {
 
           {/* ── Bottom: Approval Workflow + History + Remarks (when request selected) ── */}
           {selectedRequest && (
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
               {/* Approval Workflow */}
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
@@ -455,25 +469,27 @@ export default function AdvisorQueue() {
                     <AlertCircle className="w-3 h-3 shrink-0" /> {actionError}
                   </div>
                 )}
-                <div>
-                  <p className="text-[10px] font-extrabold text-slate-600 uppercase tracking-widest mb-2">Next Action</p>
-                  <div className="flex flex-col gap-1.5">
-                    <button onClick={() => handleResolveAction(true)} disabled={actionLoading}
-                      className="flex items-center justify-center gap-1.5 w-full px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-bold rounded-lg transition-colors disabled:opacity-50">
-                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> Approve
-                    </button>
-                    <div className="flex gap-1.5">
-                      <button onClick={() => handleResolveAction(false)} disabled={actionLoading}
-                        className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-white border border-rose-300 hover:bg-rose-50 text-rose-600 text-[11px] font-bold rounded-lg transition-colors">
-                        <X className="w-3 h-3 shrink-0" /> Reject
+                {selectedRequest.status === 'pending' ? (
+                  <div>
+                    <p className="text-[10px] font-extrabold text-slate-600 uppercase tracking-widest mb-2">Next Action</p>
+                    <div className="flex flex-col gap-1.5">
+                      <button onClick={() => handleResolveAction(true)} disabled={actionLoading}
+                        className="flex items-center justify-center gap-1.5 w-full px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-bold rounded-lg transition-colors disabled:opacity-50">
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> Approve
                       </button>
-                      <button onClick={() => handleResolveAction('return')} disabled={actionLoading}
-                        className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-[11px] font-bold rounded-lg transition-colors whitespace-nowrap">
-                        <RefreshCw className="w-3 h-3 shrink-0" /> Return for Edit
-                      </button>
+                      <div className="flex gap-1.5">
+                        <button onClick={() => handleResolveAction(false)} disabled={actionLoading}
+                          className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-white border border-rose-300 hover:bg-rose-50 text-rose-600 text-[11px] font-bold rounded-lg transition-colors">
+                          <X className="w-3 h-3 shrink-0" /> Reject
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-center">
+                    <p className="text-[11px] font-bold text-slate-500">This request has already been processed.</p>
+                  </div>
+                )}
               </div>
 
             </div>
@@ -542,24 +558,7 @@ export default function AdvisorQueue() {
                 <PrerequisiteCheck prerequisites={selectedRequest.validations?.prerequisites || []} cgpa={selectedRequest.cgpa} />
               </div>
 
-              {/* Attached Documents */}
-              <div>
-                <p className="text-[11px] font-extrabold text-slate-700 mb-2">Attached Documents</p>
-                <div className="space-y-2">
-                  {[['Academic_Transcript.pdf', '124 KB', 'bg-red-100 text-red-600'], ['Advisor_Recommendation.pdf', '98 KB', 'bg-red-100 text-red-600']].map(([name, size, cls]) => (
-                    <div key={name} className="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50/30 cursor-pointer group transition-colors">
-                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${cls}`}>
-                        <FileText className="w-3.5 h-3.5" />
-                      </div>
-                      <span className="flex-1 text-[11px] font-bold text-slate-700 truncate">{name}</span>
-                      <span className="text-[10px] text-slate-400 shrink-0">{size}</span>
-                      <Download className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-500 transition-colors shrink-0" />
-                    </div>
-                  ))}
-                </div>
-              </div>
 
-              <hr className="border-slate-100" />
 
               {/* Routing Information */}
               <div>

@@ -2,6 +2,20 @@ import jwt from 'jsonwebtoken';
 import User from '../models/user.js';
 import Department from '../models/department.js';
 
+const parseExpiresIn = (str) => {
+  const match = str.match(/^(\d+)([smhd])$/);
+  if (!match) return 15 * 60 * 1000;
+  const val = parseInt(match[1], 10);
+  const unit = match[2];
+  switch (unit) {
+    case 's': return val * 1000;
+    case 'm': return val * 60 * 1000;
+    case 'h': return val * 60 * 60 * 1000;
+    case 'd': return val * 24 * 60 * 60 * 1000;
+    default: return 15 * 60 * 1000;
+  }
+};
+
 const populateFallbackDepartments = async (user) => {
   if (user && user.role !== 'super_admin' && (!user.departmentIds || user.departmentIds.length === 0)) {
     if (user.dept && user.dept !== 'All Departments') {
@@ -57,15 +71,16 @@ export const protect = async (req, res, next) => {
 
       // Silent refresh: generate a new access token
       const newAccessToken = jwt.sign({ id: currentUser._id }, process.env.JWT_SECRET, {
-        expiresIn: '15m',
+        expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m',
       });
 
+      const accessDuration = parseExpiresIn(process.env.JWT_ACCESS_EXPIRES_IN || '15m');
       res.cookie('accessToken', newAccessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',
-        expires: new Date(Date.now() + 15 * 60 * 1000), // 15 mins
+        expires: new Date(Date.now() + accessDuration),
       });
 
       req.user = currentUser;

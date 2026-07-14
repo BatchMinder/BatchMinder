@@ -289,7 +289,7 @@ export default function MigrationRecords() {
     <div style={{ padding: '0 0 40px', maxWidth: '1400px', margin: '0 auto' }}>
       
       {/* 1. TOP STATS ROW */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px', marginBottom: '24px' }}>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
         {statCards.map((card, i) => {
           const Icon = card.icon;
           return (
@@ -309,16 +309,16 @@ export default function MigrationRecords() {
         })}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '20px' }}>
+      <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-5">
         
         {/* LEFT COLUMN */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
           {/* Main List Table */}
           <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <div className="flex flex-col xl:flex-row justify-between xl:items-center gap-4 mb-5">
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0F172A' }}>Migrated Students List</h3>
-              <div style={{ display: 'flex', gap: '12px' }}>
+              <div className="flex flex-col sm:flex-row gap-3">
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <Search size={16} color="#64748B" style={{ position: 'absolute', left: '14px', pointerEvents: 'none' }} />
                   <input 
@@ -442,7 +442,7 @@ export default function MigrationRecords() {
           </div>
 
           {/* Curriculum Comparison & Course Equivalency (Bottom Left area matching screenshot) */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '20px' }}>
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr] gap-5">
             
             {/* Curriculum Comparison */}
             <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0' }}>
@@ -563,28 +563,28 @@ export default function MigrationRecords() {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '12px' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', alignItems: 'flex-start' }}>
+                  <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] items-start">
                     <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}><Building2 size={12} /> From Institution</span>
                     <span style={{ color: '#0F172A', fontWeight: 500 }}>{selected.sourceInstitution}</span>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', alignItems: 'flex-start' }}>
+                  <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] items-start">
                     <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}><BookOpen size={12} /> From Program</span>
                     <span style={{ color: '#0F172A', fontWeight: 500 }}>{selected.sourceInstitution} (CS)</span>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', alignItems: 'flex-start' }}>
+                  <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] items-start">
                     <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}><BookOpen size={12} /> To Program</span>
                     <span style={{ color: '#0F172A', fontWeight: 500 }}>BS Computer Science (STMU)</span>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', alignItems: 'flex-start' }}>
+                  <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] items-start">
                     <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}><Clock size={12} /> Request Date</span>
                     <span style={{ color: '#0F172A', fontWeight: 500 }}>{format(new Date(selected.createdAt), 'MMM d, yyyy')}</span>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', alignItems: 'flex-start' }}>
+                  <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] items-start">
                     <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}><User size={12} /> Reviewed By</span>
                     <span style={{ color: '#0F172A', fontWeight: 500 }}>{selected.decidedBy?.name || 'Pending'}</span>
                   </div>
                   {selected.decidedAt && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', alignItems: 'flex-start' }}>
+                    <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] items-start">
                       <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}><Clock size={12} /> Reviewed Date</span>
                       <span style={{ color: '#0F172A', fontWeight: 500 }}>{format(new Date(selected.decidedAt), 'MMM d, yyyy')}</span>
                     </div>
@@ -645,7 +645,7 @@ export default function MigrationRecords() {
                 All accepted courses meet the curriculum equivalency criteria. Student is eligible for credit transfer.
               </p>
               {actionError && <p style={{ color: '#EF4444', fontSize: '12px', marginBottom: '12px' }}>{actionError}</p>}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr', gap: '8px' }}>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <button 
                   onClick={() => handleDecision('rejected')} 
                   disabled={actioning}
@@ -929,7 +929,7 @@ export default function MigrationRecords() {
                 <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#64748B' }}>{selected.studentId.rollNumber}</div>
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
               <div style={{ padding: 12, border: '1px solid #E2E8F0', borderRadius: 8 }}>
                 <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Department</div>
                 <div style={{ fontWeight: 600, color: '#0F172A', marginTop: 4 }}>{selected.departmentId?.name || 'Computer Science'}</div>

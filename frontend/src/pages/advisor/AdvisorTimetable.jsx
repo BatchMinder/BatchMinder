@@ -44,9 +44,11 @@ export default function AdvisorTimetable() {
   const fetchData = async () => {
     setLoading(true);
     try {
+      const token = localStorage.getItem('token');
+      const headers = { 'Authorization': `Bearer ${token}` };
       const [timeRes, batchRes] = await Promise.all([
-        fetch('/api/scheduling/timetable'),
-        fetch('/api/batches')
+        fetch('/api/scheduling/timetable', { headers }),
+        fetch('/api/batches', { headers })
       ]);
       if (timeRes.ok) {
         const d = await timeRes.json();
@@ -66,11 +68,29 @@ export default function AdvisorTimetable() {
   };
 
   const handleAutoGenerate = async () => {
+    if (batchFilter === 'all' || semesterFilter === 'all') {
+      alert('Please select a specific Batch and Semester from the filters below to auto-generate the timetable.');
+      return;
+    }
+    const batch = batches.find(b => b.code === batchFilter);
+    if (!batch) return;
+
     try {
-      const res = await fetch('/api/scheduling/auto-generate', { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
+      const res = await fetch('/api/scheduling/auto-generate', { 
+        method: 'POST', 
+        headers: { 
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ batchId: batch._id, semester: semesterFilter })
+      });
       const data = await res.json();
-      if (res.ok) alert('Intelligent Scheduling Engine: ' + data.message);
-      else alert('Failed to auto-generate: ' + data.message);
+      if (res.ok) {
+        alert('Intelligent Scheduling Engine: ' + data.message);
+        fetchData();
+      } else {
+        alert('Failed to auto-generate: ' + data.message);
+      }
     } catch (e) {
       console.error(e);
     }
@@ -122,8 +142,8 @@ export default function AdvisorTimetable() {
     URL.revokeObjectURL(url);
   };
 
-  const semesters = [...new Set(entries.map(e => e.semester).filter(Boolean))].sort((a, b) => a - b);
-  const batchCodes = [...new Set(entries.map(e => e.batch).filter(Boolean))].sort();
+  const semesters = [1, 2, 3, 4, 5, 6, 7, 8];
+  const batchCodes = [...new Set(batches.map(b => b.code).filter(Boolean))].sort();
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -141,7 +161,7 @@ export default function AdvisorTimetable() {
             View class schedule, detect clashes, and monitor room utilization
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
           <button onClick={handleAutoGenerate} style={{
             display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px',
             borderRadius: '10px', border: '1px solid #E2E8F0', backgroundColor: '#F8FAFC',
@@ -166,7 +186,8 @@ export default function AdvisorTimetable() {
           <button onClick={exportCSV} style={{
             display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px',
             borderRadius: '10px', border: 'none', backgroundColor: '#2563EB',
-            fontSize: '12px', fontWeight: 700, color: '#fff', cursor: 'pointer'
+            fontSize: '12px', fontWeight: 700, color: '#fff', cursor: 'pointer',
+            whiteSpace: 'nowrap'
           }}>
             <Download size={14} /> Export Timetable
           </button>
@@ -174,7 +195,7 @@ export default function AdvisorTimetable() {
       </div>
 
       {/* Summary Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px' }}>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Total Classes', value: filtered.length, color: '#2563EB', bg: '#EFF6FF', icon: BookOpen },
           { label: 'Unique Rooms', value: Object.keys(roomUsage).length, color: '#16A34A', bg: '#F0FDF4', icon: Layers },
@@ -197,7 +218,7 @@ export default function AdvisorTimetable() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: '16px', alignItems: 'start' }}>
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-4 items-start">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {capacityAlerts.length > 0 && (
             <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '12px', padding: '16px' }}>
@@ -215,33 +236,27 @@ export default function AdvisorTimetable() {
             </div>
           )}
 
-          <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#64748B', fontSize: '12px', fontWeight: 700 }}>
-              <Filter size={14} /> Filters:
+          <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-1.5 text-slate-500 text-xs font-bold">
+                <Filter size={14} /> Filters:
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-[11px] font-bold text-slate-400 uppercase">Batch</label>
+                <select value={batchFilter} onChange={e => setBatchFilter(e.target.value)} className="py-1.5 px-3 rounded-lg border border-slate-200 text-xs font-bold text-slate-800 bg-slate-50 outline-none cursor-pointer">
+                  <option value="all">All Batches</option>
+                  {batchCodes.map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-[11px] font-bold text-slate-400 uppercase">Semester</label>
+                <select value={semesterFilter} onChange={e => setSemesterFilter(e.target.value)} className="py-1.5 px-3 rounded-lg border border-slate-200 text-xs font-bold text-slate-800 bg-slate-50 outline-none cursor-pointer">
+                  <option value="all">All Semesters</option>
+                  {semesters.map(s => <option key={s} value={String(s)}>Semester {s}</option>)}
+                </select>
+              </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <label style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase' }}>Batch</label>
-              <select value={batchFilter} onChange={e => setBatchFilter(e.target.value)} style={{
-                padding: '5px 10px', borderRadius: '8px', border: '1px solid #E2E8F0',
-                fontSize: '12px', fontWeight: 700, color: '#1E293B', outline: 'none',
-                backgroundColor: '#F8FAFC', cursor: 'pointer', fontFamily: 'inherit'
-              }}>
-                <option value="all">All Batches</option>
-                {batchCodes.map(b => <option key={b} value={b}>{b}</option>)}
-              </select>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <label style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase' }}>Semester</label>
-              <select value={semesterFilter} onChange={e => setSemesterFilter(e.target.value)} style={{
-                padding: '5px 10px', borderRadius: '8px', border: '1px solid #E2E8F0',
-                fontSize: '12px', fontWeight: 700, color: '#1E293B', outline: 'none',
-                backgroundColor: '#F8FAFC', cursor: 'pointer', fontFamily: 'inherit'
-              }}>
-                <option value="all">All Semesters</option>
-                {semesters.map(s => <option key={s} value={String(s)}>Semester {s}</option>)}
-              </select>
-            </div>
-            <span style={{ marginLeft: 'auto', fontSize: '11px', fontWeight: 600, color: '#94A3B8' }}>
+            <span className="sm:ml-auto text-[11px] font-semibold text-slate-400">
               Showing {filtered.length} class slots
             </span>
           </div>

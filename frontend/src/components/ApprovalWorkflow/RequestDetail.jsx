@@ -79,7 +79,7 @@ export default function RequestDetail({ request, userRole = 'hod', onClose, onAc
             backgroundColor: '#F8FAFC',
             border: '1px solid #E2E8F0',
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
             gap: '12px',
           }}
         >

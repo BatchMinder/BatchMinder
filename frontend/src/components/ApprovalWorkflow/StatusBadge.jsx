@@ -38,6 +38,14 @@ export default function StatusBadge({ status }) {
           label: 'Advisor Rejected',
           icon: AlertCircle,
         };
+      case 'returned_for_edit':
+        return {
+          text: '#D97706',
+          bg: '#FEF3C7',
+          border: '1px solid rgba(217,119,6,0.15)',
+          label: 'Returned for Edit',
+          icon: AlertCircle,
+        };
       case 'special_granted':
         return {
           text: '#7C3AED',

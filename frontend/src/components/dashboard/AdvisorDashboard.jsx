@@ -285,7 +285,7 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
       )}
 
       {/* ── FIVE METRIC CARDS ROW ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px' }}>
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         
         {/* Card 1: Total Students */}
         <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
@@ -393,13 +393,13 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
       </div>
 
       {/* ── CGPA ALERT CARDS ROW (FR-3.3 Warning ≤2.1 / FR-3.4 Critical <2.0) ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
         {/* Warning Alert Card */}
         <div style={{
           backgroundColor: '#FFFBEB', border: '1px solid #FDE68A',
-          borderRadius: '14px', padding: '20px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          borderRadius: '14px', padding: '16px',
+          display: 'flex', flexDirection: 'column', gap: '12px',
           boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
@@ -414,7 +414,7 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
               <p style={{ margin: '3px 0 0', fontSize: '11px', color: '#92400E', fontWeight: 600 }}>Students with CGPA 2.0 – 2.1</p>
             </div>
           </div>
-          <div style={{ textAlign: 'right' }}>
+          <div>
             <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '20px', backgroundColor: '#FDE68A', color: '#92400E', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               ⚠ WARNING
             </span>
@@ -425,8 +425,8 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
         {/* Critical Alert Card */}
         <div style={{
           backgroundColor: '#FFF1F2', border: '1px solid #FECDD3',
-          borderRadius: '14px', padding: '20px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          borderRadius: '14px', padding: '16px',
+          display: 'flex', flexDirection: 'column', gap: '12px',
           boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
@@ -441,7 +441,7 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
               <p style={{ margin: '3px 0 0', fontSize: '11px', color: '#9F1239', fontWeight: 600 }}>Students with CGPA below 2.0</p>
             </div>
           </div>
-          <div style={{ textAlign: 'right' }}>
+          <div>
             <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '20px', backgroundColor: '#FECDD3', color: '#9F1239', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               🚨 CRITICAL
             </span>
@@ -450,10 +450,10 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
         </div>
 
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px 320px', gap: '16px' }}>
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px_320px] gap-4 mb-4">
         
         {/* Widget 1: At-Risk Students */}
-        <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #F1F5F9' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <AlertTriangle size={17} color="#E11D48" />
@@ -594,10 +594,10 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
       </div>
 
       {/* ── BOTTOM ROW: Pending Approvals, Performance Trend, AI Advisor Insights ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px 320px', gap: '16px' }}>
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px_320px] gap-4 mb-4">
         
         {/* Widget 4: Pending Approvals Table */}
-        <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #F1F5F9' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Clock size={17} color="#64748B" />
@@ -757,7 +757,7 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
         <h3 style={{ margin: '0 0 16px', fontSize: '15px', fontWeight: 700, color: '#0F172A', paddingBottom: '16px', borderBottom: '1px solid #F1F5F9' }}>
           Quick Advisory Actions
         </h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '12px' }}>
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
           {[
             { title: 'Add Student', icon: Plus, iconColor: '#7C3AED', bg: '#F5F3FF', action: () => setSelectedModal('addStudent') },
             { title: 'Advise Courses', icon: BookOpen, iconColor: '#16A34A', bg: '#F0FDF4', action: () => setActiveNav('workflowQueue') },
@@ -936,7 +936,7 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>
                   <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Date</label>
                   <input

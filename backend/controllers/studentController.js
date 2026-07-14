@@ -357,16 +357,17 @@ export const bulkUploadStudents = async (req, res, next) => {
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    let studentsData = [];
+    let rawStudentsData = [];
     const isExcel = req.file.originalname.endsWith('.xlsx') || req.file.originalname.endsWith('.xls') || (req.file.mimetype && (req.file.mimetype.includes('spreadsheet') || req.file.mimetype.includes('excel')));
 
     if (isExcel) {
       const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
       const sheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
-      studentsData = xlsx.utils.sheet_to_json(sheet);
+      rawStudentsData = xlsx.utils.sheet_to_json(sheet);
     } else {
-      const csvStr = req.file.buffer.toString();
+      // Strip UTF-8 BOM if present
+      const csvStr = req.file.buffer.toString().replace(/^\uFEFF/, '');
       const lines = csvStr.split(/\r?\n/).filter(line => line.trim().length > 0);
       if (lines.length < 2) {
         return res.status(400).json({ message: 'Empty CSV' });
@@ -379,18 +380,115 @@ export const bulkUploadStudents = async (req, res, next) => {
         headers.forEach((header, idx) => {
           studentObj[header] = values[idx];
         });
-        studentsData.push(studentObj);
+        rawStudentsData.push(studentObj);
       }
     }
 
-    for (const data of studentsData) {
-      let deptName = data.department || 'Computer Science';
+    // Key normalization helper
+    const normalizeKeys = (obj) => {
+      const normalized = {};
+      Object.keys(obj).forEach(k => {
+        const clean = k.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (clean === 'rollnumber' || clean === 'roll' || clean === 'studentid' || clean === 'id') {
+          normalized.rollNumber = obj[k];
+        } else if (clean === 'fullname' || clean === 'name') {
+          normalized.name = obj[k];
+        } else if (clean === 'email' || clean === 'emailaddress') {
+          normalized.email = obj[k];
+        } else if (clean === 'department' || clean === 'dept') {
+          normalized.department = obj[k];
+        } else if (clean === 'batch' || clean === 'batchcode') {
+          normalized.batch = obj[k];
+        } else if (clean === 'semester' || clean === 'sem') {
+          normalized.semester = obj[k];
+        } else if (clean === 'cgpa' || clean === 'gpa') {
+          normalized.cgpa = obj[k];
+        } else {
+          normalized[k] = obj[k];
+        }
+      });
+      return normalized;
+    };
+
+    // Validate all rows before saving any records to the database
+    const errors = [];
+    let validCount = 0;
+    let duplicateCount = 0;
+    const validStudentsData = [];
+    const previewStudents = [];
+
+    for (let idx = 0; idx < rawStudentsData.length; idx++) {
+      const row = rawStudentsData[idx];
+      const rowNum = idx + 2; // Index 0 is row #2 in the CSV sheet
+      const data = normalizeKeys(row);
+
+      let rowHasError = false;
+      if (!data.rollNumber || !String(data.rollNumber).trim()) {
+        errors.push(`Row ${rowNum}: rollNumber - Roll number is required`);
+        rowHasError = true;
+      }
+      if (!data.name || !String(data.name).trim()) {
+        errors.push(`Row ${rowNum}: name - Name is required`);
+        rowHasError = true;
+      }
+      if (!data.batch || !String(data.batch).trim()) {
+        errors.push(`Row ${rowNum}: batch - Batch code is required`);
+        rowHasError = true;
+      }
+
+      if (data.cgpa !== undefined && data.cgpa !== null) {
+        const cgpaStr = String(data.cgpa).trim();
+        if (cgpaStr.length > 0) {
+          const cgpaVal = parseFloat(cgpaStr);
+          if (isNaN(cgpaVal) || cgpaVal < 0.0 || cgpaVal > 4.0) {
+            errors.push(`Row ${rowNum}: cgpa - CGPA must be between 0 and 4.0`);
+            rowHasError = true;
+          }
+        }
+      }
+
+      // Check for duplicate roll number within the uploaded file itself
+      if (!rowHasError && data.rollNumber) {
+        const alreadyInFile = validStudentsData.some(s => s.rollNumber === data.rollNumber);
+        if (alreadyInFile) {
+          errors.push(`Row ${rowNum}: rollNumber - Duplicate roll number in file`);
+          rowHasError = true;
+        }
+      }
+
+      if (!rowHasError) {
+        validCount++;
+        validStudentsData.push(data);
+        if (data.rollNumber) {
+          const exists = await Student.findOne({ rollNumber: data.rollNumber });
+          if (exists) {
+            duplicateCount++;
+          }
+        }
+      }
+
+      // Generate preview row data
+      previewStudents.push({
+        id: String(rowNum - 1),
+        roll: data.rollNumber || '',
+        name: data.name || '',
+        dept: data.department || 'Computer Science',
+        batch: data.batch || '2022',
+        sem: data.semester || '1',
+        cgpa: data.cgpa || '0.00',
+        status: rowHasError ? 'Invalid' : (parseFloat(data.cgpa) < 2.0 ? 'At Risk' : 'Valid')
+      });
+    }
+
+    // Save only valid student records to the database
+    for (const data of validStudentsData) {
+      let deptName = req.body.department || data.department || 'Computer Science';
       let dept = await Department.findOne({ name: { $regex: new RegExp(`^${deptName}$`, 'i') } });
       if (!dept) {
         dept = await Department.findOne({ code: 'CS' }) || await Department.create({ name: deptName, code: 'CS', color: '#6366F1' });
       }
 
-      let batchCode = data.batch || '2022';
+      let batchCode = req.body.batch || data.batch || '2022';
       let batch = await Batch.findOne({ code: { $regex: new RegExp(batchCode, 'i') } });
       if (!batch) {
         batch = await Batch.create({
@@ -403,9 +501,17 @@ export const bulkUploadStudents = async (req, res, next) => {
       }
 
       const cgpaVal = parseFloat(data.cgpa) || 0.0;
-      await Student.findOneAndUpdate(
-        { rollNumber: data.rollNumber },
-        {
+      let student = await Student.findOne({ rollNumber: data.rollNumber });
+      if (student) {
+        student.name = data.name;
+        student.email = data.email;
+        student.departmentId = dept._id;
+        student.batchId = batch._id;
+        student.cgpa = cgpaVal;
+        student.status = 'active';
+        await student.save();
+      } else {
+        student = await Student.create({
           rollNumber: data.rollNumber,
           name: data.name,
           email: data.email,
@@ -413,9 +519,8 @@ export const bulkUploadStudents = async (req, res, next) => {
           batchId: batch._id,
           cgpa: cgpaVal,
           status: 'active'
-        },
-        { upsert: true, new: true }
-      );
+        });
+      }
 
       await logAudit({
         actorId: req.user?._id || new mongoose.Types.ObjectId(),
@@ -430,21 +535,19 @@ export const bulkUploadStudents = async (req, res, next) => {
 
     res.status(200).json({
       status: 'success',
-      message: 'Bulk upload completed successfully',
+      message: 'Bulk upload processed successfully',
       data: {
-        processed: studentsData.length,
-        upserted: studentsData.length,
-        modified: 0,
-        students: studentsData.map((s, idx) => ({
-          id: String(idx + 1),
-          roll: s.rollNumber,
-          name: s.name,
-          dept: s.department || 'Computer Science',
-          batch: s.batch || '2022',
-          sem: s.semester || '1',
-          cgpa: s.cgpa || '0.00',
-          status: parseFloat(s.cgpa) < 2.0 ? 'At Risk' : 'Valid'
-        }))
+        processed: rawStudentsData.length,
+        upserted: validStudentsData.length - duplicateCount,
+        modified: duplicateCount,
+        errors,
+        stats: {
+          total: rawStudentsData.length,
+          valid: validCount,
+          errors: errors.length,
+          duplicates: duplicateCount
+        },
+        students: previewStudents
       }
     });
   } catch (err) {

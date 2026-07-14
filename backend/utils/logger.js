@@ -9,7 +9,8 @@ export const logAudit = async ({
   targetId,
   departmentId,
   batchId,
-  metadata = {}
+  metadata = {},
+  ipAddress = null
 }) => {
   try {
     return await AuditLog.create({
@@ -21,7 +22,8 @@ export const logAudit = async ({
       departmentId,
       batchId,
       description: metadata.description || metadata.desc || '',
-      metadata
+      metadata,
+      ipAddress
     });
   } catch (err) {
     console.error('[Audit Logger] Write failed:', err);

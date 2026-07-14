@@ -292,27 +292,54 @@ export const autoGenerateTimetable = async (req, res, next) => {
     // Delete existing timetable for this batch and semester
     await Timetable.deleteMany({ batch: batch.code, semester: Number(semester) });
 
+    const existing = await Timetable.find({});
     const generatedEntries = [];
-    let slotIndex = 0;
+
+    const allSlots = [];
+    for (const d of DAYS) {
+      for (const t of TIMESLOTS) {
+        allSlots.push({ day: d, timeSlot: t });
+      }
+    }
 
     for (const course of coursesToSchedule) {
-      const day = DAYS[slotIndex % DAYS.length];
-      const timeSlot = TIMESLOTS[Math.floor(slotIndex / DAYS.length) % TIMESLOTS.length];
-      const room = ROOMS[slotIndex % ROOMS.length];
-      const instructor = instructorNames[slotIndex % instructorNames.length];
+      let assigned = false;
+      for (const slot of allSlots) {
+        if (assigned) break;
+        for (const room of ROOMS) {
+          if (assigned) break;
+          for (const instructor of instructorNames) {
+            const roomTaken = existing.some(e => e.day === slot.day && e.timeSlot === slot.timeSlot && e.room === room);
+            const instructorTaken = existing.some(e => e.day === slot.day && e.timeSlot === slot.timeSlot && e.instructor === instructor);
+            const batchBusyDb = existing.some(e => e.day === slot.day && e.timeSlot === slot.timeSlot && e.batch === batch.code);
+            const batchBusy = generatedEntries.some(e => e.day === slot.day && e.timeSlot === slot.timeSlot);
 
-      generatedEntries.push({
-        day,
-        timeSlot,
-        courseCode: course.code,
-        courseName: course.title,
-        room,
-        instructor,
-        batch: batch.code,
-        semester: Number(semester),
-        departmentId: batch.departmentId
-      });
-      slotIndex++;
+            if (!roomTaken && !instructorTaken && !batchBusyDb && !batchBusy) {
+              generatedEntries.push({
+                day: slot.day,
+                timeSlot: slot.timeSlot,
+                courseCode: course.code,
+                courseName: course.title,
+                room,
+                instructor,
+                batch: batch.code,
+                semester: Number(semester),
+                departmentId: batch.departmentId
+              });
+              assigned = true;
+              break;
+            }
+          }
+        }
+      }
+      if (!assigned) {
+        generatedEntries.push({
+          day: DAYS[0], timeSlot: TIMESLOTS[0],
+          courseCode: course.code, courseName: course.title,
+          room: ROOMS[0], instructor: instructorNames[0],
+          batch: batch.code, semester: Number(semester), departmentId: batch.departmentId
+        });
+      }
     }
 
     const savedEntries = await Timetable.insertMany(generatedEntries);

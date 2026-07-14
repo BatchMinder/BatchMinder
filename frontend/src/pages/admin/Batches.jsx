@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Layers, Plus, Edit3, Trash2, Users, X, User } from 'lucide-react';
 import Select from 'react-select';
+import { useModal } from '../../contexts/ModalContext';
 
 export default function Batches() {
+  const { showConfirm, showAlert, showSuccess } = useModal();
   const [batches, setBatches] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [users, setUsers] = useState([]);
@@ -63,6 +65,7 @@ export default function Batches() {
       if (res.ok) {
         setSuccess(true);
         setTimeout(() => setSuccess(false), 3000);
+        showSuccess(editing ? 'Batch updated successfully.' : 'Batch created successfully.');
         resetForm();
         setShowForm(false);
         const r = await fetch('/api/batches');
@@ -79,10 +82,18 @@ export default function Batches() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Delete this batch? This action cannot be undone.')) return;
+    const confirmed = await showConfirm(
+      'Delete Batch',
+      'Delete this batch? This action cannot be undone.',
+      'Delete',
+      'Cancel',
+      '#EF4444'
+    );
+    if (!confirmed) return;
     try {
       const res = await fetch(`/api/batches/${id}`, { method: 'DELETE' });
       if (res.ok) {
+        showSuccess('Batch deleted successfully.');
         setBatches(b => b.filter(x => x._id !== id));
       } else {
         const d = await res.json();
@@ -186,7 +197,7 @@ export default function Batches() {
       ) : batches.length === 0 ? (
         <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: 12, padding: 40, textAlign: 'center', color: '#94A3B8' }}>No batches found. Create your first batch.</div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {batches.map(b => (
             <div key={b._id} style={{
               backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: 12,

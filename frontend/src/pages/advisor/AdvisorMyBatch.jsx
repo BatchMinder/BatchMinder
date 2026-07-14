@@ -121,7 +121,7 @@ export default function AdvisorMyBatch({ selectedBatch }) {
       </div>
 
       {/* Summary Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px' }}>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Total Students', value: totalCount, color: '#2563EB', bg: '#EFF6FF', icon: Users },
           { label: 'Good Standing', value: loading ? '...' : goodCount, color: '#16A34A', bg: '#F0FDF4', icon: ShieldCheck },
@@ -185,10 +185,10 @@ export default function AdvisorMyBatch({ selectedBatch }) {
         </span>
       </div>
 
-      {/* Student Table */}
-      <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '14px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-        {/* Table Header */}
-        <div style={{
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-x-auto">
+        <div className="min-w-[800px]">
+          {/* Table Header */}
+          <div style={{
           display: 'grid',
           gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px',
           padding: '12px 20px',
@@ -296,6 +296,7 @@ export default function AdvisorMyBatch({ selectedBatch }) {
             ))}
           </>
         )}
+        </div>
       </div>
 
       {/* Pagination */}
@@ -383,7 +384,7 @@ export default function AdvisorMyBatch({ selectedBatch }) {
                 <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
 
                   {/* CGPA + Status */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div style={{ backgroundColor: '#F8FAFC', borderRadius: '12px', padding: '16px', border: '1px solid #F1F5F9' }}>
                       <p style={{ margin: 0, fontSize: '10px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>CGPA</p>
                       <h3 style={{ margin: '4px 0 0', fontSize: '28px', fontWeight: 800, color: '#0F172A' }}>
@@ -397,7 +398,7 @@ export default function AdvisorMyBatch({ selectedBatch }) {
                   </div>
 
                   {/* Info Grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {[
                       { label: 'Email', value: selectedStudent.email, icon: Mail },
                       { label: 'Semester', value: selectedStudent.currentSemester ? `Semester ${selectedStudent.currentSemester}` : '—', icon: BookOpen },

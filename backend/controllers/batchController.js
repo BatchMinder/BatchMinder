@@ -135,9 +135,12 @@ export const getAllBatches = async (req, res) => {
       if (scope._id === null) {
         return res.status(200).json({ status: 'success', results: 0, data: [] });
       }
-      filter = scope;
+      if (scope.batchId) {
+        filter = { _id: scope.batchId };
+      } else {
+        filter = scope;
+      }
     }
-
     const batches = await Batch.find(filter)
       .populate('departmentId', 'name code color')
       .populate('advisorId', 'name email')

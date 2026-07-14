@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
   Search, ChevronDown, Plus, Bell, AlertTriangle,
-  Users, UserCheck, Layers, Check, Calendar, Trash2, X, RefreshCw
+  Users, UserCheck, Layers, Check, Calendar, Trash2, X, RefreshCw, Eye, Edit2
 } from 'lucide-react';
 import Header from './Header';
+import { useModal } from '../../contexts/ModalContext';
 import { useDepartments } from '../../hooks/useDepartments';
 
 const ALLOCATION_OPTIONS = ['All Status', 'Allocated', 'Unassigned'];
@@ -62,6 +63,7 @@ function Dropdown({ value, options, onChange }) {
 }
 
 export default function BatchAllocation({ setActiveNav }) {
+  const { showConfirm, showSuccess } = useModal();
   const { departments, isLoading: deptsLoading } = useDepartments();
 
   const [batches, setBatches]       = useState([]);
@@ -77,6 +79,7 @@ export default function BatchAllocation({ setActiveNav }) {
 
   // Form State
   const [editingBatchId, setEditingBatchId] = useState(null);
+  const [viewingBatchId, setViewingBatchId] = useState(null);
   const [form, setForm] = useState({
     code: '',
     dept: '',
@@ -129,6 +132,21 @@ export default function BatchAllocation({ setActiveNav }) {
 
   const handleRowClick = (b) => {
     setEditingBatchId(b.id);
+    setViewingBatchId(null);
+    setForm({
+      code: b.code || '',
+      dept: b.dept || '',
+      startYear: b.startYear || new Date().getFullYear(),
+      advisor: b.advisor || 'Unassigned',
+      status: b.status || 'Unassigned',
+    });
+    setFormError('');
+    setFormSuccess('');
+  };
+
+  const handleViewClick = (b) => {
+    setViewingBatchId(b.id);
+    setEditingBatchId(null);
     setForm({
       code: b.code || '',
       dept: b.dept || '',
@@ -142,6 +160,7 @@ export default function BatchAllocation({ setActiveNav }) {
 
   const handleClearForm = () => {
     setEditingBatchId(null);
+    setViewingBatchId(null);
     setForm({
       code: '',
       dept: departments.length > 0 ? departments[0].name : '',
@@ -175,7 +194,9 @@ export default function BatchAllocation({ setActiveNav }) {
       const data = await response.json();
 
       if (response.ok && data.status === 'success') {
-        setFormSuccess(editingBatchId ? 'Batch details updated successfully!' : 'Batch created successfully!');
+        const msg = editingBatchId ? 'Batch details updated successfully!' : 'Batch created successfully!';
+        setFormSuccess(msg);
+        showSuccess(msg);
         if (!editingBatchId) {
           handleClearForm();
         }
@@ -204,7 +225,14 @@ export default function BatchAllocation({ setActiveNav }) {
   };
 
   const handleDeleteBatch = async (batchId) => {
-    if (!window.confirm('Are you sure you want to permanently delete this academic batch?')) return;
+    const confirmed = await showConfirm(
+      'Delete Academic Batch',
+      'Are you sure you want to permanently delete this academic batch? This action cannot be undone.',
+      'Delete',
+      'Cancel',
+      '#EF4444'
+    );
+    if (!confirmed) return;
     setFormError('');
     setFormSuccess('');
 
@@ -216,6 +244,7 @@ export default function BatchAllocation({ setActiveNav }) {
 
       if (response.ok) {
         setFormSuccess('Batch deleted successfully.');
+        showSuccess('Batch deleted successfully.');
         handleClearForm();
         fetchData();
       } else {
@@ -274,7 +303,7 @@ export default function BatchAllocation({ setActiveNav }) {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, padding: '18px 24px', backgroundColor: '#F8FAFC', overflowY: 'auto' }}>
 
         {/* Stats Row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '12px', marginBottom: '18px' }}>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-[18px]">
           {stats.map((s, i) => {
             const Icon = s.icon;
             return (
@@ -306,7 +335,7 @@ export default function BatchAllocation({ setActiveNav }) {
         </div>
 
         {/* Two-column layout */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '16px', alignItems: 'stretch', flex: 1 }}>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-4 items-stretch flex-1">
 
           {/* ── Left Side: Batches List ── */}
           <div style={{
@@ -319,7 +348,7 @@ export default function BatchAllocation({ setActiveNav }) {
             {/* Filter Bar */}
             <div style={{
               padding: '12px 16px', borderBottom: '1px solid #F1F5F9',
-              display: 'flex', alignItems: 'center', gap: '10px',
+              display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap',
               backgroundColor: '#FAFAFA'
             }}>
               <div style={{ position: 'relative', flex: 1 }}>
@@ -337,10 +366,24 @@ export default function BatchAllocation({ setActiveNav }) {
               </div>
               <Dropdown value={deptFilter} options={DEPT_OPTIONS} onChange={setDept} />
               <Dropdown value={allocFilter} options={ALLOCATION_OPTIONS} onChange={setAlloc} />
+              <button
+                onClick={handleClearForm}
+                title="Add New Batch"
+                style={{
+                  padding: '7px 14px', borderRadius: '8px', border: 'none',
+                  backgroundColor: '#2563EB', color: '#FFFFFF', fontSize: '12px', fontWeight: 600,
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit',
+                  marginLeft: '4px', boxShadow: '0 2px 4px rgba(37,99,235,0.1)', transition: 'background 0.15s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.backgroundColor = '#1D4ED8'}
+                onMouseLeave={e => e.currentTarget.style.backgroundColor = '#2563EB'}
+              >
+                <Plus size={14} /> Add Batch
+              </button>
             </div>
 
             {/* Table or States */}
-            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+            <div className="overflow-x-auto w-full" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
               {loading ? (
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px', gap: '12px' }}>
                   <RefreshCw size={24} color="#2563EB" style={{ animation: 'spin 1s linear infinite' }} />
@@ -375,7 +418,7 @@ export default function BatchAllocation({ setActiveNav }) {
                       <th style={{ width: '34px', padding: '9px 13px' }}>
                         <input type="checkbox" style={{ cursor: 'pointer' }} />
                       </th>
-                      {['BATCH CODE','DEPARTMENT','ENROLLED STUDENTS','ASSIGNED ADVISOR','STATUS'].map(col => (
+                      {['BATCH CODE','DEPARTMENT','ENROLLED STUDENTS','ASSIGNED ADVISOR','STATUS', 'ACTIONS'].map(col => (
                         <th key={col} style={{
                           padding: '9px 10px', textAlign: 'left',
                           fontSize: '9.5px', fontWeight: 800, color: '#94A3B8',
@@ -442,6 +485,52 @@ export default function BatchAllocation({ setActiveNav }) {
                               border: `1px solid ${ss.border}`, whiteSpace: 'nowrap'
                             }}>{isAlloc ? 'Allocated' : 'Unassigned'}</span>
                           </td>
+                          <td style={{ padding: '9px 10px' }} onClick={e => e.stopPropagation()}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <button
+                                title="Edit Batch"
+                                onClick={() => handleRowClick(b)}
+                                style={{
+                                  padding: '5px', border: 'none', backgroundColor: 'transparent',
+                                  color: '#64748B', cursor: 'pointer', borderRadius: '4px',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  transition: 'all 0.15s'
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#F1F5F9'; e.currentTarget.style.color = '#2563EB'; }}
+                                onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#64748B'; }}
+                              >
+                                <Edit2 size={13} />
+                              </button>
+                              <button
+                                title="View Batch"
+                                onClick={() => handleViewClick(b)}
+                                style={{
+                                  padding: '5px', border: 'none', backgroundColor: 'transparent',
+                                  color: '#64748B', cursor: 'pointer', borderRadius: '4px',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  transition: 'all 0.15s'
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#F1F5F9'; e.currentTarget.style.color = '#10B981'; }}
+                                onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#64748B'; }}
+                              >
+                                <Eye size={13} />
+                              </button>
+                              <button
+                                title="Delete Batch"
+                                onClick={() => handleDeleteBatch(b.id)}
+                                style={{
+                                  padding: '5px', border: 'none', backgroundColor: 'transparent',
+                                  color: '#64748B', cursor: 'pointer', borderRadius: '4px',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  transition: 'all 0.15s'
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#FEE2E2'; e.currentTarget.style.color = '#EF4444'; }}
+                                onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#64748B'; }}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       );
                     })}
@@ -489,10 +578,10 @@ export default function BatchAllocation({ setActiveNav }) {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '13px' }}>
                 <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  {editingBatchId ? <Layers size={13} color="#7C3AED" /> : <Plus size={13} color="#2563EB" />}
-                  {editingBatchId ? 'Modify Batch' : 'Create Academic Batch'}
+                  {viewingBatchId ? <Eye size={13} color="#10B981" /> : editingBatchId ? <Layers size={13} color="#7C3AED" /> : <Plus size={13} color="#2563EB" />}
+                  {viewingBatchId ? 'View Batch Details' : editingBatchId ? 'Modify Batch' : 'Create Academic Batch'}
                 </h3>
-                {editingBatchId && (
+                {(editingBatchId || viewingBatchId) && (
                   <button 
                     onClick={handleClearForm}
                     style={{ border: 'none', backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#94A3B8' }}
@@ -528,10 +617,10 @@ export default function BatchAllocation({ setActiveNav }) {
                   <input
                     type="text"
                     required
-                    disabled={editingBatchId ? true : false}
+                    disabled={!!viewingBatchId || !!editingBatchId}
                     value={form.code}
                     onChange={e => setForm(p => ({ ...p, code: e.target.value }))}
-                    style={{ ...inputStyle, textTransform: 'uppercase', backgroundColor: editingBatchId ? '#F1F5F9' : '#FFFFFF' }}
+                    style={{ ...inputStyle, textTransform: 'uppercase', backgroundColor: editingBatchId ? '#F1F5F9' : '#FFFFFF', opacity: viewingBatchId ? 0.7 : 1, cursor: viewingBatchId ? 'not-allowed' : 'text' }}
                   />
                 </div>
 
@@ -540,9 +629,10 @@ export default function BatchAllocation({ setActiveNav }) {
                   <input
                     type="number"
                     required
+                    disabled={!!viewingBatchId}
                     value={form.startYear}
                     onChange={e => setForm(p => ({ ...p, startYear: parseInt(e.target.value, 10) || '' }))}
-                    style={inputStyle}
+                    style={{ ...inputStyle, opacity: viewingBatchId ? 0.7 : 1, cursor: viewingBatchId ? 'not-allowed' : 'text' }}
                   />
                 </div>
 
@@ -552,8 +642,8 @@ export default function BatchAllocation({ setActiveNav }) {
                     <select
                       value={form.dept}
                       onChange={e => setForm(p => ({ ...p, dept: e.target.value }))}
-                      style={selectStyle}
-                      disabled={departments.length === 0}
+                      style={{ ...selectStyle, opacity: viewingBatchId ? 0.7 : 1, cursor: viewingBatchId ? 'not-allowed' : 'pointer' }}
+                      disabled={departments.length === 0 || !!viewingBatchId}
                     >
                       {departments.length === 0 ? (
                         <option value="">No departments available — create one first</option>
@@ -573,7 +663,8 @@ export default function BatchAllocation({ setActiveNav }) {
                     <select
                       value={form.advisor}
                       onChange={e => setForm(p => ({ ...p, advisor: e.target.value }))}
-                      style={selectStyle}
+                      style={{ ...selectStyle, opacity: viewingBatchId ? 0.7 : 1, cursor: viewingBatchId ? 'not-allowed' : 'pointer' }}
+                      disabled={!!viewingBatchId}
                     >
                       <option value="Unassigned">Unassigned</option>
                       {advisors.map(a => (
@@ -596,23 +687,25 @@ export default function BatchAllocation({ setActiveNav }) {
                   </div>
                 )}
 
-                <button
-                  type="submit"
-                  disabled={departments.length === 0}
-                  style={{
-                    width: '100%', marginTop: '6px', padding: '9px',
-                    borderRadius: '8px', border: 'none',
-                    backgroundColor: departments.length === 0 ? '#CBD5E1' : (editingBatchId ? '#7C3AED' : '#2563EB'),
-                    color: departments.length === 0 ? '#94A3B8' : '#fff',
-                    fontSize: '12px', fontWeight: 700, cursor: departments.length === 0 ? 'not-allowed' : 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                    fontFamily: 'inherit', transition: 'filter 0.15s'
-                  }}
-                  onMouseEnter={e => { if (departments.length > 0) e.currentTarget.style.filter = 'brightness(90%)'; }}
-                  onMouseLeave={e => { if (departments.length > 0) e.currentTarget.style.filter = 'brightness(100%)'; }}
-                >
-                  <Check size={13} /> {editingBatchId ? 'Save Advisor Allocation' : 'Create Batch'}
-                </button>
+                {!viewingBatchId && (
+                  <button
+                    type="submit"
+                    disabled={departments.length === 0}
+                    style={{
+                      width: '100%', marginTop: '6px', padding: '9px',
+                      borderRadius: '8px', border: 'none',
+                      backgroundColor: departments.length === 0 ? '#CBD5E1' : (editingBatchId ? '#7C3AED' : '#2563EB'),
+                      color: departments.length === 0 ? '#94A3B8' : '#fff',
+                      fontSize: '12px', fontWeight: 700, cursor: departments.length === 0 ? 'not-allowed' : 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                      fontFamily: 'inherit', transition: 'filter 0.15s'
+                    }}
+                    onMouseEnter={e => { if (departments.length > 0) e.currentTarget.style.filter = 'brightness(90%)'; }}
+                    onMouseLeave={e => { if (departments.length > 0) e.currentTarget.style.filter = 'brightness(100%)'; }}
+                  >
+                    <Check size={13} /> {editingBatchId ? 'Save Advisor Allocation' : 'Create Batch'}
+                  </button>
+                )}
               </form>
 
               {editingBatchId && (

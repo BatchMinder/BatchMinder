@@ -155,7 +155,7 @@ export default function HODQueue() {
       </div>
 
       {/* Split-pane Workspace Layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: selectedRequest ? '1.3fr 1.2fr' : '1fr', gap: '20px', transition: 'all 0.2s' }}>
+      <div className={`grid grid-cols-1 ${selectedRequest ? 'xl:grid-cols-[1.3fr_1.2fr]' : ''} gap-5 transition-all duration-200`}>
 
         {/* Left Column: Requests List Table Card */}
         <div

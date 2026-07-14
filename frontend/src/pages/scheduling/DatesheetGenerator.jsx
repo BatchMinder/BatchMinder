@@ -58,6 +58,10 @@ export default function DatesheetGenerator({ setActiveNav }) {
   const [selectedBatchId, setSelectedBatchId] = useState("");
   const [selectedSemester, setSelectedSemester] = useState("");
   const [selectedSection, setSelectedSection] = useState("Section A");
+  const [timingPage, setTimingPage] = useState(1);
+  const timingLimit = 5;
+  const [clashPage, setClashPage] = useState(1);
+  const clashLimit = 5;
 
   useEffect(() => {
     fetchMetadataAndDatesheet();
@@ -170,6 +174,42 @@ export default function DatesheetGenerator({ setActiveNav }) {
     }
   };
 
+  const handleExportDatesheet = () => {
+    if (!entries || entries.length === 0) {
+      alert('No datesheet records available to export.');
+      return;
+    }
+
+    const headers = ['Date', 'Exam Slot', 'Course Code', 'Course Name', 'Room', 'Invigilator', 'Batch'];
+    const rows = entries.map(e => [
+      e.date,
+      e.examSlot,
+      e.courseCode,
+      e.courseName,
+      e.room,
+      e.invigilator || 'TBD',
+      e.batch
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(val => {
+        const cell = val === null || val === undefined ? '' : String(val);
+        return cell.includes(',') || cell.includes('"') ? `"${cell.replace(/"/g, '""')}"` : cell;
+      }).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Exam_Datesheet_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // --- Dynamic Metrics ---
   const filteredEntries = entries.filter(e => !selectedBatchId || e.batch === batches.find(b => b._id === selectedBatchId)?.code);
   const totalExams = filteredEntries.length;
@@ -201,11 +241,11 @@ export default function DatesheetGenerator({ setActiveNav }) {
   });
 
   const getSlotColor = (courseName, room) => {
-    if (room?.toLowerCase().includes('hall')) return 'bg-purple-50 border-purple-200 text-purple-800';
-    if (courseName?.includes('Database') || courseName?.includes('Software')) return 'bg-emerald-50 border-emerald-200 text-emerald-800';
-    if (courseName?.includes('AI') || courseName?.includes('Artificial')) return 'bg-pink-50 border-pink-200 text-pink-800';
-    if (courseName?.includes('Operating')) return 'bg-amber-50 border-amber-200 text-amber-800';
-    return 'bg-indigo-50 border-indigo-200 text-indigo-800';
+    if (room?.toLowerCase().includes('hall')) return 'bg-purple-50 border-purple-100 border-l-purple-500 text-purple-900';
+    if (courseName?.includes('Database') || courseName?.includes('Software')) return 'bg-emerald-50 border-emerald-100 border-l-emerald-500 text-emerald-900';
+    if (courseName?.includes('AI') || courseName?.includes('Artificial')) return 'bg-pink-50 border-pink-100 border-l-pink-500 text-pink-900';
+    if (courseName?.includes('Operating')) return 'bg-amber-50 border-amber-100 border-l-amber-500 text-amber-900';
+    return 'bg-indigo-50 border-indigo-100 border-l-indigo-500 text-indigo-900';
   };
 
   function formatDate(dateStr) {
@@ -290,19 +330,12 @@ export default function DatesheetGenerator({ setActiveNav }) {
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
-          <div className="flex flex-col gap-1 w-32">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Section</label>
-            <div className="relative">
-              <select className="w-full appearance-none bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 py-2 px-3 rounded-lg outline-none cursor-pointer">
-                <option>Section A</option>
-                <option>Section B</option>
-              </select>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
-          </div>
         </div>
         <div>
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-brandAccent/30 text-brandAccent text-xs font-bold rounded-lg shadow-sm hover:bg-blue-50 transition-colors">
+          <button 
+            onClick={handleExportDatesheet}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-brandAccent/30 text-brandAccent text-xs font-bold rounded-lg shadow-sm hover:bg-blue-50 transition-colors"
+          >
             <Download className="w-4 h-4" /> Export Datesheet
           </button>
         </div>
@@ -350,14 +383,15 @@ export default function DatesheetGenerator({ setActiveNav }) {
                       {DATES.map(date => {
                         const cellEntries = filteredEntries.filter(e => e.date === date && e.examSlot === slot);
                         return (
-                          <td key={date} className="px-2 py-2 border-r border-slate-100 align-top h-32 relative">
+                          <td key={date} className="p-2 border-r border-slate-100 align-top h-auto min-h-[7rem]">
                             {cellEntries.map((entry, i) => (
-                              <div key={i} className={`p-2.5 rounded-xl border ${getSlotColor(entry.courseName, entry.room)} mb-2 flex flex-col items-center justify-center text-center shadow-sm h-full relative overflow-hidden group`}>
+                              <div key={i} className={`p-2.5 rounded-lg border border-l-4 ${getSlotColor(entry.courseName, entry.room)} mb-2 flex flex-col text-left shadow-sm transition-all hover:shadow-md h-full min-h-[5rem] relative overflow-hidden group`}>
                                 <div className="absolute top-0 left-0 w-1 h-full bg-current opacity-20 group-hover:opacity-50 transition-opacity" />
-                                <span className="font-extrabold text-[11px] mb-0.5">{entry.courseCode}</span>
-                                <span className="font-medium text-[10px] leading-tight mb-1.5 opacity-90 truncate w-full px-2" title={entry.courseName}>{entry.courseName}</span>
-                                <span className="font-bold text-[10px] text-brandNavy bg-white/50 px-1.5 rounded mb-0.5 w-full truncate">{entry.invigilator}</span>
-                                <span className="font-bold text-[10px] opacity-75">{entry.room}</span>
+                                <span className="font-bold text-[11px] leading-tight mb-1">{entry.courseCode} - {entry.courseName}</span>
+                                <div className="mt-auto flex flex-col gap-0.5">
+                                  <span className="font-semibold text-[10px] opacity-80 w-full truncate" title={entry.invigilator}>{entry.invigilator}</span>
+                                  <span className="font-bold text-[10px]">{entry.room}</span>
+                                </div>
                               </div>
                             ))}
                           </td>
@@ -374,9 +408,9 @@ export default function DatesheetGenerator({ setActiveNav }) {
             {/* Bottom Table: Exam Timing Details */}
             <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
               <h3 className="text-sm font-bold text-slate-800 mb-4">Exam Schedule Details</h3>
-              <div className="overflow-x-auto rounded-xl border border-slate-200 max-h-[300px] overflow-y-auto">
-                <table className="w-full text-left text-xs relative">
-                  <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200 sticky top-0 z-10">
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200">
                     <tr>
                       <th className="px-4 py-3">Code</th>
                       <th className="px-4 py-3">Course Title</th>
@@ -387,22 +421,45 @@ export default function DatesheetGenerator({ setActiveNav }) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium">
-                    {timingDetails.map((td, i) => (
-                      <tr key={i} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-4 py-3 text-slate-800 font-bold">{td.code}</td>
-                        <td className="px-4 py-3 text-slate-600">{td.title}</td>
-                        <td className="px-4 py-3 text-brandNavy font-bold">{td.date}</td>
-                        <td className="px-4 py-3 text-slate-500">{td.slot}</td>
-                        <td className="px-4 py-3 text-slate-800">{td.invigilator}</td>
-                        <td className="px-4 py-3 text-emerald-700 font-bold">{td.room}</td>
-                      </tr>
-                    ))}
-                    {timingDetails.length === 0 && (
+                    {timingDetails.length > 0 ? (() => {
+                      const currentTimingDetails = timingDetails.slice(
+                        (timingPage - 1) * timingLimit,
+                        timingPage * timingLimit
+                      );
+                      return currentTimingDetails.map((td, i) => (
+                        <tr key={i} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-4 py-3 text-slate-800 font-bold">{td.code}</td>
+                          <td className="px-4 py-3 text-slate-600">{td.title}</td>
+                          <td className="px-4 py-3 text-brandNavy font-bold">{td.date}</td>
+                          <td className="px-4 py-3 text-slate-500">{td.slot}</td>
+                          <td className="px-4 py-3 text-slate-800">{td.invigilator}</td>
+                          <td className="px-4 py-3 text-emerald-700 font-bold">{td.room}</td>
+                        </tr>
+                      ));
+                    })() : (
                       <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400">No exams scheduled</td></tr>
                     )}
                   </tbody>
                 </table>
               </div>
+              {timingDetails.length > 0 && (
+                <div className="flex justify-between items-center mt-4 text-xs">
+                  <span className="text-slate-500 font-medium">
+                    Showing {(timingPage - 1) * timingLimit + 1}–{Math.min(timingPage * timingLimit, timingDetails.length)} of {timingDetails.length} exams
+                  </span>
+                  <div className="flex gap-1.5">
+                    {Array.from({ length: Math.ceil(timingDetails.length / timingLimit) }, (_, idx) => idx + 1).map(p => (
+                      <button
+                        key={p}
+                        onClick={() => setTimingPage(p)}
+                        className={`px-2.5 py-1 rounded-md font-bold transition-all ${timingPage === p ? 'bg-brandAccent text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Bottom Panel: Clash Check */}
@@ -423,14 +480,35 @@ export default function DatesheetGenerator({ setActiveNav }) {
                     <AlertTriangle className="w-5 h-5" />
                     <h4 className="text-sm font-extrabold">Clashes Detected ({conflicts.length})</h4>
                   </div>
-                  <ul className="space-y-2 overflow-y-auto max-h-48 pr-1">
-                    {conflicts.map((c, i) => (
-                      <li key={i} className="text-[11px] p-2 bg-white rounded border border-rose-100 text-rose-800 shadow-sm">
-                        <strong className="block text-[10px] uppercase font-bold text-rose-500 mb-0.5">{c.type}</strong>
-                        {c.description}
-                      </li>
-                    ))}
+                  <ul className="space-y-2 pr-1 mb-3">
+                    {(() => {
+                      const currentConflicts = conflicts.slice((clashPage - 1) * clashLimit, clashPage * clashLimit);
+                      return currentConflicts.map((c, i) => (
+                        <li key={i} className="text-[11px] p-2 bg-white rounded border border-rose-100 text-rose-800 shadow-sm">
+                          <strong className="block text-[10px] uppercase font-bold text-rose-500 mb-0.5">{c.type}</strong>
+                          {c.description}
+                        </li>
+                      ));
+                    })()}
                   </ul>
+                  {conflicts.length > clashLimit && (
+                    <div className="flex justify-between items-center mt-auto text-xs border-t border-rose-100 pt-3">
+                      <span className="text-rose-600/80 font-medium">
+                        Showing {(clashPage - 1) * clashLimit + 1}–{Math.min(clashPage * clashLimit, conflicts.length)} of {conflicts.length}
+                      </span>
+                      <div className="flex gap-1.5">
+                        {Array.from({ length: Math.ceil(conflicts.length / clashLimit) }, (_, idx) => idx + 1).map(p => (
+                          <button
+                            key={p}
+                            onClick={() => setClashPage(p)}
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${clashPage === p ? 'bg-rose-500 text-white' : 'bg-white text-rose-600 border border-rose-200 hover:bg-rose-50'}`}
+                          >
+                            {p}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

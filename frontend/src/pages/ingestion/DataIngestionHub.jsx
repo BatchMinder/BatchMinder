@@ -18,10 +18,12 @@ import {
   Clock
 } from 'lucide-react';
 import { CircularProgress } from '@mui/material';
+import { useModal } from '../../contexts/ModalContext';
 
 // Real dynamic data states are initialized as empty to prevent dummy data leak
 
 export default function DataIngestionHub({ onUploadSuccess }) {
+  const { showAlert, showSuccess } = useModal();
   const [activeTab, setActiveTab] = useState('upload'); // 'upload' or 'sync'
 
   // Upload States
@@ -78,6 +80,34 @@ export default function DataIngestionHub({ onUploadSuccess }) {
   const [syncCount, setSyncCount] = useState(0);
   const [syncError, setSyncError] = useState('');
 
+  // Metadata Dropdown Selection States
+  const [departments, setDepartments] = useState([]);
+  const [batches, setBatches] = useState([]);
+  const [selectedDept, setSelectedDept] = useState('');
+  const [selectedBatch, setSelectedBatch] = useState('');
+
+  useEffect(() => {
+    fetch('/api/departments')
+      .then(r => r.json())
+      .then(d => {
+        if (d.status === 'success' && d.data) {
+          setDepartments(d.data);
+          if (d.data.length > 0) setSelectedDept(d.data[0].name);
+        }
+      })
+      .catch(() => {});
+
+    fetch('/api/batches')
+      .then(r => r.json())
+      .then(d => {
+        if (d.status === 'success' && d.data) {
+          setBatches(d.data);
+          if (d.data.length > 0) setSelectedBatch(d.data[0].code);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Form Field Validation on Blur (UI-5)
   const validateField = (field, value) => {
     let errorMsg = '';
@@ -113,6 +143,8 @@ export default function DataIngestionHub({ onUploadSuccess }) {
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
+      formData.append('department', selectedDept);
+      formData.append('batch', selectedBatch);
 
       // Simulate progress progression
       setTimeout(() => setUploadProgress(85), 600);
@@ -139,12 +171,20 @@ export default function DataIngestionHub({ onUploadSuccess }) {
         }
         if (data.data.errors && data.data.errors.length > 0) {
           const parsed = data.data.errors.map((errStr, idx) => {
-            const match = errStr.match(/^Row (\d+): (.*)/);
+            const match = errStr.match(/^Row (\d+): ([a-zA-Z0-9_]+) - (.*)/);
+            if (match) {
+              return {
+                row: Number(match[1]),
+                field: match[2],
+                error: match[3],
+                severity: 'error'
+              };
+            }
+            const simpleMatch = errStr.match(/^Row (\d+): (.*)/);
             return {
-              row: match ? Number(match[1]) : idx + 1,
+              row: simpleMatch ? Number(simpleMatch[1]) : idx + 1,
               field: 'Record Schema',
-              value: 'Invalid',
-              error: match ? match[2] : errStr,
+              error: simpleMatch ? simpleMatch[2] : errStr,
               severity: 'error'
             };
           });
@@ -154,13 +194,25 @@ export default function DataIngestionHub({ onUploadSuccess }) {
       } else {
         const errMsg = data.message || 'File upload failed';
         const rawErrors = data.errors || [];
+        setUploadStats({
+          processed: data.stats?.total || rawErrors.length || 0,
+          modified: data.stats?.duplicates || 0
+        });
         const parsed = rawErrors.map((errStr, idx) => {
-          const match = errStr.match(/^Row (\d+): (.*)/);
+          const match = errStr.match(/^Row (\d+): ([a-zA-Z0-9_]+) - (.*)/);
+          if (match) {
+            return {
+              row: Number(match[1]),
+              field: match[2],
+              error: match[3],
+              severity: 'error'
+            };
+          }
+          const simpleMatch = errStr.match(/^Row (\d+): (.*)/);
           return {
-            row: match ? Number(match[1]) : idx + 1,
+            row: simpleMatch ? Number(simpleMatch[1]) : idx + 1,
             field: 'Required Attribute',
-            value: 'Missing / Blank',
-            error: match ? match[2] : errStr,
+            error: simpleMatch ? simpleMatch[2] : errStr,
             severity: 'error'
           };
         });
@@ -175,7 +227,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
         }
       }
     } catch (err) {
-      alert('Network error uploading CSV spreadsheet');
+      showAlert('Network Error', 'Network error uploading CSV spreadsheet');
     } finally {
       setUploading(false);
     }
@@ -248,7 +300,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', fontFamily: 'inherit' }}>
       
       {/* Breadcrumb & Title */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <div style={{ fontSize: '12px', color: '#64748B', fontWeight: 600, display: 'flex', gap: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
             <span>BatchMinder ERP</span> &gt; <span>Administrator</span> &gt; <span style={{ color: '#2563EB' }}>CSV / Excel Upload</span>
@@ -257,7 +309,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
         </div>
 
         {/* Tab switch buttons */}
-        <div style={{ display: 'flex', backgroundColor: '#F1F5F9', padding: '4px', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', backgroundColor: '#F1F5F9', padding: '4px', borderRadius: '12px', border: '1px solid #E2E8F0', marginTop: '12px' }}>
           <button 
             onClick={() => setActiveTab('upload')}
             style={{ 
@@ -288,7 +340,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
       {activeTab === 'upload' ? (
         <>
           {/* Row 1: Upload Student Data File & Upload Summary Panel */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.5fr', gap: '20px' }}>
+          <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1.5fr] gap-5">
             
             {/* Upload Student Data File Panel */}
             <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
@@ -298,12 +350,52 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                   <span style={{ fontSize: '12px', color: '#64748B' }}>Upload CSV or Excel file to add or update student records</span>
                 </div>
               </div>
-
+ 
+              {/* Metadata Selectors (Required before upload) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-2">
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.5px' }}>
+                    Department (Required before upload)
+                  </label>
+                  <select
+                    value={selectedDept}
+                    onChange={e => setSelectedDept(e.target.value)}
+                    style={{
+                      width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid #CBD5E1',
+                      fontSize: '13px', color: '#1E293B', backgroundColor: '#FFFFFF', outline: 'none', cursor: 'pointer', fontFamily: 'inherit'
+                    }}
+                  >
+                    {departments.map(d => (
+                      <option key={d._id} value={d.name}>{d.name}</option>
+                    ))}
+                  </select>
+                </div>
+ 
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.5px' }}>
+                    Batch (Required)
+                  </label>
+                  <select
+                    value={selectedBatch}
+                    onChange={e => setSelectedBatch(e.target.value)}
+                    style={{
+                      width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid #CBD5E1',
+                      fontSize: '13px', color: '#1E293B', backgroundColor: '#FFFFFF', outline: 'none', cursor: 'pointer', fontFamily: 'inherit'
+                    }}
+                  >
+                    {batches.map(b => (
+                      <option key={b._id} value={b.code}>{b.code}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+ 
               {/* Drag and Drop Zone */}
               <div style={{ border: '2px dashed #CBD5E1', borderRadius: '12px', padding: '32px 16px', backgroundColor: '#F8FAFC', textAlign: 'center', cursor: 'pointer', position: 'relative', transition: 'border-color 0.2s' }}>
                 <input 
                   type="file"
                   accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+                  onClick={(e) => { e.target.value = ''; }}
                   onChange={handleFileUpload}
                   style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }}
                   disabled={uploading}
@@ -323,7 +415,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                 <h3 style={{ margin: '0 0 16px', fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Upload Summary</h3>
                 
                 {/* Stats Cards Row */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   <div style={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
                     <div style={{ fontSize: '11px', color: '#3B82F6', fontWeight: 700 }}>Total Records</div>
                     <div style={{ fontSize: '20px', fontWeight: 800, color: '#3B82F6', marginTop: '6px' }}>
@@ -370,7 +462,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
 
           {/* Row 2: File Meta Details Bar */}
           {file && (
-            <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '12px 20px', display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.01)' }}>
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4" style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '12px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.01)' }}>
               <div>
                 <span style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>File Name</span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700, color: '#334155', marginTop: '4px' }}>
@@ -409,7 +501,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
           )}
 
           {/* Row 3: Data Preview (First 10 Rows) & Validation Errors */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '20px' }}>
+          <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-5">
             
             {/* Data Preview */}
             <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
@@ -501,6 +593,27 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                   </div>
                 </div>
               )}
+              {/* Import Outcome Summary Banner */}
+              {(uploadSuccess || validationErrors.length > 0) && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  backgroundColor: '#EFFDF5',
+                  border: '1px solid #A7F3D0',
+                  borderRadius: '12px',
+                  padding: '12px 16px',
+                  marginTop: '16px',
+                  color: '#137333',
+                  fontSize: '13px',
+                  fontWeight: 700
+                }}>
+                  <CheckCircle size={16} color="#10B981" style={{ flexShrink: 0 }} />
+                  <span>
+                    Import complete: {uploadSuccess ? (uploadStats?.upserted || 0) : 0} students imported, {validationErrors.length} errors
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Validation Errors Panel */}
@@ -510,7 +623,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                   Validation Errors {validationErrors.length > 0 && `(${validationErrors.length})`}
                 </h3>
                 <button 
-                  onClick={() => alert('Validation report downloaded successfully!')}
+                  onClick={() => showSuccess('Validation report downloaded successfully!')}
                   style={{ display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid #E2E8F0', padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: 700, color: '#334155', backgroundColor: '#fff', cursor: 'pointer' }}
                 >
                   <Download size={12} /> Download Report
@@ -562,9 +675,9 @@ export default function DataIngestionHub({ onUploadSuccess }) {
               <button 
                 onClick={() => {
                   if (file) {
-                    alert('Re-run validation triggered!');
+                    showSuccess('Re-run validation completed successfully!');
                   } else {
-                    alert('Please select a file first.');
+                    showAlert('Notice', 'Please select a file first.');
                   }
                 }}
                 style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, color: '#334155', backgroundColor: '#fff', border: '1px solid #CBD5E1', cursor: 'pointer' }}
@@ -574,9 +687,9 @@ export default function DataIngestionHub({ onUploadSuccess }) {
               <button 
                 onClick={() => {
                   if (uploadSuccess) {
-                    alert('Import completed successfully!');
+                    showSuccess('Import completed successfully!');
                   } else {
-                    alert('No valid records to import. Please upload a file first.');
+                    showAlert('Notice', 'No valid records to import. Please upload a file first.');
                   }
                 }}
                 style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, color: '#fff', backgroundColor: '#2563EB', border: 'none', cursor: 'pointer' }}
@@ -588,7 +701,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
         </>
       ) : (
         /* LMS/ERP Dynamic API Synchronizer Tab */
-        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px' }}>
+        <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-5">
           
           {/* REST API Gateways and Keys Form */}
           <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
@@ -628,7 +741,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                 {errors.apiKey && <span style={{ fontSize: '11px', color: '#EF4444', fontWeight: 600 }}>{errors.apiKey}</span>}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <label style={{ fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Target Batch Selection</label>
                   <select 

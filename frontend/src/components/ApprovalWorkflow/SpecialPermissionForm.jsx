@@ -297,7 +297,7 @@ export default function SpecialPermissionForm({ onClose, onSuccess }) {
           </div>
 
           {/* Course Details Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <label style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: '#475569', letterSpacing: '0.5px' }}>
                 Course Code <span style={{ color: '#EF4444' }}>*</span>

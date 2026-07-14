@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useDepartments } from '../../hooks/useDepartments';
 import Header from './Header';
+import { useModal } from '../../contexts/ModalContext';
 
 const ROLE_OPTIONS   = ['All Roles', 'Batch Advisor', 'HOD', 'Administrator', 'Super Admin'];
 const STATUS_OPTIONS = ['All Status', 'Active', 'Pending', 'Inactive'];
@@ -18,6 +19,7 @@ const STATUS_STYLE = {
 
 export default function UserManagement({ setActiveNav }) {
   const { departments, isLoading: deptsLoading } = useDepartments();
+  const { showConfirm, showAlert, showSuccess } = useModal();
 
   const [users, setUsers]         = useState([]);
   const [loading, setLoading]     = useState(true);
@@ -32,6 +34,7 @@ export default function UserManagement({ setActiveNav }) {
 
   // Edit / Create Form states
   const [editingUserId, setEditingUserId] = useState(null);
+  const [viewingUserId, setViewingUserId] = useState(null);
   const [form, setForm] = useState({
     name:       '',
     email:      '',
@@ -50,10 +53,10 @@ export default function UserManagement({ setActiveNav }) {
 
 
   useEffect(() => {
-    if (!editingUserId && departments.length > 0 && !form.dept) {
+    if (!editingUserId && !viewingUserId && departments.length > 0 && !form.dept) {
       setForm(prev => ({ ...prev, dept: departments[0].name }));
     }
-  }, [departments, editingUserId]);
+  }, [departments, editingUserId, viewingUserId]);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -79,6 +82,24 @@ export default function UserManagement({ setActiveNav }) {
 
   const handleRowClick = (u) => {
     setEditingUserId(u.id);
+    setViewingUserId(null);
+    setForm({
+      name:       u.name || '',
+      email:      u.email || '',
+      employeeId: u.employeeId || '',
+      phone:      u.phone || '',
+      role:       u.role || 'Batch Advisor',
+      dept:       u.dept || '',
+      status:     u.status || 'Active',
+      password:   u.password || '••••••••',
+    });
+    setFormError('');
+    setFormSuccess('');
+  };
+
+  const handleViewClick = (u) => {
+    setViewingUserId(u.id);
+    setEditingUserId(null);
     setForm({
       name:       u.name || '',
       email:      u.email || '',
@@ -95,6 +116,7 @@ export default function UserManagement({ setActiveNav }) {
 
   const handleClearForm = () => {
     setEditingUserId(null);
+    setViewingUserId(null);
     setForm({
       name:       '',
       email:      '',
@@ -131,7 +153,9 @@ export default function UserManagement({ setActiveNav }) {
       const data = await response.json();
 
       if (response.ok && data.status === 'success') {
-        setFormSuccess(editingUserId ? 'User details updated successfully!' : 'User account created successfully!');
+        const msg = editingUserId ? 'User details updated successfully!' : 'User account created successfully!';
+        setFormSuccess(msg);
+        showSuccess(msg);
         if (!editingUserId) {
           handleClearForm();
         }
@@ -145,7 +169,14 @@ export default function UserManagement({ setActiveNav }) {
   };
 
   const handleDeleteUser = async (userId) => {
-    if (!window.confirm('Are you sure you want to permanently delete this user account?')) return;
+    const confirmed = await showConfirm(
+      'Delete User Account',
+      'Are you sure you want to permanently delete this user account? This action cannot be undone.',
+      'Delete',
+      'Cancel',
+      '#EF4444'
+    );
+    if (!confirmed) return;
     setFormError('');
     setFormSuccess('');
 
@@ -157,6 +188,7 @@ export default function UserManagement({ setActiveNav }) {
 
       if (response.ok) {
         setFormSuccess('User deleted successfully.');
+        showSuccess('User deleted successfully.');
         handleClearForm();
         fetchUsers();
       } else {
@@ -223,65 +255,65 @@ export default function UserManagement({ setActiveNav }) {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, padding: '24px', backgroundColor: '#F8FAFC', overflowY: 'auto' }}>
 
         {/* Stats Row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '14px', marginBottom: '20px' }}>
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-5">
           {/* Card 1 */}
-          <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+          <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '14px 16px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
             <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <Users size={18} color="#2563EB" />
             </div>
             <div>
               <p style={{ margin: 0, fontSize: '22px', fontWeight: 800, color: '#0F172A', lineHeight: 1.1 }}>{stats.total}</p>
-              <p style={{ margin: '2px 0 0', fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Total Users</p>
+              <p style={{ margin: '2px 0 0', fontSize: '10px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Total Users</p>
             </div>
           </div>
 
           {/* Card 2 */}
-          <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+          <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '14px 16px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
             <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: '#F5F3FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <UserCheck size={18} color="#7C3AED" />
             </div>
             <div>
               <p style={{ margin: 0, fontSize: '22px', fontWeight: 800, color: '#0F172A', lineHeight: 1.1 }}>{stats.advisors}</p>
-              <p style={{ margin: '2px 0 0', fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Batch Advisors</p>
+              <p style={{ margin: '2px 0 0', fontSize: '10px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Batch Advisors</p>
             </div>
           </div>
 
           {/* Card 3 */}
-          <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+          <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '14px 16px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
             <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: '#ECFEFF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <Shield size={18} color="#0891B2" />
             </div>
             <div>
               <p style={{ margin: 0, fontSize: '22px', fontWeight: 800, color: '#0F172A', lineHeight: 1.1 }}>{stats.hods}</p>
-              <p style={{ margin: '2px 0 0', fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.4px' }}>HODs</p>
+              <p style={{ margin: '2px 0 0', fontSize: '10px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.4px' }}>HODs</p>
             </div>
           </div>
 
           {/* Card 4 */}
-          <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+          <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '14px 16px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
             <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: '#F0FDF4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <Shield size={18} color="#059669" />
             </div>
             <div>
               <p style={{ margin: 0, fontSize: '22px', fontWeight: 800, color: '#0F172A', lineHeight: 1.1 }}>{stats.admins}</p>
-              <p style={{ margin: '2px 0 0', fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Administrators</p>
+              <p style={{ margin: '2px 0 0', fontSize: '10px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Administrators</p>
             </div>
           </div>
 
           {/* Card 5 */}
-          <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+          <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '14px 16px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
             <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: '#FFF1F2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <AlertTriangle size={18} color="#EF4444" />
             </div>
             <div>
               <p style={{ margin: 0, fontSize: '22px', fontWeight: 800, color: '#EF4444', lineHeight: 1.1 }}>{stats.inactive}</p>
-              <p style={{ margin: '2px 0 0', fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Inactive Users</p>
+              <p style={{ margin: '2px 0 0', fontSize: '10px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Inactive Users</p>
             </div>
           </div>
         </div>
 
         {/* Two-column main dashboard layout */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '20px', alignItems: 'stretch', flex: 1 }}>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5 items-stretch flex-1">
 
           {/* Left Column: Directory Directory Table Card */}
           <div style={{
@@ -339,11 +371,26 @@ export default function UserManagement({ setActiveNav }) {
                 >
                   {STATUS_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                 </select>
+
+                <button
+                  onClick={handleClearForm}
+                  title="Add New User"
+                  style={{
+                    padding: '7px 14px', borderRadius: '8px', border: 'none',
+                    backgroundColor: '#2563EB', color: '#FFFFFF', fontSize: '12px', fontWeight: 600,
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit',
+                    marginLeft: '4px', boxShadow: '0 2px 4px rgba(37,99,235,0.1)', transition: 'background 0.15s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.backgroundColor = '#1D4ED8'}
+                  onMouseLeave={e => e.currentTarget.style.backgroundColor = '#2563EB'}
+                >
+                  <Plus size={14} /> Add User
+                </button>
               </div>
             </div>
 
             {/* Table wrapper */}
-            <div style={{ flex: 1, overflowY: 'auto' }}>
+            <div className="overflow-x-auto w-full" style={{ flex: 1, overflowY: 'auto' }}>
               {loading && filtered.length === 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px', gap: '10px' }}>
                   <RefreshCw size={20} color="#2563EB" style={{ animation: 'spin 1s linear infinite' }} />
@@ -461,7 +508,7 @@ export default function UserManagement({ setActiveNav }) {
                               </button>
                               <button
                                 title="View User"
-                                onClick={() => setSelected([u.id])}
+                                onClick={() => handleViewClick(u)}
                                 style={{
                                   padding: '5px', border: 'none', backgroundColor: 'transparent',
                                   color: '#64748B', cursor: 'pointer', borderRadius: '4px',
@@ -560,10 +607,10 @@ export default function UserManagement({ setActiveNav }) {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
                 <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  {editingUserId ? <Shield size={14} color="#7C3AED" /> : <Plus size={14} color="#2563EB" />} 
-                  {editingUserId ? 'Modify User Profile' : 'Add New User'}
+                  {viewingUserId ? <Eye size={14} color="#10B981" /> : editingUserId ? <Shield size={14} color="#7C3AED" /> : <Plus size={14} color="#2563EB" />} 
+                  {viewingUserId ? 'View User Profile' : editingUserId ? 'Modify User Profile' : 'Add New User'}
                 </h3>
-                {editingUserId && (
+                {(editingUserId || viewingUserId) && (
                   <button 
                     onClick={handleClearForm}
                     style={{ border: 'none', backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#94A3B8' }}
@@ -591,10 +638,11 @@ export default function UserManagement({ setActiveNav }) {
                   <input
                     type="text"
                     required
+                    disabled={!!viewingUserId}
                     placeholder="Dr. Fatima Malik"
                     value={form.name}
                     onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                    style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#1E293B', outline: 'none', fontFamily: 'inherit' }}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#1E293B', outline: 'none', fontFamily: 'inherit', opacity: viewingUserId ? 0.7 : 1, cursor: viewingUserId ? 'not-allowed' : 'text' }}
                   />
                 </div>
 
@@ -603,10 +651,11 @@ export default function UserManagement({ setActiveNav }) {
                   <input
                     type="email"
                     required
+                    disabled={!!viewingUserId}
                     placeholder="f.malik@stmu.edu.pk"
                     value={form.email}
                     onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-                    style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#1E293B', outline: 'none', fontFamily: 'inherit' }}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#1E293B', outline: 'none', fontFamily: 'inherit', opacity: viewingUserId ? 0.7 : 1, cursor: viewingUserId ? 'not-allowed' : 'text' }}
                   />
                 </div>
 
@@ -615,8 +664,9 @@ export default function UserManagement({ setActiveNav }) {
                   <div style={{ position: 'relative' }}>
                     <select
                       value={form.role}
+                      disabled={!!viewingUserId}
                       onChange={e => setForm(p => ({ ...p, role: e.target.value }))}
-                      style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#475569', outline: 'none', cursor: 'pointer', appearance: 'none', fontFamily: 'inherit' }}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#475569', outline: 'none', cursor: viewingUserId ? 'not-allowed' : 'pointer', appearance: 'none', fontFamily: 'inherit', opacity: viewingUserId ? 0.7 : 1 }}
                     >
                       {ROLE_OPTIONS.slice(1).map(o => <option key={o} value={o}>{o}</option>)}
                     </select>
@@ -629,8 +679,9 @@ export default function UserManagement({ setActiveNav }) {
                   <div style={{ position: 'relative' }}>
                     <select
                       value={form.dept}
+                      disabled={!!viewingUserId}
                       onChange={e => setForm(p => ({ ...p, dept: e.target.value }))}
-                      style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#475569', outline: 'none', cursor: 'pointer', appearance: 'none', fontFamily: 'inherit' }}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#475569', outline: 'none', cursor: viewingUserId ? 'not-allowed' : 'pointer', appearance: 'none', fontFamily: 'inherit', opacity: viewingUserId ? 0.7 : 1 }}
                     >
                       <option value="Computer Science">Computer Science</option>
                       <option value="Software Engineering">Software Engineering</option>
@@ -644,7 +695,8 @@ export default function UserManagement({ setActiveNav }) {
                   <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#94A3B8', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '4px' }}>Assign Batch</label>
                   <div style={{ position: 'relative' }}>
                     <select
-                      style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#475569', outline: 'none', cursor: 'pointer', appearance: 'none', fontFamily: 'inherit' }}
+                      disabled={!!viewingUserId}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#475569', outline: 'none', cursor: viewingUserId ? 'not-allowed' : 'pointer', appearance: 'none', fontFamily: 'inherit', opacity: viewingUserId ? 0.7 : 1 }}
                     >
                       <option>BSCS-2023 (Unassigned)</option>
                       <option>BSCS-2021</option>
@@ -659,10 +711,11 @@ export default function UserManagement({ setActiveNav }) {
                   <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#94A3B8', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '4px' }}>Employee ID</label>
                   <input
                     type="text"
+                    disabled={!!viewingUserId}
                     placeholder="STMU-2024-ADV-047"
                     value={form.employeeId}
                     onChange={e => setForm(p => ({ ...p, employeeId: e.target.value }))}
-                    style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#1E293B', outline: 'none', fontFamily: 'inherit' }}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#1E293B', outline: 'none', fontFamily: 'inherit', opacity: viewingUserId ? 0.7 : 1, cursor: viewingUserId ? 'not-allowed' : 'text' }}
                   />
                 </div>
 
@@ -670,29 +723,32 @@ export default function UserManagement({ setActiveNav }) {
                   <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#94A3B8', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '4px' }}>Phone</label>
                   <input
                     type="text"
+                    disabled={!!viewingUserId}
                     placeholder="+92 300 1234567"
                     value={form.phone}
                     onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
-                    style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#1E293B', outline: 'none', fontFamily: 'inherit' }}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#1E293B', outline: 'none', fontFamily: 'inherit', opacity: viewingUserId ? 0.7 : 1, cursor: viewingUserId ? 'not-allowed' : 'text' }}
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  style={{
-                    width: '100%', marginTop: '6px', padding: '9px',
-                    borderRadius: '8px', border: 'none',
-                    backgroundColor: '#2563EB', color: '#FFFFFF',
-                    fontSize: '12px', fontWeight: 700, cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                    fontFamily: 'inherit', transition: 'background 0.15s',
-                    boxShadow: '0 4px 10px rgba(37,99,235,0.15)'
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.backgroundColor = '#1D4ED8'}
-                  onMouseLeave={e => e.currentTarget.style.backgroundColor = '#2563EB'}
-                >
-                  <CheckCircle2 size={13} /> {editingUserId ? 'Save Changes' : 'Create User Account'}
-                </button>
+                {!viewingUserId && (
+                  <button
+                    type="submit"
+                    style={{
+                      width: '100%', marginTop: '6px', padding: '9px',
+                      borderRadius: '8px', border: 'none',
+                      backgroundColor: '#2563EB', color: '#FFFFFF',
+                      fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                      fontFamily: 'inherit', transition: 'background 0.15s',
+                      boxShadow: '0 4px 10px rgba(37,99,235,0.15)'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.backgroundColor = '#1D4ED8'}
+                    onMouseLeave={e => e.currentTarget.style.backgroundColor = '#2563EB'}
+                  >
+                    <CheckCircle2 size={13} /> {editingUserId ? 'Save Changes' : 'Create User Account'}
+                  </button>
+                )}
               </form>
 
               {editingUserId && (

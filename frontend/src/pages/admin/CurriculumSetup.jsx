@@ -184,8 +184,8 @@ export default function CurriculumSetup() {
   return (
     <div style={{ padding: '0 0 40px', maxWidth: '1400px', margin: '0 auto' }}>
       
-      {/* HEADER SECTION */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between md:items-start gap-4 mb-6">
         <div>
           <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 800, color: '#0F172A' }}>Curriculum Management</h2>
           <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748B' }}>Manage program curricula, map equivalencies, and configure rules.</p>
@@ -196,7 +196,7 @@ export default function CurriculumSetup() {
       </div>
 
       {/* 1. TOP STATS ROW */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px', marginBottom: '24px' }}>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
         {statCards.map((card, i) => {
           const Icon = card.icon;
           return (
@@ -226,13 +226,13 @@ export default function CurriculumSetup() {
         return (
           <>
             {/* 2. VERSIONS & DETAILS ROW */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '20px', marginBottom: '24px' }}>
+            <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-5 mb-6">
               
               {/* Curriculum Versions List */}
               <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div className="flex flex-col xl:flex-row justify-between xl:items-center gap-4 mb-4">
                   <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0F172A' }}>Curriculum Versions</h3>
-                  <div style={{ display: 'flex', gap: '12px' }}>
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <input 
                       type="text" 
                       placeholder="Search curriculum..." 
@@ -335,7 +335,7 @@ export default function CurriculumSetup() {
       })()}
 
       {/* 3. COURSES & MAPPING ROW */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr', gap: '20px' }}>
+      <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr_1fr] gap-5">
         
         {/* Course List */}
         <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>

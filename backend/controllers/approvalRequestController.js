@@ -247,8 +247,14 @@ export const resolveAdvisorDecision = async (req, res, next) => {
       request.status = 'advisor_approved';
       request.currentApproverRole = 'hod';
     } else {
-      request.status = 'advisor_rejected';
-      request.currentApproverRole = 'none';
+      const isReturned = remarks && remarks.trim().startsWith('[Returned for Edit]');
+      if (isReturned) {
+        request.status = 'returned_for_edit';
+        request.currentApproverRole = 'student';
+      } else {
+        request.status = 'advisor_rejected';
+        request.currentApproverRole = 'none';
+      }
     }
 
     request.advisorDecision = {
@@ -263,10 +269,11 @@ export const resolveAdvisorDecision = async (req, res, next) => {
     const student = await Student.findById(request.studentId);
     
     // Log audit
+    const isReturned = remarks && remarks.trim().startsWith('[Returned for Edit]');
     await logAudit({
       actorId: req.user._id,
       actorRole: req.user.role,
-      action: isApprove ? 'REQUEST_APPROVED_ADVISOR' : 'REQUEST_REJECTED_ADVISOR',
+      action: isApprove ? 'REQUEST_APPROVED_ADVISOR' : (isReturned ? 'REQUEST_RETURNED_ADVISOR' : 'REQUEST_REJECTED_ADVISOR'),
       targetType: 'ApprovalRequest',
       targetId: request._id.toString(),
       departmentId: request.departmentId.toString(),

@@ -8,8 +8,10 @@ import { CircularProgress } from '@mui/material';
 import {
   ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip
 } from 'recharts';
+import { useModal } from '../../contexts/ModalContext';
 
 export default function StudentRecords({ setActiveNav }) {
+  const { showConfirm, showAlert, showSuccess } = useModal();
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -62,6 +64,7 @@ export default function StudentRecords({ setActiveNav }) {
       if (res.ok) {
         setShowEditModal(false);
         setEditingStudent(null);
+        showSuccess('Student record updated successfully.');
         fetchStudents();
         fetchStats();
       } else {
@@ -76,12 +79,20 @@ export default function StudentRecords({ setActiveNav }) {
   };
 
   const handleDeleteClick = async (studentId) => {
-    if (!window.confirm('Are you sure you want to delete this student record?')) return;
+    const confirmed = await showConfirm(
+      'Delete Student Record',
+      'Are you sure you want to delete this student record? This action cannot be undone.',
+      'Delete',
+      'Cancel',
+      '#EF4444'
+    );
+    if (!confirmed) return;
     try {
       const res = await fetch(`/api/students/${studentId}`, {
         method: 'DELETE'
       });
       if (res.ok) {
+        showSuccess('Student record deleted successfully.');
         fetchStudents();
         fetchStats();
       } else {
@@ -127,7 +138,7 @@ export default function StudentRecords({ setActiveNav }) {
       const r = await fetch('/api/dashboard/stats');
       const d = await r.json();
       if (d.status === 'success' && d.data) setStats(d.data);
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const fetchAuditLogs = async () => {
@@ -143,9 +154,9 @@ export default function StudentRecords({ setActiveNav }) {
   };
 
   useEffect(() => {
-    fetch('/api/batches').then(r => r.json()).then(d => { if (d.status === 'success') setBatches(d.data); }).catch(() => {});
-    fetch('/api/departments').then(r => r.json()).then(d => { if (d.status === 'success') setDepartments(d.data); }).catch(() => {});
-    fetch('/api/dashboard/cgpa-distribution').then(r => r.json()).then(d => { if (d.status === 'success') setCgpaDist(d.data); }).catch(() => {});
+    fetch('/api/batches').then(r => r.json()).then(d => { if (d.status === 'success') setBatches(d.data); }).catch(() => { });
+    fetch('/api/departments').then(r => r.json()).then(d => { if (d.status === 'success') setDepartments(d.data); }).catch(() => { });
+    fetch('/api/dashboard/cgpa-distribution').then(r => r.json()).then(d => { if (d.status === 'success') setCgpaDist(d.data); }).catch(() => { });
     fetch('/api/dashboard/at-risk-trend').then(r => r.json()).then(d => {
       if (d.status === 'success' && d.data) {
         const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
@@ -158,7 +169,7 @@ export default function StudentRecords({ setActiveNav }) {
           };
         }));
       }
-    }).catch(() => {});
+    }).catch(() => { });
     fetchStats();
     fetchAuditLogs();
   }, []);
@@ -177,6 +188,7 @@ export default function StudentRecords({ setActiveNav }) {
         setShowForm(false);
         setFormData({ rollNumber: '', name: '', email: '', departmentId: '', batchId: '', cgpa: '' });
         setPage(1);
+        showSuccess('Student record created successfully.');
         fetchStudents();
         fetchStats();
       } else {
@@ -196,6 +208,45 @@ export default function StudentRecords({ setActiveNav }) {
     setPage(1);
   };
 
+  const handleExport = () => {
+    const listToExport = displayStudents.length > 0 ? displayStudents : students;
+    if (!listToExport || listToExport.length === 0) {
+      showAlert('Notice', 'No student records available to export.');
+      return;
+    }
+
+    const headers = ['Student ID', 'Name', 'Email', 'Department', 'Semester', 'CGPA', 'Status'];
+    const rows = listToExport.map(s => [
+      s.rollNumber,
+      s.name,
+      s.email || '',
+      s.departmentId?.name || 'Computer Science',
+      s.currentSemester || '1',
+      s.cgpa ? s.cgpa.toFixed(2) : '0.00',
+      s.status || 'active'
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(val => {
+        const cell = val === null || val === undefined ? '' : String(val);
+        return cell.includes(',') || cell.includes('"') ? `"${cell.replace(/"/g, '""')}"` : cell;
+      }).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Student_Records_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    showSuccess('Student records exported successfully!');
+  };
+
   // Filter actual DB students
   const displayStudents = useMemo(() => {
     return students.filter(s => {
@@ -209,9 +260,9 @@ export default function StudentRecords({ setActiveNav }) {
   }, [students, search, statusFilter, deptFilter]);
 
   const getCgpaColor = (cgpa) => {
-    if (cgpa >= 3.5) return '#2563EB'; // Blue
-    if (cgpa >= 3.0) return '#F59E0B'; // Orange
-    return '#EF4444'; // Red
+    if (cgpa >= 3.0) return '#10B981'; // Green (Good Standing)
+    if (cgpa >= 2.0) return '#EAB308'; // Yellow (Academic Warning)
+    return '#EF4444'; // Red (Critical Risk)
   };
 
   const avgGpa = useMemo(() => {
@@ -227,14 +278,14 @@ export default function StudentRecords({ setActiveNav }) {
     if (!cgpaDist || !cgpaDist.labels) {
       return [
         { name: 'Good Standing', value: 0, color: '#10B981' },
-        { name: 'Warning', value: 0, color: '#F59E0B' },
+        { name: 'Warning', value: 0, color: '#EAB308' },
         { name: 'Critical Risk', value: 0, color: '#EF4444' }
       ];
     }
     const totalDist = cgpaDist.counts.reduce((a, b) => a + b, 0) || 1;
     return [
       { name: 'Good Standing', value: Math.round((cgpaDist.counts[0] / totalDist) * 100), color: '#10B981' },
-      { name: 'Academic Warning', value: Math.round((cgpaDist.counts[1] / totalDist) * 100), color: '#F59E0B' },
+      { name: 'Academic Warning', value: Math.round((cgpaDist.counts[1] / totalDist) * 100), color: '#EAB308' },
       { name: 'Critical Risk', value: Math.round((cgpaDist.counts[2] / totalDist) * 100), color: '#EF4444' }
     ].filter(item => item.value > 0);
   }, [cgpaDist]);
@@ -263,9 +314,9 @@ export default function StudentRecords({ setActiveNav }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', fontFamily: "'Inter', sans-serif" }}>
-      
+
       {/* ── Breadcrumbs & Title Row ── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div className="flex flex-col md:flex-row justify-between items-start gap-4">
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#94A3B8', fontWeight: 500, marginBottom: '6px' }}>
             <span>BatchMinder</span>
@@ -284,6 +335,7 @@ export default function StudentRecords({ setActiveNav }) {
 
         <div style={{ display: 'flex', gap: '10px' }}>
           <button
+            onClick={handleExport}
             style={{
               display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 16px',
               backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '10px',
@@ -312,8 +364,8 @@ export default function StudentRecords({ setActiveNav }) {
       </div>
 
       {/* ── Metric Cards Row ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
-        
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
         {/* Total Students Card */}
         <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -352,14 +404,14 @@ export default function StudentRecords({ setActiveNav }) {
       </div>
 
       {/* ── Two Column Main Layout ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '20px', alignItems: 'stretch' }}>
-        
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5 items-stretch flex-1">
+
         {/* Left Column: Filters and Table Container */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          
+
           {/* Filters Bar */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '12px 16px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flex: 1 }}>
+          <div className="flex flex-col md:flex-row gap-4 justify-between md:items-center" style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '12px 16px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+            <div className="flex flex-col sm:flex-row gap-3 md:items-center w-full md:w-auto" style={{ flex: 1 }}>
               {/* Search Field */}
               <div style={{ position: 'relative', width: '220px' }}>
                 <Search size={14} color="#94A3B8" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
@@ -404,8 +456,8 @@ export default function StudentRecords({ setActiveNav }) {
           </div>
 
           {/* Student Directory Table Card */}
-          <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+          <div className="overflow-x-auto" style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column' }}>
+            <table style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
                 <tr style={{ backgroundColor: '#FAFAFA', borderBottom: '1px solid #E2E8F0' }}>
                   <th style={{ padding: '12px 20px', textAlign: 'left', color: '#64748B', fontWeight: 700, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Student ID</th>
@@ -462,7 +514,7 @@ export default function StudentRecords({ setActiveNav }) {
 
                       {/* CGPA Progress Bar + Value */}
                       <td style={{ padding: '12px 20px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '130px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <div style={{ flex: 1, height: '5px', backgroundColor: '#E2E8F0', borderRadius: '3px', overflow: 'hidden' }}>
                             <div style={{ width: `${(s.cgpa / 4.0) * 100}%`, height: '100%', backgroundColor: getCgpaColor(s.cgpa), borderRadius: '3px' }} />
                           </div>
@@ -525,7 +577,7 @@ export default function StudentRecords({ setActiveNav }) {
                 >
                   <ChevronLeft size={14} />
                 </button>
-                
+
                 {Array.from({ length: Math.ceil(total / limit) || 1 }, (_, i) => i + 1)
                   .filter(p => p === 1 || p === Math.ceil(total / limit) || Math.abs(p - page) <= 1)
                   .map((p, idx, arr) => (
@@ -559,40 +611,40 @@ export default function StudentRecords({ setActiveNav }) {
 
         {/* Right Column: Activities Panel & System Status */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          
+
           {/* Activities Card */}
           <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>Recent Activities</h3>
-              <span 
+              <span
                 onClick={() => setActiveNav && setActiveNav('audit_logs')}
                 style={{ fontSize: '11px', fontWeight: 700, color: '#2563EB', cursor: 'pointer' }}
               >
                 View All
               </span>
             </div>
-            
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-               {auditLogs.length > 0 ? (
-                 auditLogs.map((log, i) => (
-                   <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                     <div style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: log.action.includes('FAILED') ? '#FEE2E2' : '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: log.action.includes('FAILED') ? '#EF4444' : '#2563EB' }}>
-                       {log.action.includes('INGESTED') ? <FileText size={12} /> : <UserPlus size={12} />}
-                     </div>
-                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                       <span style={{ fontSize: '12px', fontWeight: 700, color: '#334155', lineHeight: 1.2 }}>{log.action.replace(/_/g, ' ')}</span>
-                       <span style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.2 }}>{log.metadata?.description || log.description || 'System Audit Log'}</span>
-                       <span style={{ fontSize: '9px', fontWeight: 700, color: '#94A3B8', marginTop: '2px', textTransform: 'uppercase' }}>
-                         {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                       </span>
-                     </div>
-                   </div>
-                 ))
-               ) : (
-                 <div style={{ padding: '24px', textAlign: 'center', color: '#94A3B8', fontSize: '12px' }}>No recent activities.</div>
-               )}
-             </div>
-           </div>
+              {auditLogs.length > 0 ? (
+                auditLogs.map((log, i) => (
+                  <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                    <div style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: log.action.includes('FAILED') ? '#FEE2E2' : '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: log.action.includes('FAILED') ? '#EF4444' : '#2563EB' }}>
+                      {log.action.includes('INGESTED') ? <FileText size={12} /> : <UserPlus size={12} />}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#334155', lineHeight: 1.2 }}>{log.action.replace(/_/g, ' ')}</span>
+                      <span style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.2 }}>{log.metadata?.description || log.description || 'System Audit Log'}</span>
+                      <span style={{ fontSize: '9px', fontWeight: 700, color: '#94A3B8', marginTop: '2px', textTransform: 'uppercase' }}>
+                        {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={{ padding: '24px', textAlign: 'center', color: '#94A3B8', fontSize: '12px' }}>No recent activities.</div>
+              )}
+            </div>
+          </div>
 
           {/* System Status Panel */}
           <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
@@ -610,15 +662,15 @@ export default function StudentRecords({ setActiveNav }) {
       </div>
 
       {/* ── Bottom Section: Charts Panel ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px 320px', gap: '16px' }}>
-        
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px_320px] gap-4">
+
         {/* Chart 1: CGPA Distribution Doughnut Chart */}
         <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
             <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>CGPA Distribution</h3>
             <AlertCircle size={14} color="#94A3B8" />
           </div>
-          
+
           <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'space-between', gap: '20px', minHeight: '140px' }}>
             {/* Doughnut Chart Canvas */}
             <div style={{ position: 'relative', width: '130px', height: '130px' }}>
@@ -728,7 +780,7 @@ export default function StudentRecords({ setActiveNav }) {
                 <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#64748B' }}>{selected.rollNumber}</div>
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
               <div style={{ padding: 12, border: '1px solid #E2E8F0', borderRadius: 8 }}>
                 <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Department</div>
                 <div style={{ fontWeight: 600, color: '#0F172A', marginTop: 4 }}>{selected.departmentId?.name || 'Computer Science'}</div>
@@ -777,7 +829,7 @@ export default function StudentRecords({ setActiveNav }) {
                   <input type="email" value={formData.email} onChange={e => setFormData(f => ({ ...f, email: e.target.value }))}
                     style={{ width: '100%', padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, outline: 'none', fontFamily: 'inherit' }} />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Department *</label>
                     <select required value={formData.departmentId} onChange={e => setFormData(f => ({ ...f, departmentId: e.target.value }))}
@@ -839,7 +891,7 @@ export default function StudentRecords({ setActiveNav }) {
                   <input type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
                     style={{ width: '100%', padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, outline: 'none', fontFamily: 'inherit' }} />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Department *</label>
                     <select required value={editForm.departmentId} onChange={e => setEditForm(f => ({ ...f, departmentId: e.target.value }))}
@@ -857,7 +909,7 @@ export default function StudentRecords({ setActiveNav }) {
                     </select>
                   </div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>CGPA</label>
                     <input type="number" step="0.01" min="0" max="4" value={editForm.cgpa} onChange={e => setEditForm(f => ({ ...f, cgpa: e.target.value }))}

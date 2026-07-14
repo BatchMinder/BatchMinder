@@ -159,7 +159,7 @@ studentSchema.post('save', async function (doc) {
 
     // 2. Evaluate CGPA thresholds and trigger Advisor notifications
     const cgpa = doc.cgpa || 0.0;
-    if (cgpa <= 2.1) {
+    if (doc.status === 'active' && cgpa <= 2.1) {
       const type = cgpa < 2.0 ? 'CGPA_CRITICAL' : 'CGPA_WARNING';
       const message = type === 'CGPA_CRITICAL'
         ? `Academic Alert: Student ${doc.name} (${doc.rollNumber}) CGPA has dropped to Critical level: ${cgpa.toFixed(2)}.`
@@ -211,7 +211,7 @@ studentSchema.post('findOneAndUpdate', async function (doc) {
 
       // 2. Evaluate CGPA thresholds and trigger Advisor notifications
       const cgpa = doc.cgpa || 0.0;
-      if (cgpa <= 2.1) {
+      if (doc.status === 'active' && cgpa <= 2.1) {
         const type = cgpa < 2.0 ? 'CGPA_CRITICAL' : 'CGPA_WARNING';
         const message = type === 'CGPA_CRITICAL'
           ? `Academic Alert: Student ${doc.name} (${doc.rollNumber}) CGPA has dropped to Critical level: ${cgpa.toFixed(2)}.`

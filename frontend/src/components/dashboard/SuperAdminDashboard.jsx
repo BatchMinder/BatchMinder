@@ -6,6 +6,7 @@ import BatchAllocation from './BatchAllocation';
 import RolesPermissions from './RolesPermissions';
 import NotificationsPage from './NotificationsPage';
 import AuditLogsPage from './AuditLogsPage';
+import Header from './Header';
 import {
   Layers,
   GraduationCap,
@@ -27,14 +28,56 @@ import {
   ExternalLink,
   TrendingUp,
   Settings,
-  ChevronRight
+  ChevronRight,
+  ChevronLeft,
+  ChevronUp,
+  ChevronDown,
+  Menu
 } from 'lucide-react';
 
 export default function SuperAdminDashboard({ onLogout }) {
   const { user } = useAuth();
   const [currentDate, setCurrentDate] = useState('');
-  const [activeNav, setActiveNav] = useState('dashboard');
+  const [activeNav, setActiveNav] = useState(() => {
+    const path = window.location.pathname;
+    if (path.startsWith('/dashboard/')) {
+      const subPage = path.substring('/dashboard/'.length);
+      const validPages = ['users', 'departments', 'batches', 'roles', 'notifications', 'audits'];
+      if (validPages.includes(subPage)) {
+        return subPage;
+      }
+    }
+    return 'dashboard';
+  });
   const [showBellDropdown, setShowBellDropdown] = useState(false);
+
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [managementExpanded, setManagementExpanded] = useState(true);
+  const [systemExpanded, setSystemExpanded] = useState(true);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    const handleToggle = () => {
+      setMobileSidebarOpen(o => !o);
+    };
+    window.addEventListener('toggle-mobile-sidebar', handleToggle);
+    return () => window.removeEventListener('toggle-mobile-sidebar', handleToggle);
+  }, []);
+
+  const handleNavigate = (pageId) => {
+    setActiveNav(pageId);
+    if (window.innerWidth < 1024) {
+      setMobileSidebarOpen(false);
+    }
+  };
 
   // Live stats & notifications states
   const [dashboardData, setDashboardData] = useState(null);
@@ -93,7 +136,7 @@ export default function SuperAdminDashboard({ onLogout }) {
         setActiveNav('dashboard');
       } else if (path.startsWith('/dashboard/')) {
         const subPage = path.substring('/dashboard/'.length);
-        const validPages = ['users', 'departments', 'batches', 'roles', 'notifications'];
+        const validPages = ['users', 'departments', 'batches', 'roles', 'notifications', 'audits'];
         if (validPages.includes(subPage)) {
           setActiveNav(subPage);
         } else {
@@ -236,47 +279,63 @@ export default function SuperAdminDashboard({ onLogout }) {
   const initials = displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'SA';
 
   return (
-    <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden', fontFamily: "'Inter', 'Liberation Sans', -apple-system, sans-serif" }}>
+    <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden', fontFamily: "'Inter', 'Liberation Sans', -apple-system, sans-serif", position: 'relative' }}>
+      {/* Mobile Backdrop Overlay */}
+      {isMobile && mobileSidebarOpen && (
+        <div
+          onClick={() => setMobileSidebarOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            zIndex: 998
+          }}
+        />
+      )}
 
       {/* ── SIDEBAR ── */}
-      <aside style={{
+      <aside className="no-scrollbar" style={{
         width: '256px',
         minWidth: '256px',
         backgroundColor: '#0F172A',
-        display: 'flex',
+        display: (!isMobile || mobileSidebarOpen) ? 'flex' : 'none',
         flexDirection: 'column',
         height: '100%',
         overflowY: 'auto',
-        flexShrink: 0
+        flexShrink: 0,
+        position: isMobile ? 'fixed' : 'relative',
+        top: 0, left: 0, zIndex: 999,
+        boxShadow: isMobile ? '4px 0 20px rgba(0,0,0,0.4)' : 'none',
+        transition: 'width 0.3s ease, min-width 0.3s ease'
       }}>
 
         {/* Logo */}
-        <div style={{ padding: '24px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ padding: '24px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
               width: '36px', height: '36px', borderRadius: '10px',
               background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 4px 12px rgba(37,99,235,0.3)'
+              boxShadow: '0 4px 12px rgba(37,99,235,0.3)', flexShrink: 0
             }}>
               <GraduationCap size={18} color="#fff" />
             </div>
-            <span style={{ fontSize: '17px', fontWeight: 700, color: '#F8FAFC', letterSpacing: '-0.3px' }}>
+            <span style={{ fontSize: '17px', fontWeight: 700, color: '#F8FAFC', letterSpacing: '-0.3px', whiteSpace: 'nowrap' }}>
               BatchMinder
             </span>
           </div>
         </div>
 
         {/* User Profile */}
-        <div style={{ padding: '16px 20px' }}>
+        <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
           {/* Badge */}
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: '6px',
             backgroundColor: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)',
-            borderRadius: '20px', padding: '3px 10px', marginBottom: '12px'
+            borderRadius: '20px', padding: '3px 10px', marginBottom: '12px', alignSelf: 'flex-start'
           }}>
             <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#F59E0B', animation: 'pulse 2s infinite' }} />
-            <span style={{ fontSize: '10px', fontWeight: 800, color: '#F59E0B', letterSpacing: '1px', textTransform: 'uppercase' }}>
+            <span style={{ fontSize: '10px', fontWeight: 800, color: '#F59E0B', letterSpacing: '1px', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
               Super Administrator
             </span>
           </div>
@@ -284,9 +343,11 @@ export default function SuperAdminDashboard({ onLogout }) {
           {/* User Card */}
           <div style={{
             display: 'flex', alignItems: 'center', gap: '12px',
-            padding: '12px', borderRadius: '12px',
+            padding: '12px',
+            borderRadius: '12px',
             backgroundColor: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(255,255,255,0.07)'
+            border: '1px solid rgba(255,255,255,0.07)',
+            justifyContent: 'flex-start'
           }}>
             <div style={{
               width: '40px', height: '40px', borderRadius: '10px',
@@ -321,7 +382,7 @@ export default function SuperAdminDashboard({ onLogout }) {
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveNav(item.id)}
+                  onClick={() => handleNavigate(item.id)}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '10px',
                     width: '100%', padding: '9px 12px', borderRadius: '9px',
@@ -343,16 +404,24 @@ export default function SuperAdminDashboard({ onLogout }) {
 
           {/* Management */}
           <div style={{ marginBottom: '20px' }}>
-            <p style={{ fontSize: '10px', fontWeight: 800, color: '#475569', letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px 8px' }}>
-              Management
-            </p>
-            {navItems.management.map(item => {
+            <div
+              onClick={() => setManagementExpanded(!managementExpanded)}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', padding: '6px 8px', marginBottom: '6px', borderRadius: '6px', transition: 'all 0.15s' }}
+              onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)'}
+              onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+              <p style={{ fontSize: '10px', fontWeight: 800, color: '#475569', letterSpacing: '1.2px', textTransform: 'uppercase', margin: 0 }}>
+                Management
+              </p>
+              {managementExpanded ? <ChevronUp size={14} color="#475569" /> : <ChevronDown size={14} color="#475569" />}
+            </div>
+            {managementExpanded && navItems.management.map(item => {
               const Icon = item.icon;
               const isActive = activeNav === item.id;
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveNav(item.id)}
+                  onClick={() => handleNavigate(item.id)}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '10px',
                     width: '100%', padding: '9px 12px', borderRadius: '9px',
@@ -374,16 +443,24 @@ export default function SuperAdminDashboard({ onLogout }) {
 
           {/* System */}
           <div style={{ marginBottom: '20px' }}>
-            <p style={{ fontSize: '10px', fontWeight: 800, color: '#475569', letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px 8px' }}>
-              System
-            </p>
-            {navItems.system.map(item => {
+            <div
+              onClick={() => setSystemExpanded(!systemExpanded)}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', padding: '6px 8px', marginBottom: '6px', borderRadius: '6px', transition: 'all 0.15s' }}
+              onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)'}
+              onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+              <p style={{ fontSize: '10px', fontWeight: 800, color: '#475569', letterSpacing: '1.2px', textTransform: 'uppercase', margin: 0 }}>
+                System
+              </p>
+              {systemExpanded ? <ChevronUp size={14} color="#475569" /> : <ChevronDown size={14} color="#475569" />}
+            </div>
+            {systemExpanded && navItems.system.map(item => {
               const Icon = item.icon;
               const isActive = activeNav === item.id;
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveNav(item.id)}
+                  onClick={() => handleNavigate(item.id)}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '10px',
                     width: '100%', padding: '9px 12px', borderRadius: '9px',
@@ -410,6 +487,7 @@ export default function SuperAdminDashboard({ onLogout }) {
             onClick={onLogout}
             style={{
               display: 'flex', alignItems: 'center', gap: '10px',
+              justifyContent: 'flex-start',
               width: '100%', padding: '10px 14px', borderRadius: '9px',
               backgroundColor: 'rgba(239,68,68,0.08)',
               border: '1px solid rgba(239,68,68,0.15)',
@@ -443,131 +521,17 @@ export default function SuperAdminDashboard({ onLogout }) {
           <AuditLogsPage setActiveNav={setActiveNav} />
         ) : (
           <div style={{ flex: 1, overflowY: 'auto', backgroundColor: '#F8FAFC', display: 'flex', flexDirection: 'column' }}>
-            {/* Top Header */}
-
-            <div style={{
-              backgroundColor: '#FFFFFF', borderBottom: '1px solid #E2E8F0',
-              padding: '18px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              flexShrink: 0
-            }}>
-              <div>
-                <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>
-                  Super Admin Dashboard
-                </h1>
-                <p style={{ margin: '3px 0 0', fontSize: '13px', color: '#94A3B8' }}>
-                  BatchMinder ERP &bull; <span style={{ color: '#64748B' }}>Dashboard</span>
-                </p>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                {/* Date */}
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: '7px',
-                  padding: '8px 14px', borderRadius: '10px',
-                  backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0',
-                  fontSize: '12px', fontWeight: 600, color: '#475569'
-                }}>
-                  <Calendar size={14} color="#94A3B8" />
-                  {currentDate}
-                </div>
-
-                {/* Bell */}
-                <div style={{ position: 'relative' }}>
-                  <button
-                    onClick={() => setShowBellDropdown(o => !o)}
-                    style={{
-                      position: 'relative', width: '38px', height: '38px', borderRadius: '10px',
-                      backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: 'pointer', color: '#64748B', fontFamily: 'inherit'
-                    }}
-                  >
-                    <Bell size={17} />
-                    {notifications.filter(n => n.status === 'Unread').length > 0 && (
-                      <span style={{
-                        position: 'absolute', top: '4px', right: '4px',
-                        width: '18px', height: '18px', borderRadius: '50%',
-                        backgroundColor: '#EF4444', border: '2px solid #fff',
-                        fontSize: '9px', fontWeight: 800, color: '#fff',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center'
-                      }}>{notifications.filter(n => n.status === 'Unread').length}</span>
-                    )}
-                  </button>
-                  {showBellDropdown && (
-                    <div style={{
-                      position: 'absolute', top: '100%', right: 0, zIndex: 100,
-                      marginTop: '8px', width: '280px', borderRadius: '12px',
-                      backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0',
-                      boxShadow: '0 10px 30px rgba(0,0,0,0.1)', overflow: 'hidden',
-                      textAlign: 'left'
-                    }}>
-                      <div style={{ padding: '12px 16px', borderBottom: '1px solid #F1F5F9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#0F172A' }}>Recent Alerts</span>
-                        <span style={{ fontSize: '10px', fontWeight: 700, color: '#EF4444', backgroundColor: '#FEE2E2', padding: '2px 6px', borderRadius: '10px' }}>
-                          {notifications.filter(n => n.status === 'Unread').length} Unread
-                        </span>
-                      </div>
-                      <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
-                        {notifications.length === 0 ? (
-                          <div style={{ padding: '20px', textAlign: 'center', color: '#94A3B8', fontSize: '12px' }}>
-                            No new notifications
-                          </div>
-                        ) : (
-                          notifications.map(alert => (
-                            <div key={alert.id} style={{ padding: '10px 16px', borderBottom: '1px solid #F1F5F9', display: 'flex', flexDirection: 'column', gap: '2px' }}
-                              onMouseEnter={e => e.currentTarget.style.backgroundColor = '#F8FAFC'}
-                              onMouseLeave={e => e.currentTarget.style.backgroundColor = '#FFFFFF'}
-                            >
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <div style={{
-                                  width: '6px', height: '6px', borderRadius: '50%',
-                                  backgroundColor: alert.type === 'critical' ? '#EF4444' : alert.type === 'warning' ? '#F59E0B' : '#3B82F6',
-                                  flexShrink: 0
-                                }} />
-                                <span style={{ fontSize: '11px', fontWeight: 600, color: '#1E293B', whiteSpace: 'normal' }}>{alert.title}</span>
-                              </div>
-                              <span style={{ fontSize: '9.5px', color: '#94A3B8', marginLeft: '12px' }}>
-                                {new Date(alert.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                      <div style={{ padding: '8px', textAlign: 'center', backgroundColor: '#FAFAFA' }}>
-                        <button
-                          onClick={() => { setActiveNav('notifications'); setShowBellDropdown(false); }}
-                          style={{ border: 'none', backgroundColor: 'transparent', fontSize: '11px', fontWeight: 700, color: '#2563EB', cursor: 'pointer', fontFamily: 'inherit' }}
-                        >
-                          View All Notifications
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Live */}
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: '6px',
-                  padding: '8px 14px', borderRadius: '10px',
-                  backgroundColor: '#16A34A', fontSize: '11px',
-                  fontWeight: 700, color: '#fff', letterSpacing: '0.5px', textTransform: 'uppercase'
-                }}>
-                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#fff', display: 'inline-block', animation: 'pulse 2s infinite' }} />
-                  Live System
-                </div>
-              </div>
-            </div>
+            <Header
+              title="Super Admin Dashboard"
+              subtitle="BatchMinder ERP • Dashboard"
+              setActiveNav={setActiveNav}
+            />
 
             {/* Scrollable Content */}
             <div style={{ flex: 1, padding: '28px 32px', overflowY: 'auto' }}>
 
               {/* 8-Card Metrics Grid */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(4, 1fr)',
-                gap: '16px',
-                marginBottom: '24px'
-              }}>
+              <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-6">
                 {metrics.map((m, i) => {
                   const Icon = m.icon;
                   return (
@@ -618,7 +582,7 @@ export default function SuperAdminDashboard({ onLogout }) {
               </div>
 
               {/* Top Row: Department Overview + Quick Actions */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '16px', marginBottom: '24px' }}>
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4 mb-6">
 
                 {/* Department Overview */}
                 <div style={{
@@ -680,7 +644,7 @@ export default function SuperAdminDashboard({ onLogout }) {
                   <h3 style={{ margin: '0 0 16px', fontSize: '15px', fontWeight: 700, color: '#0F172A', paddingBottom: '16px', borderBottom: '1px solid #F1F5F9' }}>
                     Quick Actions
                   </h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="grid grid-cols-2 gap-3">
                     {quickActions.map((action, i) => {
                       const ActionIcon = action.icon;
                       return (
@@ -716,7 +680,7 @@ export default function SuperAdminDashboard({ onLogout }) {
               </div>
 
               {/* Bottom Row: Recent System Activity + Batch Allocation Summary */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
                 {/* Recent System Activity */}
                 <div style={{
@@ -817,8 +781,8 @@ export default function SuperAdminDashboard({ onLogout }) {
                             const statusColors = b.status === 'Allocated'
                               ? { bg: '#EBF5FF', text: '#2563EB' }
                               : b.status === 'New'
-                              ? { bg: '#F0FDF4', text: '#16A34A' }
-                              : { bg: '#FFF7ED', text: '#EA580C' };
+                                ? { bg: '#F0FDF4', text: '#16A34A' }
+                                : { bg: '#FFF7ED', text: '#EA580C' };
                             return (
                               <tr key={i} style={{ borderBottom: i < 5 ? '1px solid #F8FAFC' : 'none' }}>
                                 <td style={{ padding: '10px', fontSize: '12px', fontWeight: 700, color: '#1E293B' }}>{b.code}</td>

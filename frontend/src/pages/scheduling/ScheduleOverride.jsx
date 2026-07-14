@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { Edit2, Plus, Trash2, X, Info, AlertTriangle, CheckCircle, ClipboardList, Clock } from "lucide-react";
+import { useModal } from "../../contexts/ModalContext";
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const TIMESLOTS = [
@@ -142,6 +143,7 @@ function detectDatesheetConflicts(entries) {
 
 function ScheduleOverride({ initialTab = "timetable" }) {
   const { user } = useAuth();
+  const { showConfirm, showAlert, showSuccess } = useModal();
   const [activeTab, setActiveTab] = useState(initialTab); // "timetable" | "datesheet"
 
   useEffect(() => {
@@ -355,14 +357,22 @@ function ScheduleOverride({ initialTab = "timetable" }) {
     });
 
     setModalOpen(false);
+    showSuccess('Override settings saved successfully.');
     setRefreshTrigger(prev => prev + 1);
   };
 
   const handleDelete = async () => {
     const slotId = selectedSlot._id || selectedSlot.id;
     if (!slotId) return;
-
-    if (window.confirm("Are you sure you want to delete this schedule slot?")) {
+ 
+    const confirmed = await showConfirm(
+      'Delete Schedule Slot',
+      'Are you sure you want to delete this schedule slot? This action cannot be undone.',
+      'Delete',
+      'Cancel',
+      '#EF4444'
+    );
+    if (confirmed) {
       const fetchEndpoint = activeTab === "timetable" ? "/api/scheduling/timetable" : "/api/scheduling/datesheet";
       const dataRes = await fetch(fetchEndpoint);
       let list = [];
@@ -384,6 +394,7 @@ function ScheduleOverride({ initialTab = "timetable" }) {
       }
 
       setModalOpen(false);
+      showSuccess('Schedule override slot deleted successfully.');
       setRefreshTrigger(prev => prev + 1);
     }
   };

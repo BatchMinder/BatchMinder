@@ -4,6 +4,7 @@ import Batch from '../models/batch.js';
 import csv from 'csv-parser';
 import { Readable } from 'stream';
 import { logAudit, logNotification } from '../utils/logger.js';
+import { scopeToUserDepartments } from '../middleware/scopeMiddleware.js';
 
 export const validateUpload = async (req, res) => {
   try {
@@ -14,6 +15,17 @@ export const validateUpload = async (req, res) => {
     const { departmentId } = req.body;
     if (!departmentId) {
       return res.status(400).json({ message: 'Please provide departmentId' });
+    }
+
+    // Security check: ensure requesting user has access to this department
+    if (req.user.role !== 'super_admin') {
+      const scope = scopeToUserDepartments(req);
+      const allowed = scope.departmentId && scope.departmentId.$in
+        ? scope.departmentId.$in.some(id => id.toString() === departmentId.toString())
+        : false;
+      if (!allowed) {
+        return res.status(403).json({ message: 'Department not in your scope' });
+      }
     }
 
     const rows = [];

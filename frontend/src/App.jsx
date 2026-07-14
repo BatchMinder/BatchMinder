@@ -80,14 +80,126 @@ function App() {
   const [logsError, setLogsError] = useState('');
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  // 🚀 FORCED STATE: Starts automatically into the Timetable view
-  const [adminActiveNav, setAdminActiveNav] = useState('timetable_generator');
-  const [overrideInitialTab, setOverrideInitialTab] = useState('timetable');
+  // 🚀 FORCED STATE: Starts automatically into the Timetable view, URL routed and persisted
+  const [adminActiveNav, setAdminActiveNav] = useState(() => {
+    const path = window.location.pathname;
+    if (path.startsWith('/dashboard/')) {
+      const subPage = path.substring('/dashboard/'.length);
+      const validPages = ['dashboard', 'students', 'upload', 'migrations', 'curriculum', 'batches', 'timetable', 'datesheet', 'override', 'audit_logs', 'settings', 'timetable_generator', 'datesheet_generator', 'schedule_override', 'notifications', 'attendance', 'reports', 'special_permission'];
+      if (validPages.includes(subPage)) {
+        return subPage;
+      }
+    }
+    return 'dashboard';
+  });
+  const [overrideInitialTab, setOverrideInitialTab] = useState(() => {
+    return localStorage.getItem('batchminder_admin_override_initial_tab') || 'timetable';
+  });
 
-  const [advisorActiveNav, setAdvisorActiveNav] = useState('dashboard');
-  const [hodActiveNav, setHodActiveNav] = useState('dashboard');
+  const [advisorActiveNav, setAdvisorActiveNav] = useState(() => {
+    const path = window.location.pathname;
+    if (path.startsWith('/dashboard/')) {
+      const subPage = path.substring('/dashboard/'.length);
+      const validPages = ['dashboard', 'myBatch', 'students', 'at_risk_monitoring', 'workflowQueue', 'timetable', 'attendance', 'reporting', 'settings', 'notifications'];
+      if (validPages.includes(subPage)) {
+        return subPage;
+      }
+    }
+    return 'dashboard';
+  });
+  const [hodActiveNav, setHodActiveNav] = useState(() => {
+    const path = window.location.pathname;
+    if (path.startsWith('/dashboard/')) {
+      const subPage = path.substring('/dashboard/'.length);
+      const validPages = ['dashboard', 'history', 'reporting', 'settings', 'notifications'];
+      if (validPages.includes(subPage)) {
+        return subPage;
+      }
+    }
+    return 'dashboard';
+  });
   const [advisorBatches, setAdvisorBatches] = useState([]);
   const [selectedAdvisorBatch, setSelectedAdvisorBatch] = useState('all');
+
+  useEffect(() => {
+    localStorage.setItem('batchminder_admin_override_initial_tab', overrideInitialTab);
+  }, [overrideInitialTab]);
+
+  // On login, always reset to dashboard
+  useEffect(() => {
+    if (user && sessionStorage.getItem('justLoggedIn') === 'true') {
+      sessionStorage.removeItem('justLoggedIn');
+      setAdminActiveNav('dashboard');
+      setAdvisorActiveNav('dashboard');
+      setHodActiveNav('dashboard');
+      window.history.replaceState(null, '', '/dashboard');
+    }
+  }, [user]);
+
+  // Sync Academic Admin state changes to URL path
+  useEffect(() => {
+    if (user && user.role === 'academic_admin') {
+      const currentPath = window.location.pathname;
+      const targetPath = adminActiveNav === 'dashboard' ? '/dashboard' : `/dashboard/${adminActiveNav}`;
+      if (currentPath !== targetPath) {
+        window.history.pushState(null, '', targetPath);
+      }
+    }
+  }, [adminActiveNav, user]);
+
+  // Sync Advisor state changes to URL path
+  useEffect(() => {
+    if (user && user.role === 'advisor') {
+      const currentPath = window.location.pathname;
+      const targetPath = advisorActiveNav === 'dashboard' ? '/dashboard' : `/dashboard/${advisorActiveNav}`;
+      if (currentPath !== targetPath) {
+        window.history.pushState(null, '', targetPath);
+      }
+    }
+  }, [advisorActiveNav, user]);
+
+  // Sync HOD state changes to URL path
+  useEffect(() => {
+    if (user && user.role === 'admin') {
+      const currentPath = window.location.pathname;
+      const targetPath = hodActiveNav === 'dashboard' ? '/dashboard' : `/dashboard/${hodActiveNav}`;
+      if (currentPath !== targetPath) {
+        window.history.pushState(null, '', targetPath);
+      }
+    }
+  }, [hodActiveNav, user]);
+
+  // Handle browser back/forward history navigation for all roles
+  useEffect(() => {
+    const handleUrlChange = () => {
+      const path = window.location.pathname;
+      if (!path.startsWith('/dashboard/')) {
+        if (path === '/dashboard' || path === '/dashboard/') {
+          if (user?.role === 'academic_admin') setAdminActiveNav('dashboard');
+          if (user?.role === 'advisor') setAdvisorActiveNav('dashboard');
+          if (user?.role === 'admin') setHodActiveNav('dashboard');
+        }
+        return;
+      }
+      
+      const subPage = path.substring('/dashboard/'.length);
+      if (user?.role === 'academic_admin') {
+        const validPages = ['dashboard', 'students', 'upload', 'migrations', 'curriculum', 'batches', 'timetable', 'datesheet', 'override', 'audit_logs', 'settings', 'timetable_generator', 'datesheet_generator', 'schedule_override', 'notifications', 'attendance', 'reports', 'special_permission'];
+        if (validPages.includes(subPage)) setAdminActiveNav(subPage);
+      }
+      if (user?.role === 'advisor') {
+        const validPages = ['dashboard', 'myBatch', 'students', 'at_risk_monitoring', 'workflowQueue', 'timetable', 'attendance', 'reporting', 'settings', 'notifications'];
+        if (validPages.includes(subPage)) setAdvisorActiveNav(subPage);
+      }
+      if (user?.role === 'admin') {
+        const validPages = ['dashboard', 'history', 'reporting', 'settings', 'notifications'];
+        if (validPages.includes(subPage)) setHodActiveNav(subPage);
+      }
+    };
+
+    window.addEventListener('popstate', handleUrlChange);
+    return () => window.removeEventListener('popstate', handleUrlChange);
+  }, [user]);
 
   useEffect(() => {
     if (user && user.role === 'advisor') {
@@ -197,7 +309,7 @@ function App() {
         <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: "'Inter', sans-serif" }}>
           <SuperAdminDashboard onLogout={() => setShowLogoutModal(true)} />
 
-          <Dialog open={showLogoutModal} onClose={() => setShowLogoutModal(false)} PaperProps={{ style: { borderRadius: '24px', padding: '16px', maxWidth: '380px' } }}>
+          <Dialog open={showLogoutModal} onClose={() => setShowLogoutModal(false)} sx={{ '& .MuiDialog-paper': { borderRadius: '24px', padding: '16px', maxWidth: '380px', width: '100%' } }}>
             <DialogTitle style={{ fontWeight: 'bold', fontSize: '18px', color: '#1B3A6B', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <AlertTriangle style={{ color: '#EF4444' }} /> Confirm Log Out
             </DialogTitle>

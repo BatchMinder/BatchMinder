@@ -2,17 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Users, BookOpen, Layers, CheckSquare, Calendar, UploadCloud, AlertTriangle, Info, CheckCircle2, XCircle, Plus, FileSpreadsheet, Settings, FileText, CalendarDays, RefreshCw, Clock } from 'lucide-react';
 import { format } from 'date-fns';
-const COLORS = { 
-  active: '#2563EB', 
-  atRisk: '#10B981', 
-  graduated: '#F59E0B', 
-  inactive: '#8B5CF6' 
+const COLORS = {
+  active: '#2563EB',
+  atRisk: '#10B981',
+  graduated: '#F59E0B',
+  inactive: '#8B5CF6'
 };
 
-const CGPA_COLORS = { 
-  good: '#10B981', 
-  warning: '#F59E0B', 
-  critical: '#EF4444' 
+const CGPA_COLORS = {
+  good: '#10B981',
+  warning: '#F59E0B',
+  critical: '#EF4444'
 };
 
 export default function Dashboard({ departments, selectedDept, setActiveNav }) {
@@ -90,11 +90,36 @@ export default function Dashboard({ departments, selectedDept, setActiveNav }) {
     setActiveNav('upload');
   };
 
+  const handleDownloadTemplate = (e) => {
+    e.preventDefault();
+    const headers = ['rollNumber', 'name', 'email', 'department', 'batch', 'semester', 'cgpa'];
+    const rows = [
+      ['BSCS-23S-1001', 'Ahmed Raza', 'ahmed.raza@stmu.edu.pk', 'Computer Science', 'BSCS-2023', '3', '3.45'],
+      ['BSCS-23S-1002', 'Sara Malik', 'sara.malik@stmu.edu.pk', 'Computer Science', 'BSCS-2023', '3', '1.87'],
+      ['BSCS-23S-1003', 'Usman Tariq', 'usman.tariq@stmu.edu.pk', 'Computer Science', 'BSCS-2023', '3', '2.08']
+    ];
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'student_upload_template.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div style={{ padding: '0 0 40px', maxWidth: '1400px', margin: '0 auto' }}>
-      
+
       {/* 1. TOP STATS ROW */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px', marginBottom: '24px' }}>
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         {statCards.map((card, i) => {
           const Icon = card.icon;
           return (
@@ -113,23 +138,30 @@ export default function Dashboard({ departments, selectedDept, setActiveNav }) {
       </div>
 
       {/* 2. UPLOADS & ALERTS ROW */}
-      <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr 380px', gap: '20px', marginBottom: '24px' }}>
-        
+      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr_380px] gap-5 mb-6">
+
         {/* Upload Zone */}
         <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
           <h3 style={{ margin: '0 0 16px', fontSize: '15px', fontWeight: 700, color: '#0F172A', alignSelf: 'flex-start' }}>Upload Student Data</h3>
           <UploadCloud size={48} color="#94A3B8" style={{ marginBottom: '16px' }} />
           <p style={{ margin: '0 0 8px', fontSize: '13px', color: '#64748B' }}>Upload CSV or Excel file to add or update student records</p>
           <p style={{ margin: '0 0 20px', fontSize: '12px', color: '#94A3B8' }}>Supported formats: .csv, .xlsx</p>
-          <button 
+          <button
             onClick={handleUploadClick}
             style={{ width: '100%', padding: '10px', backgroundColor: '#2563EB', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', marginBottom: '12px' }}
           >
             Choose File to Upload
           </button>
-          <a href="#" style={{ fontSize: '13px', color: '#2563EB', textDecoration: 'none', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <button
+            onClick={handleDownloadTemplate}
+            style={{
+              background: 'none', border: 'none', padding: 0, fontSize: '13px',
+              color: '#2563EB', fontWeight: 500, display: 'flex',
+              alignItems: 'center', gap: '4px', cursor: 'pointer', fontFamily: 'inherit'
+            }}
+          >
             <FileSpreadsheet size={14} /> Download Sample Template
-          </a>
+          </button>
         </div>
 
         {/* Recent Uploads Table */}
@@ -176,7 +208,7 @@ export default function Dashboard({ departments, selectedDept, setActiveNav }) {
         <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>System Alerts</h3>
-            <button 
+            <button
               onClick={() => setActiveNav('audit_logs')}
               style={{ fontSize: '13px', color: '#2563EB', border: 'none', background: 'none', fontWeight: 600, cursor: 'pointer' }}
             >
@@ -213,8 +245,8 @@ export default function Dashboard({ departments, selectedDept, setActiveNav }) {
       </div>
 
       {/* 3. CHARTS & DEPARTMENTS ROW */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '24px' }}>
-        
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
+
         {/* Students Overview */}
         <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0' }}>
           <h3 style={{ margin: '0 0 16px', fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Students Overview</h3>
@@ -246,7 +278,7 @@ export default function Dashboard({ departments, selectedDept, setActiveNav }) {
               </div>
             </div>
           ) : (
-             <div style={{ textAlign: 'center', padding: 40, color: '#94A3B8', fontSize: 13 }}>No data</div>
+            <div style={{ textAlign: 'center', padding: 40, color: '#94A3B8', fontSize: 13 }}>No data</div>
           )}
         </div>
 
@@ -278,7 +310,7 @@ export default function Dashboard({ departments, selectedDept, setActiveNav }) {
         <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Department Summary</h3>
-            <button 
+            <button
               onClick={() => setActiveNav('students')}
               style={{ fontSize: '13px', color: '#2563EB', border: 'none', background: 'none', fontWeight: 600, cursor: 'pointer' }}
             >
@@ -296,7 +328,7 @@ export default function Dashboard({ departments, selectedDept, setActiveNav }) {
               </thead>
               <tbody>
                 {deptStats.length === 0 ? (
-                   <tr><td colSpan="3" style={{ padding: '20px', textAlign: 'center', color: '#94A3B8' }}>No departments</td></tr>
+                  <tr><td colSpan="3" style={{ padding: '20px', textAlign: 'center', color: '#94A3B8' }}>No departments</td></tr>
                 ) : (
                   deptStats.map(d => (
                     <tr key={d.code} style={{ borderBottom: '1px solid #F8FAFC' }}>
@@ -328,8 +360,8 @@ export default function Dashboard({ departments, selectedDept, setActiveNav }) {
           ].map((action, i) => {
             const Icon = action.icon;
             return (
-              <button 
-                key={i} 
+              <button
+                key={i}
                 onClick={() => {
                   if (setActiveNav && action.id) {
                     setActiveNav(action.id);

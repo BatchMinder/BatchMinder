@@ -5,6 +5,7 @@ import {
   Calendar, Clock, Shield, Search, RefreshCw, BarChart2,
   ChevronDown, AlertTriangle, User, Layers, Info, X
 } from 'lucide-react';
+import Header from './Header';
 
 // Pretty-print metadata changes or general key-values
 const renderMetadataDetails = (meta, fallbackDescription = '') => {
@@ -16,7 +17,7 @@ const renderMetadataDetails = (meta, fallbackDescription = '') => {
   if (!description && Object.keys(rest).length === 0) {
     return <span style={{ fontSize: '12px', color: '#94A3B8', fontStyle: 'italic' }}>No additional metadata.</span>;
   }
-  
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
       {description && (
@@ -86,7 +87,7 @@ export default function AuditLogsPage({ setActiveNav }) {
     try {
       let url = '/api/audit-logs';
       const params = new URLSearchParams();
-      
+
       if (user?.role === 'super_admin') {
         if (deptFilter !== 'All Departments') {
           params.append('departmentId', deptFilter);
@@ -108,7 +109,7 @@ export default function AuditLogsPage({ setActiveNav }) {
 
       params.append('page', currentPage);
       params.append('limit', itemsPerPage);
-      
+
       const queryStr = params.toString();
       if (queryStr) {
         url += `?${queryStr}`;
@@ -145,23 +146,13 @@ export default function AuditLogsPage({ setActiveNav }) {
   const cellStyle = { padding: '10px 14px', fontSize: '12px', color: '#334155' };
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', backgroundColor: '#F8FAFC', display: 'flex', flexDirection: 'column', fontFamily: 'inherit' }}>
-      
-      {/* Header */}
-      <div style={{
-        backgroundColor: '#FFFFFF', borderBottom: '1px solid #E2E8F0',
-        padding: '18px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        flexShrink: 0
-      }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.4px' }}>
-            System Audit Logs
-          </h1>
-          <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#64748B' }}>
-            {isSuperAdmin ? 'Full system administration activity trail' : 'Activity history scoped to your role permissions'}
-          </p>
-        </div>
+    <div style={{ flex: 1, overflow: 'hidden', backgroundColor: '#F8FAFC', display: 'flex', flexDirection: 'column', fontFamily: 'inherit' }}>
 
+      <Header
+        title="System Audit Logs"
+        subtitle={isSuperAdmin ? 'BatchMinder ERP • Super Admin • Audit Logs' : 'BatchMinder ERP • Audit Logs'}
+        setActiveNav={setActiveNav}
+      >
         <button
           onClick={fetchLogs}
           style={{
@@ -174,11 +165,11 @@ export default function AuditLogsPage({ setActiveNav }) {
           <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
           Reload
         </button>
-      </div>
+      </Header>
 
       {/* Main Content Area */}
       <div style={{ flex: 1, padding: '24px 32px', display: 'flex', flexDirection: 'column', gap: '16px', minHeight: 0 }}>
-        
+
         {/* Filters Panel */}
         <div style={{
           backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0',
@@ -306,7 +297,7 @@ export default function AuditLogsPage({ setActiveNav }) {
           borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column',
           flex: 1, boxShadow: '0 1px 3px rgba(0,0,0,0.02)', minHeight: 0
         }}>
-          
+
           <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
             {loading ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '12px' }}>
@@ -342,7 +333,7 @@ export default function AuditLogsPage({ setActiveNav }) {
                     const actorName = log.actorId?.name || log.userId?.name || log.userEmail || log.metadata?.email || 'System';
                     const actorEmail = log.actorId?.email || log.userId?.email || log.userEmail || (log.actorId ? '' : log.metadata?.email) || '';
                     const actionLabel = log.action || 'EVENT';
-                    
+
                     // role colors
                     const rColors = {
                       'super_admin': { bg: '#FEE2E2', color: '#991B1B' },
@@ -526,7 +517,7 @@ export default function AuditLogsPage({ setActiveNav }) {
 
             {/* Modal Content Grid */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Action */}
                 <div>
                   <span style={{ fontSize: '10px', fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Action Triggered</span>
@@ -541,7 +532,7 @@ export default function AuditLogsPage({ setActiveNav }) {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', borderTop: '1px solid #F8FAFC', paddingTop: '10px' }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-50">
                 {/* Actor Info */}
                 <div>
                   <span style={{ fontSize: '10px', fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Triggered By</span>
@@ -571,7 +562,7 @@ export default function AuditLogsPage({ setActiveNav }) {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', borderTop: '1px solid #F8FAFC', paddingTop: '10px' }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-50">
                 {/* Target */}
                 <div>
                   <span style={{ fontSize: '10px', fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Target Subject</span>

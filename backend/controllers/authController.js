@@ -3,10 +3,25 @@ import User from '../models/user.js';
 import AuditLog from '../models/auditLog.js';
 import { scopeQueryToRole } from '../middleware/scopeMiddleware.js';
 import { logAudit as sharedLogAudit } from '../utils/logger.js';
+import sendEmail from '../utils/email.js';
+
+const parseExpiresIn = (str) => {
+  const match = str.match(/^(\d+)([smhd])$/);
+  if (!match) return 15 * 60 * 1000;
+  const val = parseInt(match[1], 10);
+  const unit = match[2];
+  switch (unit) {
+    case 's': return val * 1000;
+    case 'm': return val * 60 * 1000;
+    case 'h': return val * 60 * 60 * 1000;
+    case 'd': return val * 24 * 60 * 60 * 1000;
+    default: return 15 * 60 * 1000;
+  }
+};
 
 const signAccessToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: '15m',
+    expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m',
   });
 };
 
@@ -27,9 +42,10 @@ const sendTokenCookies = (res, userId) => {
     path: '/',
   };
 
+  const accessDuration = parseExpiresIn(process.env.JWT_ACCESS_EXPIRES_IN || '15m');
   res.cookie('accessToken', accessToken, {
     ...cookieOptions,
-    expires: new Date(Date.now() + 15 * 60 * 1000), // 15 mins
+    expires: new Date(Date.now() + accessDuration),
   });
 
   res.cookie('refreshToken', refreshToken, {
@@ -38,7 +54,7 @@ const sendTokenCookies = (res, userId) => {
   });
 };
 
-const logAudit = async (userId, userEmail, action, description, role = '') => {
+const logAudit = async (userId, userEmail, action, description, role = '', ipAddress = null) => {
   try {
     let actorRole = role;
     if (userId && !actorRole) {
@@ -53,7 +69,8 @@ const logAudit = async (userId, userEmail, action, description, role = '') => {
       metadata: { 
         description,
         email: userEmail
-      }
+      },
+      ipAddress
     });
   } catch (err) {
     console.error('Audit logging failed inside authController:', err);
@@ -114,14 +131,18 @@ export const login = async (req, res) => {
     const user = await User.findOne({ email: email.toLowerCase().trim(), role }).select('+password');
 
     if (!user || !(await user.comparePassword(password, user.password))) {
-      await logAudit(null, email, 'LOGIN_FAILED', `Attempted login to role: ${role} with invalid credentials.`, role);
+      await logAudit(null, email, 'LOGIN_FAILED', `Attempted login to role: ${role} with invalid credentials.`, role, req.ip);
       return res.status(401).json({ message: 'Incorrect email, password, or role' });
     }
 
     sendTokenCookies(res, user._id);
 
     // Log action
-    await logAudit(user._id, user.email, 'USER_LOGGED_IN', 'User logged in successfully.', user.role);
+    await logAudit(user._id, user.email, 'USER_LOGGED_IN', 'User logged in successfully.', user.role, req.ip);
+
+    // Update lastLogin
+    user.lastLogin = new Date();
+    await user.save({ validateBeforeSave: false });
 
     // Hide password
     user.password = undefined;
@@ -249,6 +270,107 @@ export const setupSuperAdmin = async (req, res) => {
     res.status(201).json({
       status: 'success',
       message: 'Super admin registered successfully'
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// POST: Request password reset (generates OTP)
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email, role } = req.body;
+    if (!email || !role) {
+      return res.status(400).json({ message: 'Please provide email and role' });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase().trim(), role });
+    if (!user) {
+      // Return 200 for security, but log locally
+      console.log(`Password reset requested for non-existent user: ${email} with role: ${role}`);
+      return res.status(200).json({
+        status: 'success',
+        message: 'If a matching user was found, a password reset code has been sent.'
+      });
+    }
+
+    // Generate a random 6-digit OTP code
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Set code and expiration (10 minutes)
+    user.passwordResetToken = otp;
+    user.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 mins
+    await user.save();
+
+    // Log audit
+    await logAudit(user._id, user.email, 'PASSWORD_RESET_REQUESTED', `Password reset OTP generated.`, user.role);
+
+    // Send actual email (using configured SMTP or fallback to Ethereal)
+    const emailMessage = `
+Hello ${user.name},
+
+You requested a password reset for your BatchMinder account.
+Your 6-digit OTP verification code is: ${otp}
+
+This code will expire in 10 minutes. If you did not request this, please ignore this email.
+
+BatchMinder System Security
+    `;
+
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: 'BatchMinder - Password Reset OTP',
+        message: emailMessage,
+      });
+    } catch (err) {
+      console.error('Email could not be sent', err);
+      user.passwordResetToken = undefined;
+      user.passwordResetExpires = undefined;
+      await user.save({ validateBeforeSave: false });
+      return res.status(500).json({ message: 'There was an error sending the email. Try again later!' });
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Password reset code has been generated.'
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// POST: Reset password using OTP
+export const resetPassword = async (req, res) => {
+  try {
+    const { email, role, otp, newPassword } = req.body;
+    if (!email || !role || !otp || !newPassword) {
+      return res.status(400).json({ message: 'Please provide email, role, OTP code, and new password' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase().trim(), role })
+      .select('+passwordResetToken +passwordResetExpires');
+
+    if (!user || user.passwordResetToken !== otp || user.passwordResetExpires < Date.now()) {
+      return res.status(400).json({ message: 'Invalid or expired OTP verification code' });
+    }
+
+    // Reset password
+    user.password = newPassword;
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save();
+
+    // Log audit
+    await logAudit(user._id, user.email, 'PASSWORD_RESET_SUCCESS', `Password successfully updated.`, user.role);
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Password has been successfully updated. You can now log in.'
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

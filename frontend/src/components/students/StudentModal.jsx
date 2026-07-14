@@ -36,7 +36,7 @@ const StudentModal = ({ open, onClose, studentData, onSave, canEdit = false }) =
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" PaperProps={{ style: { borderRadius: '16px', padding: '8px' } }}>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" sx={{ '& .MuiDialog-paper': { borderRadius: '16px', padding: '8px' } }}>
       <DialogTitle sx={{ fontWeight: 'bold', color: '#1B3A6B', fontSize: '20px' }}>
         {studentData ? 'Modify Profile Record' : 'Register New Student'}
       </DialogTitle>

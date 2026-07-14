@@ -207,7 +207,7 @@ export default function RolesPermissions({ setActiveNav }) {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, padding: '18px 24px', backgroundColor: '#F8FAFC', overflowY: 'auto' }}>
 
         {/* Stats Row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '12px', marginBottom: '18px' }}>
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-[18px]">
           {stats.map((s, i) => {
             const Icon = s.icon;
             return (
@@ -239,7 +239,7 @@ export default function RolesPermissions({ setActiveNav }) {
         </div>
 
         {/* Two-column layout */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '16px', alignItems: 'stretch', flex: 1 }}>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-4 items-stretch flex-1">
 
           {/* ── Left Side: Tab Card ── */}
           <div style={{

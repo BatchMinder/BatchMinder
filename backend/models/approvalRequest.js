@@ -54,12 +54,12 @@ const approvalRequestSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'advisor_approved', 'advisor_rejected', 'approved', 'rejected', 'special_granted'],
+    enum: ['pending', 'advisor_approved', 'advisor_rejected', 'approved', 'rejected', 'special_granted', 'returned_for_edit'],
     default: 'pending',
   },
   currentApproverRole: {
     type: String,
-    enum: ['advisor', 'hod', 'none'],
+    enum: ['advisor', 'hod', 'none', 'student'],
     default: 'advisor',
   },
   submittedBy: {

@@ -12,6 +12,7 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Please provide an email'],
     lowercase: true,
     trim: true,
+    match: [/^[\w-\.]+@stmu\.edu\.pk$/, 'Must match STMU domain / official format']
   },
   password: {
     type: String,
@@ -51,6 +52,14 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  lastLogin: {
+    type: Date,
+    default: null
+  },
+  firebaseUid: {
+    type: String,
+    default: null
+  },
   profilePictureUrl: {
     type: String,
     default: null
@@ -62,7 +71,15 @@ const userSchema = new mongoose.Schema({
   assignedBatchIds: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Batch'
-  }]
+  }],
+  passwordResetToken: {
+    type: String,
+    select: false
+  },
+  passwordResetExpires: {
+    type: Date,
+    select: false
+  }
 });
 
 // Composite unique index for email + role combination

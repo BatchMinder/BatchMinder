@@ -1,9 +1,11 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { User, Phone, Mail, Upload, Trash2, Shield, Save, CheckCircle2, AlertCircle, RefreshCw, Lock } from 'lucide-react';
+import { useModal } from '../../contexts/ModalContext';
 
 export default function ProfileSettingsPage() {
   const { user, updateUser } = useAuth();
+  const { showConfirm, showSuccess } = useModal();
   const fileInputRef = useRef(null);
 
   // Profile fields state
@@ -72,9 +74,14 @@ export default function ProfileSettingsPage() {
   };
 
   const handleDeletePhoto = async () => {
-    if (!window.confirm('Are you sure you want to remove your profile picture?')) {
-      return;
-    }
+    const confirmed = await showConfirm(
+      'Remove Profile Picture',
+      'Are you sure you want to remove your profile picture?',
+      'Remove',
+      'Cancel',
+      '#EF4444'
+    );
+    if (!confirmed) return;
 
     setPicError('');
     setDeletingPic(true);
@@ -85,6 +92,7 @@ export default function ProfileSettingsPage() {
       const data = await response.json();
       if (response.ok && data.status === 'success') {
         updateUser(data.data);
+        showSuccess('Profile picture removed successfully.');
       } else {
         setPicError(data.message || 'Failed to remove profile picture.');
       }
@@ -139,6 +147,7 @@ export default function ProfileSettingsPage() {
       if (response.ok && data.status === 'success') {
         updateUser(data.data);
         setProfileSuccess('Profile settings successfully updated.');
+        showSuccess('Profile settings successfully updated.');
         setCurrentPassword('');
         setNewPassword('');
         setConfirmPassword('');
@@ -168,7 +177,7 @@ export default function ProfileSettingsPage() {
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '28px', alignItems: 'start' }}>
+      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-7 items-start">
         
         {/* Left Card: Profile Image */}
         <div style={{
@@ -365,7 +374,7 @@ export default function ProfileSettingsPage() {
             </div>
 
             {/* Password Inputs Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontSize: '12px', fontWeight: 700, color: '#475569' }}>New Password</label>
                 <div style={{ position: 'relative' }}>
@@ -404,7 +413,7 @@ export default function ProfileSettingsPage() {
             </div>
 
             {/* Role & Status (Disabled informational fields) */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontSize: '12px', fontWeight: 700, color: '#94A3B8' }}>System Role</label>
                 <div style={{

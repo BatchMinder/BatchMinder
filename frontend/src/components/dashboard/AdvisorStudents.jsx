@@ -185,7 +185,7 @@ export default function AdvisorStudents({ selectedBatch }) {
           No student records found under these parameters.
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {students.map(s => {
             const statusConfig = {
               good: { text: '#059669', bg: '#EFFDF5', border: '#A7F3D0', label: 'Good Standing' },
@@ -327,7 +327,7 @@ export default function AdvisorStudents({ selectedBatch }) {
               </div>
 
               {/* Stats highlights */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div style={{ padding: '12px', borderRadius: '10px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', textAlign: 'center' }}>
                   <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>Academic Standing</span>
                   <p style={{
@@ -379,7 +379,7 @@ export default function AdvisorStudents({ selectedBatch }) {
                     <span style={{ fontSize: '13px', fontWeight: 800, color: '#1E293B' }}>Degree Completion Progress</span>
                   </div>
                   
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginTop: '4px' }}>
+                  <div className="grid grid-cols-2 gap-3" style={{ marginTop: '4px' }}>
                     <div>
                       <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Completed Credits:</span>
                       <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 800, color: '#1E293B' }}>{degreeProgress.completedCredits} CH</p>
