@@ -339,6 +339,7 @@ export default function RequestDetail({ request, userRole = 'hod', onClose, onAc
       }}
     >
       <div
+        className="no-scrollbar"
         style={{
           backgroundColor: '#FFFFFF',
           borderRadius: '24px',

@@ -102,29 +102,27 @@ export default function Header({ title, subtitle, setActiveNav, children }) {
         justifyContent: 'space-between',
         width: '100%'
       }}>
-        {/* Left Side: Hamburger (Mobile) + Title (All) + Subtitle (Desktop only) */}
+        {/* Left Side: Hamburger (All) + Title (All) + Subtitle (Desktop only) */}
         <div style={{ display: 'flex', alignItems: 'center', minWidth: 0, flex: 1 }}>
-          {isMobile && (
-            <button
-              onClick={() => window.dispatchEvent(new CustomEvent('toggle-mobile-sidebar'))}
-              style={{
-                marginRight: '12px',
-                width: '38px',
-                height: '38px',
-                borderRadius: '10px',
-                backgroundColor: '#F8FAFC',
-                border: '1px solid #E2E8F0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                color: '#64748B',
-                flexShrink: 0
-              }}
-            >
-              <Menu size={18} />
-            </button>
-          )}
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('toggle-mobile-sidebar'))}
+            style={{
+              marginRight: '12px',
+              width: '38px',
+              height: '38px',
+              borderRadius: '10px',
+              backgroundColor: '#F8FAFC',
+              border: '1px solid #E2E8F0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: '#64748B',
+              flexShrink: 0
+            }}
+          >
+            <Menu size={18} />
+          </button>
           <div style={{ minWidth: 0 }}>
             <h1 style={{ margin: 0, fontSize: isMobile ? '18px' : '22px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {title}

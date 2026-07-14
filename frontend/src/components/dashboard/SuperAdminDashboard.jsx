@@ -52,7 +52,7 @@ export default function SuperAdminDashboard({ onLogout }) {
   const [showBellDropdown, setShowBellDropdown] = useState(false);
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 1024);
   const [managementExpanded, setManagementExpanded] = useState(true);
   const [systemExpanded, setSystemExpanded] = useState(true);
 
@@ -66,7 +66,7 @@ export default function SuperAdminDashboard({ onLogout }) {
 
   useEffect(() => {
     const handleToggle = () => {
-      setMobileSidebarOpen(o => !o);
+      setSidebarOpen(o => !o);
     };
     window.addEventListener('toggle-mobile-sidebar', handleToggle);
     return () => window.removeEventListener('toggle-mobile-sidebar', handleToggle);
@@ -75,7 +75,7 @@ export default function SuperAdminDashboard({ onLogout }) {
   const handleNavigate = (pageId) => {
     setActiveNav(pageId);
     if (window.innerWidth < 1024) {
-      setMobileSidebarOpen(false);
+      setSidebarOpen(false);
     }
   };
 
@@ -280,10 +280,21 @@ export default function SuperAdminDashboard({ onLogout }) {
 
   return (
     <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden', fontFamily: "'Inter', 'Liberation Sans', -apple-system, sans-serif", position: 'relative' }}>
+      <style>{`
+        .no-scrollbar::-webkit-scrollbar {
+          display: none !important;
+          width: 0 !important;
+          height: 0 !important;
+        }
+        .no-scrollbar {
+          -ms-overflow-style: none !important;
+          scrollbar-width: none !important;
+        }
+      `}</style>
       {/* Mobile Backdrop Overlay */}
-      {isMobile && mobileSidebarOpen && (
+      {isMobile && sidebarOpen && (
         <div
-          onClick={() => setMobileSidebarOpen(false)}
+          onClick={() => setSidebarOpen(false)}
           style={{
             position: 'fixed',
             inset: 0,
@@ -295,17 +306,17 @@ export default function SuperAdminDashboard({ onLogout }) {
 
       {/* ── SIDEBAR ── */}
       <aside className="no-scrollbar" style={{
-        width: '256px',
-        minWidth: '256px',
+        width: sidebarOpen ? '256px' : '0px',
+        minWidth: sidebarOpen ? '256px' : '0px',
         backgroundColor: '#0F172A',
-        display: (!isMobile || mobileSidebarOpen) ? 'flex' : 'none',
+        display: sidebarOpen ? 'flex' : 'none',
         flexDirection: 'column',
         height: '100%',
-        overflowY: 'auto',
+        overflowY: 'hidden',
         flexShrink: 0,
         position: isMobile ? 'fixed' : 'relative',
         top: 0, left: 0, zIndex: 999,
-        boxShadow: isMobile ? '4px 0 20px rgba(0,0,0,0.4)' : 'none',
+        boxShadow: (isMobile && sidebarOpen) ? '4px 0 20px rgba(0,0,0,0.4)' : 'none',
         transition: 'width 0.3s ease, min-width 0.3s ease'
       }}>
 
@@ -370,7 +381,7 @@ export default function SuperAdminDashboard({ onLogout }) {
         </div>
 
         {/* Navigation */}
-        <nav style={{ flex: 1, padding: '8px 12px 0', overflowY: 'auto' }}>
+        <nav className="no-scrollbar" style={{ flex: 1, padding: '8px 12px 0', overflowY: 'auto', msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
           {/* Overview */}
           <div style={{ marginBottom: '20px' }}>
             <p style={{ fontSize: '10px', fontWeight: 800, color: '#475569', letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px 8px' }}>

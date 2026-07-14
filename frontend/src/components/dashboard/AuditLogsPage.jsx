@@ -131,6 +131,15 @@ export default function AuditLogsPage({ setActiveNav }) {
     }
   };
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [showFiltersMobile, setShowFiltersMobile] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   useEffect(() => {
     fetchBatches();
   }, [user]);
@@ -168,18 +177,56 @@ export default function AuditLogsPage({ setActiveNav }) {
       </Header>
 
       {/* Main Content Area */}
-      <div style={{ flex: 1, padding: '24px 32px', display: 'flex', flexDirection: 'column', gap: '16px', minHeight: 0 }}>
+      <div style={{ flex: 1, padding: isMobile ? '12px 16px' : '24px 32px', display: 'flex', flexDirection: 'column', gap: '16px', minHeight: 0 }}>
 
         {/* Filters Panel */}
         <div style={{
           backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0',
-          borderRadius: '12px', padding: '14px 20px',
-          display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '16px',
+          borderRadius: '12px', padding: isMobile ? '10px 14px' : '14px 20px',
+          display: 'flex', flexDirection: 'column', gap: '12px',
           boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
         }}>
-          <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            Filters:
-          </span>
+          <div
+            onClick={() => isMobile && setShowFiltersMobile(!showFiltersMobile)}
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              cursor: isMobile ? 'pointer' : 'default',
+              userSelect: 'none'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Filters:
+              </span>
+              {isMobile && (
+                <span style={{ fontSize: '11px', color: '#2563EB', fontWeight: 700 }}>
+                  ({showFiltersMobile ? 'Tap to hide' : 'Tap to show & edit'})
+                </span>
+              )}
+            </div>
+            {isMobile && (
+              <ChevronDown
+                size={14}
+                color="#64748B"
+                style={{
+                  transform: showFiltersMobile ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.2s ease'
+                }}
+              />
+            )}
+          </div>
+
+          {(!isMobile || showFiltersMobile) && (
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              gap: '16px',
+              borderTop: isMobile ? '1px solid #F1F5F9' : 'none',
+              paddingTop: isMobile ? '12px' : 0
+            }}>
 
           {isSuperAdmin && (
             <>
@@ -289,6 +336,8 @@ export default function AuditLogsPage({ setActiveNav }) {
               }}
             />
           </div>
+            </div>
+          )}
         </div>
 
         {/* Table Box */}
@@ -313,6 +362,76 @@ export default function AuditLogsPage({ setActiveNav }) {
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '8px' }}>
                 <Info size={24} color="#94A3B8" />
                 <span style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 600 }}>No audit logs recorded for this scope.</span>
+              </div>
+            ) : isMobile ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px' }}>
+                {currentLogs.map((log) => {
+                  const dateStr = new Date(log.timestamp).toLocaleString('en-US', {
+                    month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit'
+                  });
+                  const actorName = log.actorId?.name || log.userId?.name || log.userEmail || log.metadata?.email || 'System';
+                  const actionLabel = log.action || 'EVENT';
+                  const rColors = {
+                    'super_admin': { bg: '#FEE2E2', color: '#991B1B' },
+                    'academic_admin': { bg: '#D1FAE5', color: '#065F46' },
+                    'admin': { bg: '#F5F3FF', color: '#5B21B6' },
+                    'advisor': { bg: '#EFF6FF', color: '#1E40AF' }
+                  };
+                  const roleStyle = rColors[log.actorRole] || { bg: '#F1F5F9', color: '#334155' };
+
+                  return (
+                    <div
+                      key={log._id}
+                      onClick={() => setSelectedAudit(log)}
+                      className="hover:bg-slate-50 transition-colors"
+                      style={{
+                        backgroundColor: '#FFFFFF',
+                        border: '1px solid #E2E8F0',
+                        borderRadius: '10px',
+                        padding: '12px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '6px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#1E293B', backgroundColor: '#F1F5F9', padding: '2px 6px', borderRadius: '4px' }}>
+                          {actionLabel}
+                        </span>
+                        <span style={{ fontSize: '10px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          <Clock size={10} />
+                          {dateStr}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#334155' }}>{actorName}</span>
+                        <span style={{
+                          padding: '1px 4px', borderRadius: '3px',
+                          fontSize: '8px', fontWeight: 800,
+                          backgroundColor: roleStyle.bg, color: roleStyle.color,
+                          textTransform: 'uppercase'
+                        }}>
+                          {log.actorRole || 'System'}
+                        </span>
+                      </div>
+
+                      {(log.description || log.metadata?.description) && (
+                        <p style={{ margin: 0, fontSize: '11px', color: '#475569', fontStyle: 'italic', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          "{log.description || log.metadata?.description}"
+                        </p>
+                      )}
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #F1F5F9', paddingTop: '6px', marginTop: '2px' }}>
+                        <span style={{ fontSize: '10px', color: '#64748B' }}>
+                          Target: <span style={{ fontWeight: 600, color: '#334155' }}>{log.targetType || 'Global'}</span>
+                        </span>
+                        <span style={{ fontSize: '9.5px', color: '#2563EB', fontWeight: 700 }}>Details →</span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>

@@ -11,6 +11,13 @@ import SpecialPermissionForm from '../../components/ApprovalWorkflow/SpecialPerm
 export default function HODQueue() {
   const { user } = useAuth();
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 1024);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // State variables
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -155,11 +162,12 @@ export default function HODQueue() {
       </div>
 
       {/* Split-pane Workspace Layout */}
-      <div className={`grid grid-cols-1 ${selectedRequest ? 'xl:grid-cols-[1.3fr_1.2fr]' : ''} gap-5 transition-all duration-200`}>
+      <div className={`grid grid-cols-1 ${selectedRequest ? 'lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.2fr)]' : ''} gap-5 transition-all duration-200 items-start`}>
 
         {/* Left Column: Requests List Table Card */}
         <div
           style={{
+            minWidth: 0,
             backgroundColor: '#FFFFFF',
             borderRadius: '16px',
             border: '1px solid #E2E8F0',
@@ -338,13 +346,25 @@ export default function HODQueue() {
 
         {/* Right Column: Request Detail Inline Panel */}
         {selectedRequest && (
-          <RequestDetail
-            request={selectedRequest}
-            userRole="hod"
-            onClose={() => setSelectedRequest(null)}
-            onActionSuccess={handleReviewSuccess}
-            inline={true}
-          />
+          !isMobile ? (
+            <div className="sticky top-6 no-scrollbar" style={{ minWidth: 0, maxHeight: 'calc(100vh - 40px)', overflowY: 'auto' }}>
+              <RequestDetail
+                request={selectedRequest}
+                userRole="hod"
+                onClose={() => setSelectedRequest(null)}
+                onActionSuccess={handleReviewSuccess}
+                inline={true}
+              />
+            </div>
+          ) : (
+            <RequestDetail
+              request={selectedRequest}
+              userRole="hod"
+              onClose={() => setSelectedRequest(null)}
+              onActionSuccess={handleReviewSuccess}
+              inline={false}
+            />
+          )
         )}
       </div>
 

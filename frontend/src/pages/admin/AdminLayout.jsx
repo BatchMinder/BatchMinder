@@ -122,7 +122,7 @@ export default function AdminLayout({
     }));
   };
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 1024);
 
   useEffect(() => {
     const handleResize = () => {
@@ -135,7 +135,7 @@ export default function AdminLayout({
   const handleNavigate = (pageId) => {
     onNavigate(pageId);
     if (window.innerWidth < 1024) {
-      setMobileSidebarOpen(false);
+      setSidebarOpen(false);
     }
   };
 
@@ -282,10 +282,21 @@ export default function AdminLayout({
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: "'Inter', sans-serif", width: '100vw', position: 'relative' }}>
-      {/* Mobile Backdrop Overlay */}
-      {isMobile && mobileSidebarOpen && (
+      <style>{`
+        .no-scrollbar::-webkit-scrollbar {
+          display: none !important;
+          width: 0 !important;
+          height: 0 !important;
+        }
+        .no-scrollbar {
+          -ms-overflow-style: none !important;
+          scrollbar-width: none !important;
+        }
+      `}</style>
+      {/* Sidebar Overlay (Mobile only) */}
+      {isMobile && sidebarOpen && (
         <div
-          onClick={() => setMobileSidebarOpen(false)}
+          onClick={() => setSidebarOpen(false)}
           style={{
             position: 'fixed',
             inset: 0,
@@ -297,12 +308,15 @@ export default function AdminLayout({
 
       {/* Sidebar */}
       <aside className="no-scrollbar" style={{
-        width: 256, minWidth: 256, backgroundColor: '#0B0F19',
-        display: (!isMobile || mobileSidebarOpen) ? 'flex' : 'none',
+        width: sidebarOpen ? 256 : 0,
+        minWidth: sidebarOpen ? 256 : 0,
+        backgroundColor: '#0B0F19',
+        display: sidebarOpen ? 'flex' : 'none',
         flexDirection: 'column', height: '100%', overflowY: 'hidden', overflowX: 'hidden', flexShrink: 0,
         position: isMobile ? 'fixed' : 'relative',
         top: 0, left: 0, zIndex: 999,
-        boxShadow: isMobile ? '4px 0 20px rgba(0,0,0,0.4)' : 'none'
+        boxShadow: (isMobile && sidebarOpen) ? '4px 0 20px rgba(0,0,0,0.4)' : 'none',
+        transition: 'width 0.2s ease, min-width 0.2s ease'
       }}>
         {/* Logo */}
         <div style={{ padding: '24px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -539,30 +553,27 @@ export default function AdminLayout({
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden', backgroundColor: '#F8FAFC' }}>
 
         {/* Top Header */}
-        {/* Top Header */}
-        <div className="bg-white border-b border-slate-200 flex flex-wrap items-center justify-between sm:justify-end gap-3 shrink-0"
+        <div className="bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0"
           style={{ padding: isMobile ? '12px 16px' : '18px 32px' }}
         >
-          {isMobile && (
-            <button
-              onClick={() => setMobileSidebarOpen(o => !o)}
-              style={{
-                marginRight: 'auto',
-                width: '38px',
-                height: '38px',
-                borderRadius: '10px',
-                backgroundColor: '#F8FAFC',
-                border: '1px solid #E2E8F0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                color: '#64748B'
-              }}
-            >
-              <Menu size={18} />
-            </button>
-          )}
+          <button
+            onClick={() => setSidebarOpen(o => !o)}
+            style={{
+              marginRight: 'auto',
+              width: '38px',
+              height: '38px',
+              borderRadius: '10px',
+              backgroundColor: '#F8FAFC',
+              border: '1px solid #E2E8F0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: '#64748B'
+            }}
+          >
+            <Menu size={18} />
+          </button>
 
           {/* Advisor Batch Switcher — multi-batch */}
           {isAdvisor && batches.length > 1 && (
