@@ -21,14 +21,7 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
   const [prereqCourse, setPrereqCourse] = useState('Data Structures');
   const [prereqResult, setPrereqResult] = useState(null);
   
-  const [newStudentData, setNewStudentData] = useState({
-    rollNumber: '',
-    name: '',
-    email: '',
-    semester: 1,
-    cgpa: 3.00,
-    batchCode: ''
-  });
+
   
   const [meetingData, setMeetingData] = useState({
     title: '',
@@ -109,7 +102,7 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
           No Batches Assigned
         </h3>
         <p style={{ margin: 0, fontSize: '14px', color: '#64748B' }}>
-          Contact your Super Admin to get assigned to your academic batches.
+          Contact your Dean to get assigned to your academic batches.
         </p>
       </div>
     );
@@ -229,17 +222,7 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
     }
   };
 
-  // Submit mock draft profile request
-  const submitNewStudentRequest = (e) => {
-    e.preventDefault();
-    if (!newStudentData.rollNumber || !newStudentData.name) {
-      triggerToast('Please provide Roll Number and Full Name.');
-      return;
-    }
-    triggerToast(`Draft Request created! Academic Administrator notified to sync profile of student ${newStudentData.name}.`);
-    setSelectedModal(null);
-    setNewStudentData({ rollNumber: '', name: '', email: '', semester: 1, cgpa: 3.00, batchCode: '' });
-  };
+
 
   // Submit mock meeting schedule
   const submitMeeting = (e) => {
@@ -350,24 +333,7 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
           </div>
         </div>
 
-        {/* Card 4: Today's Classes */}
-        <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ width: '36px', height: '36px', borderRadius: '9px', backgroundColor: '#F0FDF4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Calendar size={17} color="#16A34A" />
-            </div>
-            <button onClick={() => setSelectedModal('calendar')} style={{ border: 'none', backgroundColor: 'transparent', fontSize: '10px', fontWeight: 700, color: '#94A3B8', cursor: 'pointer', fontFamily: 'inherit' }} onMouseEnter={e => e.currentTarget.style.color = '#16A34A'} onMouseLeave={e => e.currentTarget.style.color = '#94A3B8'}>
-              View Schedule &rarr;
-            </button>
-          </div>
-          <div>
-            <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Today's Classes</p>
-            <h3 style={{ margin: '4px 0 0', fontSize: '24px', fontWeight: 800, color: '#16A34A', letterSpacing: '-0.5px' }}>—</h3>
-          </div>
-          <div style={{ fontSize: '11px', fontWeight: 600, color: '#64748B', borderTop: '1px solid #F1F5F9', paddingTop: '8px' }}>
-            Schedule via timetable module
-          </div>
-        </div>
+
 
         {/* Card 5: Avg CGPA */}
         <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
@@ -759,7 +725,7 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
           {[
-            { title: 'Add Student', icon: Plus, iconColor: '#7C3AED', bg: '#F5F3FF', action: () => setSelectedModal('addStudent') },
+
             { title: 'Advise Courses', icon: BookOpen, iconColor: '#16A34A', bg: '#F0FDF4', action: () => setActiveNav('workflowQueue') },
             { title: 'Check Prerequisites', icon: ShieldCheck, iconColor: '#EA580C', bg: '#FFF7ED', action: () => setSelectedModal('prereq') },
             { title: 'Generate Report', icon: FileText, iconColor: '#2563EB', bg: '#EFF6FF', action: () => triggerToast('Generating academic report compilation...') },
@@ -860,59 +826,7 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
         </div>
       )}
 
-      {/* Modal 2: Add Student Profile Sync Request */}
-      {selectedModal === 'addStudent' && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <form onSubmit={submitNewStudentRequest} style={{ backgroundColor: '#fff', borderRadius: 24, padding: 24, maxWidth: 440, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)', textAlign: 'left' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#1B3A6B' }}>Create Student Profile Request</h3>
-              <button type="button" onClick={() => setSelectedModal(null)} style={{ border: 'none', backgroundColor: 'transparent', cursor: 'pointer', color: '#94A3B8' }}><X size={18} /></button>
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
-              <div>
-                <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Roll Number</label>
-                <input
-                  type="text"
-                  placeholder="e.g. BSCS-23S-0092"
-                  value={newStudentData.rollNumber}
-                  onChange={e => setNewStudentData({ ...newStudentData, rollNumber: e.target.value })}
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none' }}
-                  required
-                />
-              </div>
 
-              <div>
-                <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Full Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Muhammad Ahmed"
-                  value={newStudentData.name}
-                  onChange={e => setNewStudentData({ ...newStudentData, name: e.target.value })}
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none' }}
-                  required
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Email</label>
-                <input
-                  type="email"
-                  placeholder="e.g. ahmed@stmu.edu.pk"
-                  value={newStudentData.email}
-                  onChange={e => setNewStudentData({ ...newStudentData, email: e.target.value })}
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none' }}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <button type="button" onClick={() => setSelectedModal(null)} style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #E2E8F0', backgroundColor: '#fff', color: '#64748B', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
-              <button type="submit" style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', backgroundColor: '#0F172A', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>Register Request</button>
-            </div>
-          </form>
-        </div>
-      )}
 
       {/* Modal 3: Schedule Meeting */}
       {selectedModal === 'meeting' && (

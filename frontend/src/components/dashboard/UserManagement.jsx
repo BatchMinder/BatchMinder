@@ -7,8 +7,9 @@ import {
 import { useDepartments } from '../../hooks/useDepartments';
 import Header from './Header';
 import { useModal } from '../../contexts/ModalContext';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button as MuiButton } from '@mui/material';
 
-const ROLE_OPTIONS   = ['All Roles', 'Batch Advisor', 'HOD', 'Administrator', 'Super Admin'];
+const ROLE_OPTIONS   = ['All Roles', 'Batch Advisor', 'HOD', 'Administrator', 'Dean'];
 const STATUS_OPTIONS = ['All Status', 'Active', 'Pending', 'Inactive'];
 
 const STATUS_STYLE = {
@@ -22,6 +23,7 @@ export default function UserManagement({ setActiveNav }) {
   const { showConfirm, showAlert, showSuccess } = useModal();
 
   const [users, setUsers]         = useState([]);
+  const [batches, setBatches]     = useState([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(null);
 
@@ -44,6 +46,7 @@ export default function UserManagement({ setActiveNav }) {
     dept:       '',
     status:     'Active',
     password:   '',
+    batchId:    '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState('');
@@ -62,12 +65,23 @@ export default function UserManagement({ setActiveNav }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/users');
-      const data = await response.json();
-      if (response.ok && data.status === 'success') {
-        setUsers(data.data);
+      const [userRes, batchRes] = await Promise.all([
+        fetch('/api/users'),
+        fetch('/api/batches')
+      ]);
+      const [userData, batchData] = await Promise.all([
+        userRes.json(),
+        batchRes.json()
+      ]);
+      
+      if (userRes.ok && userData.status === 'success') {
+        setUsers(userData.data);
       } else {
-        setError(data.message || 'Failed to retrieve user directory.');
+        setError(userData.message || 'Failed to retrieve user directory.');
+      }
+      
+      if (batchRes.ok && batchData.status === 'success') {
+        setBatches(batchData.data);
       }
     } catch (err) {
       setError('Connection failure: Unable to fetch user list.');
@@ -92,6 +106,7 @@ export default function UserManagement({ setActiveNav }) {
       dept:       u.dept || '',
       status:     u.status || 'Active',
       password:   u.password || '••••••••',
+      batchId:    u.batches?.[0] || '', // Might not map perfectly unless we search batches
     });
     setFormError('');
     setFormSuccess('');
@@ -109,6 +124,7 @@ export default function UserManagement({ setActiveNav }) {
       dept:       u.dept || '',
       status:     u.status || 'Active',
       password:   u.password || '••••••••',
+      batchId:    u.batches?.[0] || '',
     });
     setFormError('');
     setFormSuccess('');
@@ -126,6 +142,7 @@ export default function UserManagement({ setActiveNav }) {
       dept:       departments.length > 0 ? departments[0].name : '',
       status:     'Active',
       password:   '',
+      batchId:    '',
     });
     setFormError('');
     setFormSuccess('');
@@ -153,12 +170,21 @@ export default function UserManagement({ setActiveNav }) {
       const data = await response.json();
 
       if (response.ok && data.status === 'success') {
+        if (form.batchId) {
+          try {
+            await fetch(`/api/batches/${form.batchId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ advisor: form.name })
+            });
+          } catch (e) {
+            console.error('Failed to assign batch', e);
+          }
+        }
         const msg = editingUserId ? 'User details updated successfully!' : 'User account created successfully!';
         setFormSuccess(msg);
         showSuccess(msg);
-        if (!editingUserId) {
-          handleClearForm();
-        }
+        handleClearForm();
         fetchUsers();
       } else {
         setFormError(data.message || 'Operation failed.');
@@ -247,7 +273,7 @@ export default function UserManagement({ setActiveNav }) {
 
       <Header
         title="User Management"
-        subtitle="BatchMinder ERP • Super Admin • Users"
+        subtitle="BatchMinder ERP • Dean • Users"
         setActiveNav={setActiveNav}
       />
 
@@ -371,21 +397,6 @@ export default function UserManagement({ setActiveNav }) {
                 >
                   {STATUS_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                 </select>
-
-                <button
-                  onClick={handleClearForm}
-                  title="Add New User"
-                  style={{
-                    padding: '7px 14px', borderRadius: '8px', border: 'none',
-                    backgroundColor: '#2563EB', color: '#FFFFFF', fontSize: '12px', fontWeight: 600,
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit',
-                    marginLeft: '4px', boxShadow: '0 2px 4px rgba(37,99,235,0.1)', transition: 'background 0.15s'
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.backgroundColor = '#1D4ED8'}
-                  onMouseLeave={e => e.currentTarget.style.backgroundColor = '#2563EB'}
-                >
-                  <Plus size={14} /> Add User
-                </button>
               </div>
             </div>
 
@@ -424,11 +435,9 @@ export default function UserManagement({ setActiveNav }) {
                       return (
                         <tr
                           key={u.id}
-                          onClick={() => handleRowClick(u)}
                           style={{
                             borderBottom: '1px solid #F1F5F9',
                             backgroundColor: isSel ? '#EFF6FF' : '#FFFFFF',
-                            cursor: 'pointer',
                             transition: 'background 0.15s'
                           }}
                           onMouseEnter={e => { if (!isSel) e.currentTarget.style.backgroundColor = '#F8FAFC'; }}
@@ -607,17 +616,10 @@ export default function UserManagement({ setActiveNav }) {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
                 <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  {viewingUserId ? <Eye size={14} color="#10B981" /> : editingUserId ? <Shield size={14} color="#7C3AED" /> : <Plus size={14} color="#2563EB" />} 
-                  {viewingUserId ? 'View User Profile' : editingUserId ? 'Modify User Profile' : 'Add New User'}
+                  <Plus size={14} color="#2563EB" /> 
+                  Add New User
                 </h3>
-                {(editingUserId || viewingUserId) && (
-                  <button 
-                    onClick={handleClearForm}
-                    style={{ border: 'none', backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#94A3B8' }}
-                  >
-                    <X size={15} />
-                  </button>
-                )}
+
               </div>
 
               {formError && (
@@ -638,11 +640,10 @@ export default function UserManagement({ setActiveNav }) {
                   <input
                     type="text"
                     required
-                    disabled={!!viewingUserId}
                     placeholder="Dr. Fatima Malik"
                     value={form.name}
                     onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                    style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#1E293B', outline: 'none', fontFamily: 'inherit', opacity: viewingUserId ? 0.7 : 1, cursor: viewingUserId ? 'not-allowed' : 'text' }}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#1E293B', outline: 'none', fontFamily: 'inherit' }}
                   />
                 </div>
 
@@ -651,11 +652,10 @@ export default function UserManagement({ setActiveNav }) {
                   <input
                     type="email"
                     required
-                    disabled={!!viewingUserId}
                     placeholder="f.malik@stmu.edu.pk"
                     value={form.email}
                     onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-                    style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#1E293B', outline: 'none', fontFamily: 'inherit', opacity: viewingUserId ? 0.7 : 1, cursor: viewingUserId ? 'not-allowed' : 'text' }}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#1E293B', outline: 'none', fontFamily: 'inherit' }}
                   />
                 </div>
 
@@ -664,9 +664,8 @@ export default function UserManagement({ setActiveNav }) {
                   <div style={{ position: 'relative' }}>
                     <select
                       value={form.role}
-                      disabled={!!viewingUserId}
                       onChange={e => setForm(p => ({ ...p, role: e.target.value }))}
-                      style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#475569', outline: 'none', cursor: viewingUserId ? 'not-allowed' : 'pointer', appearance: 'none', fontFamily: 'inherit', opacity: viewingUserId ? 0.7 : 1 }}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#475569', outline: 'none', cursor: 'pointer', appearance: 'none', fontFamily: 'inherit' }}
                     >
                       {ROLE_OPTIONS.slice(1).map(o => <option key={o} value={o}>{o}</option>)}
                     </select>
@@ -679,13 +678,15 @@ export default function UserManagement({ setActiveNav }) {
                   <div style={{ position: 'relative' }}>
                     <select
                       value={form.dept}
-                      disabled={!!viewingUserId}
                       onChange={e => setForm(p => ({ ...p, dept: e.target.value }))}
-                      style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#475569', outline: 'none', cursor: viewingUserId ? 'not-allowed' : 'pointer', appearance: 'none', fontFamily: 'inherit', opacity: viewingUserId ? 0.7 : 1 }}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#475569', outline: 'none', cursor: departments.length === 0 ? 'not-allowed' : 'pointer', appearance: 'none', fontFamily: 'inherit' }}
+                      disabled={departments.length === 0}
                     >
-                      <option value="Computer Science">Computer Science</option>
-                      <option value="Software Engineering">Software Engineering</option>
-                      <option value="Electrical Eng.">Electrical Eng.</option>
+                      {departments.length === 0 ? (
+                        <option value="">No departments available</option>
+                      ) : (
+                        departments.map(d => <option key={d.id} value={d.name}>{d.name} ({d.code})</option>)
+                      )}
                     </select>
                     <ChevronDown size={14} color="#94A3B8" style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
                   </div>
@@ -695,13 +696,15 @@ export default function UserManagement({ setActiveNav }) {
                   <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#94A3B8', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '4px' }}>Assign Batch</label>
                   <div style={{ position: 'relative' }}>
                     <select
-                      disabled={!!viewingUserId}
-                      style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#475569', outline: 'none', cursor: viewingUserId ? 'not-allowed' : 'pointer', appearance: 'none', fontFamily: 'inherit', opacity: viewingUserId ? 0.7 : 1 }}
+                      value={form.batchId}
+                      onChange={e => setForm(p => ({ ...p, batchId: e.target.value }))}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#475569', outline: 'none', cursor: batches.length === 0 ? 'not-allowed' : 'pointer', appearance: 'none', fontFamily: 'inherit' }}
+                      disabled={batches.length === 0}
                     >
-                      <option>BSCS-2023 (Unassigned)</option>
-                      <option>BSCS-2021</option>
-                      <option>BSCS-2022</option>
-                      <option>BSEE-2022</option>
+                      <option value="">Select a batch (Unassigned)</option>
+                      {batches.map(b => (
+                        <option key={b.id} value={b.id}>{b.code} {b.advisor && b.advisor !== 'Unassigned' ? `(Assigned to ${b.advisor})` : '(Unassigned)'}</option>
+                      ))}
                     </select>
                     <ChevronDown size={14} color="#94A3B8" style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
                   </div>
@@ -711,11 +714,10 @@ export default function UserManagement({ setActiveNav }) {
                   <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#94A3B8', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '4px' }}>Employee ID</label>
                   <input
                     type="text"
-                    disabled={!!viewingUserId}
                     placeholder="STMU-2024-ADV-047"
                     value={form.employeeId}
                     onChange={e => setForm(p => ({ ...p, employeeId: e.target.value }))}
-                    style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#1E293B', outline: 'none', fontFamily: 'inherit', opacity: viewingUserId ? 0.7 : 1, cursor: viewingUserId ? 'not-allowed' : 'text' }}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#1E293B', outline: 'none', fontFamily: 'inherit' }}
                   />
                 </div>
 
@@ -723,15 +725,13 @@ export default function UserManagement({ setActiveNav }) {
                   <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#94A3B8', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '4px' }}>Phone</label>
                   <input
                     type="text"
-                    disabled={!!viewingUserId}
                     placeholder="+92 300 1234567"
                     value={form.phone}
                     onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
-                    style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#1E293B', outline: 'none', fontFamily: 'inherit', opacity: viewingUserId ? 0.7 : 1, cursor: viewingUserId ? 'not-allowed' : 'text' }}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#1E293B', outline: 'none', fontFamily: 'inherit' }}
                   />
                 </div>
 
-                {!viewingUserId && (
                   <button
                     type="submit"
                     style={{
@@ -746,28 +746,10 @@ export default function UserManagement({ setActiveNav }) {
                     onMouseEnter={e => e.currentTarget.style.backgroundColor = '#1D4ED8'}
                     onMouseLeave={e => e.currentTarget.style.backgroundColor = '#2563EB'}
                   >
-                    <CheckCircle2 size={13} /> {editingUserId ? 'Save Changes' : 'Create User Account'}
+                    <CheckCircle2 size={13} /> Create User Account
                   </button>
-                )}
               </form>
 
-              {editingUserId && (
-                <button
-                  onClick={() => handleDeleteUser(editingUserId)}
-                  style={{
-                    width: '100%', marginTop: '8px', padding: '8px',
-                    borderRadius: '8px', border: '1px solid #FCA5A5',
-                    backgroundColor: '#FFF5F5', color: '#C53030',
-                    fontSize: '11px', fontWeight: 700, cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                    fontFamily: 'inherit', transition: 'all 0.15s'
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#FEE2E2'; }}
-                  onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#FFF5F5'; }}
-                >
-                  <Trash2 size={12} /> Delete User Account
-                </button>
-              )}
             </div>
 
             {/* Role Distribution Panel */}
@@ -832,6 +814,101 @@ export default function UserManagement({ setActiveNav }) {
           </div>
         </div>
       </div>
+
+      <Dialog 
+        open={!!(editingUserId || viewingUserId)} 
+        onClose={handleClearForm}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ style: { borderRadius: '14px', padding: '10px' } }}
+      >
+        <DialogTitle style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {viewingUserId ? <Eye size={18} color="#10B981" /> : <Shield size={18} color="#7C3AED" />}
+          {viewingUserId ? 'View User Profile' : 'Modify User Profile'}
+        </DialogTitle>
+        <DialogContent>
+          {formError && (
+            <div style={{ padding: '8px 10px', marginBottom: '10px', borderRadius: '6px', backgroundColor: '#FEE2E2', border: '1px solid #FCA5A5', color: '#B91C1C', fontSize: '11px', fontWeight: 600 }}>
+              {formError}
+            </div>
+          )}
+          {formSuccess && (
+            <div style={{ padding: '8px 10px', marginBottom: '10px', borderRadius: '6px', backgroundColor: '#DCFCE7', border: '1px solid #86EFAC', color: '#15803D', fontSize: '11px', fontWeight: 600 }}>
+              {formSuccess}
+            </div>
+          )}
+          <form id="edit-user-form" onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#94A3B8', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '4px' }}>Full Name</label>
+              <input type="text" required disabled={!!viewingUserId} placeholder="Dr. Fatima Malik" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#1E293B', outline: 'none', fontFamily: 'inherit', opacity: viewingUserId ? 0.7 : 1, cursor: viewingUserId ? 'not-allowed' : 'text' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#94A3B8', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '4px' }}>Institutional Email</label>
+              <input type="email" required disabled={!!viewingUserId} placeholder="f.malik@stmu.edu.pk" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#1E293B', outline: 'none', fontFamily: 'inherit', opacity: viewingUserId ? 0.7 : 1, cursor: viewingUserId ? 'not-allowed' : 'text' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#94A3B8', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '4px' }}>Role</label>
+              <div style={{ position: 'relative' }}>
+                <select value={form.role} disabled={!!viewingUserId} onChange={e => setForm(p => ({ ...p, role: e.target.value }))} style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#475569', outline: 'none', cursor: viewingUserId ? 'not-allowed' : 'pointer', appearance: 'none', fontFamily: 'inherit', opacity: viewingUserId ? 0.7 : 1 }}>
+                  {ROLE_OPTIONS.slice(1).map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+                <ChevronDown size={14} color="#94A3B8" style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+              </div>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#94A3B8', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '4px' }}>Department</label>
+              <div style={{ position: 'relative' }}>
+                <select value={form.dept} disabled={!!viewingUserId || departments.length === 0} onChange={e => setForm(p => ({ ...p, dept: e.target.value }))} style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#475569', outline: 'none', cursor: (viewingUserId || departments.length === 0) ? 'not-allowed' : 'pointer', appearance: 'none', fontFamily: 'inherit', opacity: viewingUserId ? 0.7 : 1 }}>
+                  {departments.length === 0 ? (
+                    <option value="">No departments available</option>
+                  ) : (
+                    departments.map(d => <option key={d.id} value={d.name}>{d.name} ({d.code})</option>)
+                  )}
+                </select>
+                <ChevronDown size={14} color="#94A3B8" style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+              </div>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#94A3B8', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '4px' }}>Assign Batch</label>
+              <div style={{ position: 'relative' }}>
+                <select value={form.batchId} disabled={!!viewingUserId || batches.length === 0} onChange={e => setForm(p => ({ ...p, batchId: e.target.value }))} style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#475569', outline: 'none', cursor: (viewingUserId || batches.length === 0) ? 'not-allowed' : 'pointer', appearance: 'none', fontFamily: 'inherit', opacity: viewingUserId ? 0.7 : 1 }}>
+                  <option value="">Select a batch (Unassigned)</option>
+                  {batches.map(b => (
+                    <option key={b.id} value={b.id}>{b.code} {b.advisor && b.advisor !== 'Unassigned' ? `(Assigned to ${b.advisor})` : '(Unassigned)'}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} color="#94A3B8" style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+              </div>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#94A3B8', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '4px' }}>Employee ID</label>
+              <input type="text" disabled={!!viewingUserId} placeholder="STMU-2024-ADV-047" value={form.employeeId} onChange={e => setForm(p => ({ ...p, employeeId: e.target.value }))} style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#1E293B', outline: 'none', fontFamily: 'inherit', opacity: viewingUserId ? 0.7 : 1, cursor: viewingUserId ? 'not-allowed' : 'text' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#94A3B8', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '4px' }}>Phone</label>
+              <input type="text" disabled={!!viewingUserId} placeholder="+92 300 1234567" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#1E293B', outline: 'none', fontFamily: 'inherit', opacity: viewingUserId ? 0.7 : 1, cursor: viewingUserId ? 'not-allowed' : 'text' }} />
+            </div>
+          </form>
+          {editingUserId && (
+            <button
+              onClick={() => handleDeleteUser(editingUserId)}
+              style={{ width: '100%', marginTop: '16px', padding: '8px', borderRadius: '8px', border: '1px solid #FCA5A5', backgroundColor: '#FFF5F5', color: '#C53030', fontSize: '11px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontFamily: 'inherit', transition: 'all 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#FEE2E2'; }}
+              onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#FFF5F5'; }}
+            >
+              <Trash2 size={12} /> Delete User Account
+            </button>
+          )}
+        </DialogContent>
+        <DialogActions style={{ padding: '16px 24px' }}>
+          <MuiButton onClick={handleClearForm} style={{ color: '#64748B', fontWeight: 600 }}>Close</MuiButton>
+          {!viewingUserId && (
+            <MuiButton type="submit" form="edit-user-form" variant="contained" style={{ backgroundColor: '#2563EB', borderRadius: '8px', fontWeight: 600, textTransform: 'none' }}>
+              Save Changes
+            </MuiButton>
+          )}
+        </DialogActions>
+      </Dialog>
     </div>
   );
 }

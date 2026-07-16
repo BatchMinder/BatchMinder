@@ -5,6 +5,8 @@ import {
   X, Eye, BookOpen, Clock, Mail, Calendar, GraduationCap, Brain, Play
 } from 'lucide-react';
 import { CircularProgress } from '@mui/material';
+import AcademicSummary from '../../pages/students/AcademicSummary';
+import DegreeProgress from '../../pages/students/DegreeProgress';
 
 export default function AdvisorStudents({ selectedBatch }) {
   const { user } = useAuth();
@@ -23,6 +25,7 @@ export default function AdvisorStudents({ selectedBatch }) {
   const [predictionResult, setPredictionResult] = useState(null);
   const [predicting, setPredicting] = useState(false);
   const [degreeProgress, setDegreeProgress] = useState(null);
+  const [detailTab, setDetailTab] = useState('profile');
 
   const handlePredictRisk = async (studentId) => {
     setPredicting(true);
@@ -81,6 +84,7 @@ export default function AdvisorStudents({ selectedBatch }) {
     setStudentDetailsLoading(true);
     setPredictionResult(null);
     setDegreeProgress(null);
+    setDetailTab('profile');
     try {
       const res = await fetch(`/api/advisor/students/${studentId}`);
       const data = await res.json();
@@ -123,7 +127,7 @@ export default function AdvisorStudents({ selectedBatch }) {
           No Batches Assigned
         </h3>
         <p style={{ margin: 0, fontSize: '14px', color: '#64748B' }}>
-          Contact your Super Admin to get assigned to your academic batches.
+          Contact your Dean to get assigned to your academic batches.
         </p>
       </div>
     );
@@ -278,9 +282,10 @@ export default function AdvisorStudents({ selectedBatch }) {
         }}>
           <div style={{
             backgroundColor: '#FFFFFF', borderRadius: '16px',
-            border: '1px solid #E2E8F0', width: '100%', maxWidth: '640px',
+            border: '1px solid #E2E8F0', width: '100%', maxWidth: detailTab === 'profile' ? '640px' : '900px',
             boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', overflow: 'hidden',
-            display: 'flex', flexDirection: 'column', maxHeight: '90vh'
+            display: 'flex', flexDirection: 'column', maxHeight: '90vh',
+            transition: 'max-width 0.2s ease-in-out'
           }}>
             {/* Modal Header */}
             <div style={{
@@ -326,8 +331,33 @@ export default function AdvisorStudents({ selectedBatch }) {
                 </div>
               </div>
 
-              {/* Stats highlights */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Detail Navigation Tabs */}
+              <div style={{ display: 'flex', borderBottom: '1px solid #E2E8F0', gap: '20px', paddingBottom: '2px', marginBottom: '5px' }}>
+                {[
+                  { id: 'profile', label: 'Advising Profile' },
+                  { id: 'academic', label: 'Academic Summary' },
+                  { id: 'degree', label: 'Degree Progress Plan' }
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setDetailTab(tab.id)}
+                    style={{
+                      padding: '8px 4px 10px', border: 'none', background: 'none',
+                      borderBottom: detailTab === tab.id ? '2px solid #2563EB' : '2px solid transparent',
+                      color: detailTab === tab.id ? '#2563EB' : '#64748B',
+                      fontWeight: detailTab === tab.id ? 700 : 500,
+                      fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit'
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {detailTab === 'profile' && (
+                <>
+                  {/* Stats highlights */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div style={{ padding: '12px', borderRadius: '10px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', textAlign: 'center' }}>
                   <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>Academic Standing</span>
                   <p style={{
@@ -591,6 +621,16 @@ export default function AdvisorStudents({ selectedBatch }) {
                     });
                 })()}
               </div>
+              </>
+              )}
+
+              {detailTab === 'academic' && (
+                <AcademicSummary student={selectedStudent} />
+              )}
+
+              {detailTab === 'degree' && (
+                <DegreeProgress student={selectedStudent} />
+              )}
             </div>
 
             {/* Modal Footer */}

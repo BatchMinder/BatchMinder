@@ -159,7 +159,7 @@ export default function AuditLogsPage({ setActiveNav }) {
 
       <Header
         title="System Audit Logs"
-        subtitle={isSuperAdmin ? 'BatchMinder ERP • Super Admin • Audit Logs' : 'BatchMinder ERP • Audit Logs'}
+        subtitle={isSuperAdmin ? 'BatchMinder ERP • Dean • Audit Logs' : 'BatchMinder ERP • Audit Logs'}
         setActiveNav={setActiveNav}
       >
         <button

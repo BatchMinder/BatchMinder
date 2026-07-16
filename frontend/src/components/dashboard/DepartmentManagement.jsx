@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import Header from './Header';
 import { useModal } from '../../contexts/ModalContext';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button as MuiButton } from '@mui/material';
 
 const STATUS_OPTIONS = ['All Status', 'Active', 'Inactive'];
 
@@ -191,6 +192,8 @@ export default function DepartmentManagement({ setActiveNav }) {
         showSuccess(msg);
         if (!editingDeptId) {
           handleClearForm();
+        } else {
+          handleClearForm();
         }
         fetchData();
       } else {
@@ -273,7 +276,7 @@ export default function DepartmentManagement({ setActiveNav }) {
       fontFamily: "'Inter','Liberation Sans',-apple-system,sans-serif"
     }}>
 
-      <Header title="Departments Directory" subtitle="BatchMinder ERP • Super Admin • Departments" setActiveNav={setActiveNav} />
+      <Header title="Departments Directory" subtitle="BatchMinder ERP • Dean • Departments" setActiveNav={setActiveNav} />
 
       {/* ── Body Container ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, padding: '18px 24px', backgroundColor: '#F8FAFC', overflowY: 'auto' }}>
@@ -341,20 +344,6 @@ export default function DepartmentManagement({ setActiveNav }) {
                 />
               </div>
               <Dropdown value={statusFilter} options={STATUS_OPTIONS} onChange={setStatus} />
-              <button
-                onClick={handleClearForm}
-                title="Add New Department"
-                style={{
-                  padding: '7px 14px', borderRadius: '8px', border: 'none',
-                  backgroundColor: '#2563EB', color: '#FFFFFF', fontSize: '12px', fontWeight: 600,
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit',
-                  marginLeft: '4px', boxShadow: '0 2px 4px rgba(37,99,235,0.1)', transition: 'background 0.15s'
-                }}
-                onMouseEnter={e => e.currentTarget.style.backgroundColor = '#1D4ED8'}
-                onMouseLeave={e => e.currentTarget.style.backgroundColor = '#2563EB'}
-              >
-                <Plus size={14} /> Add Dept
-              </button>
             </div>
 
             {/* Table or States */}
@@ -409,11 +398,9 @@ export default function DepartmentManagement({ setActiveNav }) {
                       return (
                         <tr
                           key={d.id}
-                          onClick={() => handleRowClick(d)}
                           style={{
                             borderTop: '1px solid #F1F5F9',
                             backgroundColor: isSel ? '#EFF6FF' : (i % 2 === 0 ? '#FFFFFF' : '#FAFAFA'),
-                            cursor: 'pointer',
                             transition: 'background 0.1s'
                           }}
                           onMouseEnter={e => { if (!isSel) e.currentTarget.style.backgroundColor = '#F8FAFC'; }}
@@ -541,17 +528,8 @@ export default function DepartmentManagement({ setActiveNav }) {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '13px' }}>
                 <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  {viewingDeptId ? <Eye size={13} color="#10B981" /> : editingDeptId ? <BookOpen size={13} color="#7C3AED" /> : <Plus size={13} color="#2563EB" />}
-                  {viewingDeptId ? 'View Department Details' : editingDeptId ? 'Modify Department' : 'Create Department'}
+                  <Plus size={13} color="#2563EB" /> Create Department
                 </h3>
-                {(editingDeptId || viewingDeptId) && (
-                  <button 
-                    onClick={handleClearForm}
-                    style={{ border: 'none', backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#94A3B8' }}
-                  >
-                    <X size={14} />
-                  </button>
-                )}
               </div>
 
               {formError && (
@@ -580,10 +558,9 @@ export default function DepartmentManagement({ setActiveNav }) {
                   <input
                     type="text"
                     required
-                    disabled={!!viewingDeptId || !!editingDeptId}
                     value={form.code}
                     onChange={e => setForm(p => ({ ...p, code: e.target.value }))}
-                    style={{ ...inputStyle, textTransform: 'uppercase', backgroundColor: editingDeptId ? '#F1F5F9' : '#FFFFFF', opacity: viewingDeptId ? 0.7 : 1, cursor: viewingDeptId ? 'not-allowed' : 'text' }}
+                    style={{ ...inputStyle, textTransform: 'uppercase', backgroundColor: '#FFFFFF' }}
                   />
                 </div>
 
@@ -592,10 +569,9 @@ export default function DepartmentManagement({ setActiveNav }) {
                   <input
                     type="text"
                     required
-                    disabled={!!viewingDeptId}
                     value={form.name}
                     onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                    style={{ ...inputStyle, opacity: viewingDeptId ? 0.7 : 1, cursor: viewingDeptId ? 'not-allowed' : 'text' }}
+                    style={{ ...inputStyle }}
                   />
                 </div>
 
@@ -604,9 +580,8 @@ export default function DepartmentManagement({ setActiveNav }) {
                   <div style={{ position: 'relative' }}>
                     <select
                       value={form.hod}
-                      disabled={!!viewingDeptId}
                       onChange={e => setForm(p => ({ ...p, hod: e.target.value }))}
-                      style={{ ...selectStyle, opacity: viewingDeptId ? 0.7 : 1, cursor: viewingDeptId ? 'not-allowed' : 'pointer' }}
+                      style={{ ...selectStyle }}
                     >
                       <option value="Unassigned">Unassigned</option>
                       {hodCandidates.map(c => (
@@ -622,10 +597,9 @@ export default function DepartmentManagement({ setActiveNav }) {
                   <input
                     type="number"
                     required
-                    disabled={!!viewingDeptId}
                     value={form.established}
                     onChange={e => setForm(p => ({ ...p, established: Number(e.target.value) }))}
-                    style={{ ...inputStyle, opacity: viewingDeptId ? 0.7 : 1, cursor: viewingDeptId ? 'not-allowed' : 'text' }}
+                    style={{ ...inputStyle }}
                   />
                 </div>
 
@@ -634,9 +608,8 @@ export default function DepartmentManagement({ setActiveNav }) {
                   <div style={{ position: 'relative' }}>
                     <select
                       value={form.status}
-                      disabled={!!viewingDeptId}
                       onChange={e => setForm(p => ({ ...p, status: e.target.value }))}
-                      style={{ ...selectStyle, opacity: viewingDeptId ? 0.7 : 1, cursor: viewingDeptId ? 'not-allowed' : 'pointer' }}
+                      style={{ ...selectStyle }}
                     >
                       <option value="Active">Active</option>
                       <option value="Inactive">Inactive</option>
@@ -649,20 +622,18 @@ export default function DepartmentManagement({ setActiveNav }) {
                   <label style={labelStyle}>Visual Accent Color</label>
                   <input
                     type="color"
-                    disabled={!!viewingDeptId}
                     value={form.color}
                     onChange={e => setForm(p => ({ ...p, color: e.target.value }))}
-                    style={{ width: '100%', height: '36px', padding: '2px', border: '1px solid #E2E8F0', borderRadius: '7px', cursor: viewingDeptId ? 'not-allowed' : 'pointer', boxSizing: 'border-box', opacity: viewingDeptId ? 0.7 : 1 }}
+                    style={{ width: '100%', height: '36px', padding: '2px', border: '1px solid #E2E8F0', borderRadius: '7px', cursor: 'pointer', boxSizing: 'border-box' }}
                   />
                 </div>
 
-                {!viewingDeptId && (
                   <button
                     type="submit"
                     style={{
                       width: '100%', marginTop: '6px', padding: '9px',
                       borderRadius: '8px', border: 'none',
-                      backgroundColor: editingDeptId ? '#7C3AED' : '#2563EB', color: '#fff',
+                      backgroundColor: '#2563EB', color: '#fff',
                       fontSize: '12px', fontWeight: 700, cursor: 'pointer',
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
                       fontFamily: 'inherit', transition: 'filter 0.15s'
@@ -670,28 +641,9 @@ export default function DepartmentManagement({ setActiveNav }) {
                     onMouseEnter={e => e.currentTarget.style.filter = 'brightness(90%)'}
                     onMouseLeave={e => e.currentTarget.style.filter = 'brightness(100%)'}
                   >
-                    <Check size={13} /> {editingDeptId ? 'Save Changes' : 'Create Department'}
+                    <Check size={13} /> Create Department
                   </button>
-                )}
               </form>
-
-              {editingDeptId && (
-                <button
-                  onClick={() => handleDeleteDept(editingDeptId)}
-                  style={{
-                    width: '100%', marginTop: '8px', padding: '8px',
-                    borderRadius: '8px', border: '1px solid #FCA5A5',
-                    backgroundColor: '#FFF5F5', color: '#C53030',
-                    fontSize: '11px', fontWeight: 700, cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                    fontFamily: 'inherit', transition: 'all 0.15s'
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#FEE2E2'; }}
-                  onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#FFF5F5'; }}
-                >
-                  <Trash2 size={12} /> Delete Department
-                </button>
-              )}
             </div>
 
             {/* Quick Helper */}
@@ -721,6 +673,88 @@ export default function DepartmentManagement({ setActiveNav }) {
           </div>
         </div>
       </div>
+
+      <Dialog 
+        open={!!(editingDeptId || viewingDeptId)} 
+        onClose={handleClearForm}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ style: { borderRadius: '14px', padding: '10px' } }}
+      >
+        <DialogTitle style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {viewingDeptId ? <Eye size={18} color="#10B981" /> : <BookOpen size={18} color="#7C3AED" />}
+          {viewingDeptId ? 'View Department Details' : 'Modify Department'}
+        </DialogTitle>
+        <DialogContent>
+          {formError && (
+            <div style={{ padding: '8px 10px', marginBottom: '10px', borderRadius: '6px', backgroundColor: '#FEE2E2', border: '1px solid #FCA5A5', color: '#B91C1C', fontSize: '11px', fontWeight: 600 }}>
+              {formError}
+            </div>
+          )}
+          {formSuccess && (
+            <div style={{ padding: '8px 10px', marginBottom: '10px', borderRadius: '6px', backgroundColor: '#DCFCE7', border: '1px solid #86EFAC', color: '#15803D', fontSize: '11px', fontWeight: 600 }}>
+              {formSuccess}
+            </div>
+          )}
+          <form id="edit-dept-form" onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px' }}>
+            <div>
+              <label style={labelStyle}>Department Code (e.g. CS)</label>
+              <input type="text" required disabled={!!viewingDeptId || !!editingDeptId} value={form.code} onChange={e => setForm(p => ({ ...p, code: e.target.value }))} style={{ ...inputStyle, textTransform: 'uppercase', backgroundColor: editingDeptId ? '#F1F5F9' : '#FFFFFF', opacity: viewingDeptId ? 0.7 : 1, cursor: viewingDeptId ? 'not-allowed' : 'text' }} />
+            </div>
+            <div>
+              <label style={labelStyle}>Full Department Name</label>
+              <input type="text" required disabled={!!viewingDeptId} value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} style={{ ...inputStyle, opacity: viewingDeptId ? 0.7 : 1, cursor: viewingDeptId ? 'not-allowed' : 'text' }} />
+            </div>
+            <div>
+              <label style={labelStyle}>Chairperson / HOD</label>
+              <div style={{ position: 'relative' }}>
+                <select value={form.hod} disabled={!!viewingDeptId} onChange={e => setForm(p => ({ ...p, hod: e.target.value }))} style={{ ...selectStyle, opacity: viewingDeptId ? 0.7 : 1, cursor: viewingDeptId ? 'not-allowed' : 'pointer' }}>
+                  <option value="Unassigned">Unassigned</option>
+                  {hodCandidates.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                </select>
+                <ChevronDown size={12} color="#94A3B8" style={{ position: 'absolute', right: '9px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+              </div>
+            </div>
+            <div>
+              <label style={labelStyle}>Established Year</label>
+              <input type="number" required disabled={!!viewingDeptId} value={form.established} onChange={e => setForm(p => ({ ...p, established: Number(e.target.value) }))} style={{ ...inputStyle, opacity: viewingDeptId ? 0.7 : 1, cursor: viewingDeptId ? 'not-allowed' : 'text' }} />
+            </div>
+            <div>
+              <label style={labelStyle}>Status</label>
+              <div style={{ position: 'relative' }}>
+                <select value={form.status} disabled={!!viewingDeptId} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} style={{ ...selectStyle, opacity: viewingDeptId ? 0.7 : 1, cursor: viewingDeptId ? 'not-allowed' : 'pointer' }}>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+                <ChevronDown size={12} color="#94A3B8" style={{ position: 'absolute', right: '9px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+              </div>
+            </div>
+            <div>
+              <label style={labelStyle}>Visual Accent Color</label>
+              <input type="color" disabled={!!viewingDeptId} value={form.color} onChange={e => setForm(p => ({ ...p, color: e.target.value }))} style={{ width: '100%', height: '36px', padding: '2px', border: '1px solid #E2E8F0', borderRadius: '7px', cursor: viewingDeptId ? 'not-allowed' : 'pointer', boxSizing: 'border-box', opacity: viewingDeptId ? 0.7 : 1 }} />
+            </div>
+          </form>
+          {editingDeptId && (
+            <button
+              onClick={() => handleDeleteDept(editingDeptId)}
+              style={{ width: '100%', marginTop: '16px', padding: '8px', borderRadius: '8px', border: '1px solid #FCA5A5', backgroundColor: '#FFF5F5', color: '#C53030', fontSize: '11px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontFamily: 'inherit', transition: 'all 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#FEE2E2'; }}
+              onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#FFF5F5'; }}
+            >
+              <Trash2 size={12} /> Delete Department
+            </button>
+          )}
+        </DialogContent>
+        <DialogActions style={{ padding: '16px 24px' }}>
+          <MuiButton onClick={handleClearForm} style={{ color: '#64748B', fontWeight: 600 }}>Close</MuiButton>
+          {!viewingDeptId && (
+            <MuiButton type="submit" form="edit-dept-form" variant="contained" style={{ backgroundColor: '#2563EB', borderRadius: '8px', fontWeight: 600, textTransform: 'none' }}>
+              Save Changes
+            </MuiButton>
+          )}
+        </DialogActions>
+      </Dialog>
+
     </div>
   );
 }

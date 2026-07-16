@@ -71,15 +71,7 @@ const userSchema = new mongoose.Schema({
   assignedBatchIds: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Batch'
-  }],
-  passwordResetToken: {
-    type: String,
-    select: false
-  },
-  passwordResetExpires: {
-    type: Date,
-    select: false
-  }
+  }]
 });
 
 // Composite unique index for email + role combination

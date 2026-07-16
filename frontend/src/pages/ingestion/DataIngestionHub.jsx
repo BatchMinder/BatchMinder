@@ -93,6 +93,25 @@ export default function DataIngestionHub({ onUploadSuccess }) {
   const [selectedDept, setSelectedDept] = useState('');
   const [selectedBatch, setSelectedBatch] = useState('');
 
+  // Derived state: Filter batches by the selected department
+  const filteredBatches = React.useMemo(() => {
+    return batches.filter(b => {
+      const bDept = b.departmentId?.name || b.dept || b.department;
+      return bDept === selectedDept;
+    });
+  }, [batches, selectedDept]);
+
+  // Auto-select the first valid batch when the selected department changes
+  useEffect(() => {
+    if (filteredBatches.length > 0) {
+      if (!filteredBatches.find(b => b.code === selectedBatch)) {
+        setSelectedBatch(filteredBatches[0].code);
+      }
+    } else {
+      setSelectedBatch('');
+    }
+  }, [filteredBatches]);
+
   useEffect(() => {
     fetch('/api/departments')
       .then(r => r.json())
@@ -390,9 +409,13 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                       fontSize: '13px', color: '#1E293B', backgroundColor: '#FFFFFF', outline: 'none', cursor: 'pointer', fontFamily: 'inherit'
                     }}
                   >
-                    {batches.map(b => (
-                      <option key={b._id} value={b.code}>{b.code}</option>
-                    ))}
+                    {filteredBatches.length > 0 ? (
+                      filteredBatches.map(b => (
+                        <option key={b._id} value={b.code}>{b.code}</option>
+                      ))
+                    ) : (
+                      <option value="" disabled>No batches available</option>
+                    )}
                   </select>
                 </div>
               </div>

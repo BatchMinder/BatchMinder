@@ -421,7 +421,7 @@ export default function ProfileSettingsPage() {
                   backgroundColor: '#F8FAFC', fontSize: '13px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '8px'
                 }}>
                   <Shield size={14} color="#94A3B8" />
-                  {user?.role === 'super_admin' ? 'Super Admin' :
+                  {user?.role === 'super_admin' ? 'Dean' :
                    user?.role === 'academic_admin' ? 'Administrator' :
                    user?.role === 'admin' ? 'HOD' :
                    user?.role === 'advisor' ? 'Batch Advisor' : (user?.role || 'Administrator')}

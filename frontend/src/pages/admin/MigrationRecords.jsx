@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FileSpreadsheet, CheckCircle, Clock, AlertCircle, FileText, ArrowRightLeft, Eye, Check, X, Building2, User, Search, RefreshCw, Plus, BookOpen, Layers, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { CircularProgress } from '@mui/material';
+import MigrationAudit from '../migration/MigrationAudit';
 
 export default function MigrationRecords() {
   const [migrations, setMigrations] = useState([]);
@@ -23,6 +24,7 @@ export default function MigrationRecords() {
   const [studentsList, setStudentsList] = useState([]);
   const [isSubmittingNew, setIsSubmittingNew] = useState(false);
   const [newReqError, setNewReqError] = useState('');
+  const [activeTab, setActiveTab] = useState('requests');
   
   // Custom Modal & Pagination States
   const [showCoursesModal, setShowCoursesModal] = useState(false);
@@ -289,7 +291,7 @@ export default function MigrationRecords() {
     <div style={{ padding: '0 0 40px', maxWidth: '1400px', margin: '0 auto' }}>
       
       {/* 1. TOP STATS ROW */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
         {statCards.map((card, i) => {
           const Icon = card.icon;
           return (
@@ -309,7 +311,34 @@ export default function MigrationRecords() {
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-5">
+      {/* Tabs navigation for migrations */}
+      <div style={{ display: 'flex', borderBottom: '1px solid #E2E8F0', gap: '24px', paddingBottom: '2px', marginBottom: '20px' }}>
+        <button
+          onClick={() => setActiveTab('requests')}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px 14px',
+            border: 'none', background: 'none', borderBottom: activeTab === 'requests' ? '3px solid #2563EB' : '3px solid transparent',
+            color: activeTab === 'requests' ? '#2563EB' : '#64748B', fontWeight: activeTab === 'requests' ? 800 : 500, fontSize: '13.5px',
+            cursor: 'pointer', fontFamily: 'inherit'
+          }}
+        >
+          Active Transfer Requests
+        </button>
+        <button
+          onClick={() => setActiveTab('audit')}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px 14px',
+            border: 'none', background: 'none', borderBottom: activeTab === 'audit' ? '3px solid #2563EB' : '3px solid transparent',
+            color: activeTab === 'audit' ? '#2563EB' : '#64748B', fontWeight: activeTab === 'audit' ? 800 : 500, fontSize: '13.5px',
+            cursor: 'pointer', fontFamily: 'inherit'
+          }}
+        >
+          Migration Audit Log
+        </button>
+      </div>
+
+      {activeTab === 'requests' ? (
+        <div className="grid grid-cols-1 xl:grid-cols-[1.5fr_1fr] gap-5">
         
         {/* LEFT COLUMN */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -442,7 +471,7 @@ export default function MigrationRecords() {
           </div>
 
           {/* Curriculum Comparison & Course Equivalency (Bottom Left area matching screenshot) */}
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr] gap-5">
+          <div className="grid grid-cols-1 xl:grid-cols-[1fr_1.5fr] gap-5">
             
             {/* Curriculum Comparison */}
             <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0' }}>
@@ -670,6 +699,9 @@ export default function MigrationRecords() {
 
         </div>
       </div>
+      ) : (
+        <MigrationAudit />
+      )}
 
       {/* New Request Modal */}
       {showNewModal && (

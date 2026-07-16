@@ -3,7 +3,7 @@ import User from '../models/user.js';
 import AuditLog from '../models/auditLog.js';
 import { scopeQueryToRole } from '../middleware/scopeMiddleware.js';
 import { logAudit as sharedLogAudit } from '../utils/logger.js';
-import sendEmail from '../utils/email.js';
+
 
 const parseExpiresIn = (str) => {
   const match = str.match(/^(\d+)([smhd])$/);
@@ -276,103 +276,4 @@ export const setupSuperAdmin = async (req, res) => {
   }
 };
 
-// POST: Request password reset (generates OTP)
-export const forgotPassword = async (req, res) => {
-  try {
-    const { email, role } = req.body;
-    if (!email || !role) {
-      return res.status(400).json({ message: 'Please provide email and role' });
-    }
 
-    const user = await User.findOne({ email: email.toLowerCase().trim(), role });
-    if (!user) {
-      // Return 200 for security, but log locally
-      console.log(`Password reset requested for non-existent user: ${email} with role: ${role}`);
-      return res.status(200).json({
-        status: 'success',
-        message: 'If a matching user was found, a password reset code has been sent.'
-      });
-    }
-
-    // Generate a random 6-digit OTP code
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
-    // Set code and expiration (10 minutes)
-    user.passwordResetToken = otp;
-    user.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 mins
-    await user.save();
-
-    // Log audit
-    await logAudit(user._id, user.email, 'PASSWORD_RESET_REQUESTED', `Password reset OTP generated.`, user.role);
-
-    // Send actual email (using configured SMTP or fallback to Ethereal)
-    const emailMessage = `
-Hello ${user.name},
-
-You requested a password reset for your BatchMinder account.
-Your 6-digit OTP verification code is: ${otp}
-
-This code will expire in 10 minutes. If you did not request this, please ignore this email.
-
-BatchMinder System Security
-    `;
-
-    try {
-      await sendEmail({
-        email: user.email,
-        subject: 'BatchMinder - Password Reset OTP',
-        message: emailMessage,
-      });
-    } catch (err) {
-      console.error('Email could not be sent', err);
-      user.passwordResetToken = undefined;
-      user.passwordResetExpires = undefined;
-      await user.save({ validateBeforeSave: false });
-      return res.status(500).json({ message: 'There was an error sending the email. Try again later!' });
-    }
-
-    res.status(200).json({
-      status: 'success',
-      message: 'Password reset code has been generated.'
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// POST: Reset password using OTP
-export const resetPassword = async (req, res) => {
-  try {
-    const { email, role, otp, newPassword } = req.body;
-    if (!email || !role || !otp || !newPassword) {
-      return res.status(400).json({ message: 'Please provide email, role, OTP code, and new password' });
-    }
-
-    if (newPassword.length < 6) {
-      return res.status(400).json({ message: 'Password must be at least 6 characters long' });
-    }
-
-    const user = await User.findOne({ email: email.toLowerCase().trim(), role })
-      .select('+passwordResetToken +passwordResetExpires');
-
-    if (!user || user.passwordResetToken !== otp || user.passwordResetExpires < Date.now()) {
-      return res.status(400).json({ message: 'Invalid or expired OTP verification code' });
-    }
-
-    // Reset password
-    user.password = newPassword;
-    user.passwordResetToken = undefined;
-    user.passwordResetExpires = undefined;
-    await user.save();
-
-    // Log audit
-    await logAudit(user._id, user.email, 'PASSWORD_RESET_SUCCESS', `Password successfully updated.`, user.role);
-
-    res.status(200).json({
-      status: 'success',
-      message: 'Password has been successfully updated. You can now log in.'
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};

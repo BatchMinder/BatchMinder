@@ -6,6 +6,7 @@ import {
 import Header from './Header';
 import { useModal } from '../../contexts/ModalContext';
 import { useDepartments } from '../../hooks/useDepartments';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button as MuiButton } from '@mui/material';
 
 const ALLOCATION_OPTIONS = ['All Status', 'Allocated', 'Unassigned'];
 
@@ -199,6 +200,8 @@ export default function BatchAllocation({ setActiveNav }) {
         showSuccess(msg);
         if (!editingBatchId) {
           handleClearForm();
+        } else {
+          handleClearForm();
         }
         fetchData();
       } else {
@@ -297,7 +300,7 @@ export default function BatchAllocation({ setActiveNav }) {
       fontFamily: "'Inter','Liberation Sans',-apple-system,sans-serif"
     }}>
 
-      <Header title="Academic Batch Allocation" subtitle="BatchMinder ERP • Super Admin • Batches" setActiveNav={setActiveNav} />
+      <Header title="Academic Batch Allocation" subtitle="BatchMinder ERP • Dean • Batches" setActiveNav={setActiveNav} />
 
       {/* ── Scrollable Body ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, padding: '18px 24px', backgroundColor: '#F8FAFC', overflowY: 'auto' }}>
@@ -366,20 +369,6 @@ export default function BatchAllocation({ setActiveNav }) {
               </div>
               <Dropdown value={deptFilter} options={DEPT_OPTIONS} onChange={setDept} />
               <Dropdown value={allocFilter} options={ALLOCATION_OPTIONS} onChange={setAlloc} />
-              <button
-                onClick={handleClearForm}
-                title="Add New Batch"
-                style={{
-                  padding: '7px 14px', borderRadius: '8px', border: 'none',
-                  backgroundColor: '#2563EB', color: '#FFFFFF', fontSize: '12px', fontWeight: 600,
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit',
-                  marginLeft: '4px', boxShadow: '0 2px 4px rgba(37,99,235,0.1)', transition: 'background 0.15s'
-                }}
-                onMouseEnter={e => e.currentTarget.style.backgroundColor = '#1D4ED8'}
-                onMouseLeave={e => e.currentTarget.style.backgroundColor = '#2563EB'}
-              >
-                <Plus size={14} /> Add Batch
-              </button>
             </div>
 
             {/* Table or States */}
@@ -435,11 +424,9 @@ export default function BatchAllocation({ setActiveNav }) {
                       return (
                         <tr
                           key={b.id}
-                          onClick={() => handleRowClick(b)}
                           style={{
                             borderTop: '1px solid #F1F5F9',
                             backgroundColor: isSel ? '#EFF6FF' : (i % 2 === 0 ? '#FFFFFF' : '#FAFAFA'),
-                            cursor: 'pointer',
                             transition: 'background 0.1s'
                           }}
                           onMouseEnter={e => { if (!isSel) e.currentTarget.style.backgroundColor = '#F8FAFC'; }}
@@ -578,17 +565,8 @@ export default function BatchAllocation({ setActiveNav }) {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '13px' }}>
                 <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  {viewingBatchId ? <Eye size={13} color="#10B981" /> : editingBatchId ? <Layers size={13} color="#7C3AED" /> : <Plus size={13} color="#2563EB" />}
-                  {viewingBatchId ? 'View Batch Details' : editingBatchId ? 'Modify Batch' : 'Create Academic Batch'}
+                  <Plus size={13} color="#2563EB" /> Create Academic Batch
                 </h3>
-                {(editingBatchId || viewingBatchId) && (
-                  <button 
-                    onClick={handleClearForm}
-                    style={{ border: 'none', backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#94A3B8' }}
-                  >
-                    <X size={14} />
-                  </button>
-                )}
               </div>
 
               {formError && (
@@ -617,10 +595,9 @@ export default function BatchAllocation({ setActiveNav }) {
                   <input
                     type="text"
                     required
-                    disabled={!!viewingBatchId || !!editingBatchId}
                     value={form.code}
                     onChange={e => setForm(p => ({ ...p, code: e.target.value }))}
-                    style={{ ...inputStyle, textTransform: 'uppercase', backgroundColor: editingBatchId ? '#F1F5F9' : '#FFFFFF', opacity: viewingBatchId ? 0.7 : 1, cursor: viewingBatchId ? 'not-allowed' : 'text' }}
+                    style={{ ...inputStyle, textTransform: 'uppercase', backgroundColor: '#FFFFFF' }}
                   />
                 </div>
 
@@ -629,10 +606,9 @@ export default function BatchAllocation({ setActiveNav }) {
                   <input
                     type="number"
                     required
-                    disabled={!!viewingBatchId}
                     value={form.startYear}
                     onChange={e => setForm(p => ({ ...p, startYear: parseInt(e.target.value, 10) || '' }))}
-                    style={{ ...inputStyle, opacity: viewingBatchId ? 0.7 : 1, cursor: viewingBatchId ? 'not-allowed' : 'text' }}
+                    style={{ ...inputStyle }}
                   />
                 </div>
 
@@ -642,8 +618,8 @@ export default function BatchAllocation({ setActiveNav }) {
                     <select
                       value={form.dept}
                       onChange={e => setForm(p => ({ ...p, dept: e.target.value }))}
-                      style={{ ...selectStyle, opacity: viewingBatchId ? 0.7 : 1, cursor: viewingBatchId ? 'not-allowed' : 'pointer' }}
-                      disabled={departments.length === 0 || !!viewingBatchId}
+                      style={{ ...selectStyle }}
+                      disabled={departments.length === 0}
                     >
                       {departments.length === 0 ? (
                         <option value="">No departments available — create one first</option>
@@ -663,8 +639,7 @@ export default function BatchAllocation({ setActiveNav }) {
                     <select
                       value={form.advisor}
                       onChange={e => setForm(p => ({ ...p, advisor: e.target.value }))}
-                      style={{ ...selectStyle, opacity: viewingBatchId ? 0.7 : 1, cursor: viewingBatchId ? 'not-allowed' : 'pointer' }}
-                      disabled={!!viewingBatchId}
+                      style={{ ...selectStyle }}
                     >
                       <option value="Unassigned">Unassigned</option>
                       {advisors.map(a => (
@@ -687,14 +662,13 @@ export default function BatchAllocation({ setActiveNav }) {
                   </div>
                 )}
 
-                {!viewingBatchId && (
                   <button
                     type="submit"
                     disabled={departments.length === 0}
                     style={{
                       width: '100%', marginTop: '6px', padding: '9px',
                       borderRadius: '8px', border: 'none',
-                      backgroundColor: departments.length === 0 ? '#CBD5E1' : (editingBatchId ? '#7C3AED' : '#2563EB'),
+                      backgroundColor: departments.length === 0 ? '#CBD5E1' : '#2563EB',
                       color: departments.length === 0 ? '#94A3B8' : '#fff',
                       fontSize: '12px', fontWeight: 700, cursor: departments.length === 0 ? 'not-allowed' : 'pointer',
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
@@ -703,28 +677,9 @@ export default function BatchAllocation({ setActiveNav }) {
                     onMouseEnter={e => { if (departments.length > 0) e.currentTarget.style.filter = 'brightness(90%)'; }}
                     onMouseLeave={e => { if (departments.length > 0) e.currentTarget.style.filter = 'brightness(100%)'; }}
                   >
-                    <Check size={13} /> {editingBatchId ? 'Save Advisor Allocation' : 'Create Batch'}
+                    <Check size={13} /> Create Batch
                   </button>
-                )}
               </form>
-
-              {editingBatchId && (
-                <button
-                  onClick={() => handleDeleteBatch(editingBatchId)}
-                  style={{
-                    width: '100%', marginTop: '8px', padding: '8px',
-                    borderRadius: '8px', border: '1px solid #FCA5A5',
-                    backgroundColor: '#FFF5F5', color: '#C53030',
-                    fontSize: '11px', fontWeight: 700, cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                    fontFamily: 'inherit', transition: 'all 0.15s'
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#FEE2E2'; }}
-                  onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#FFF5F5'; }}
-                >
-                  <Trash2 size={12} /> Delete Batch
-                </button>
-              )}
             </div>
 
             {/* Quick Advisor Helper */}
@@ -754,6 +709,82 @@ export default function BatchAllocation({ setActiveNav }) {
           </div>
         </div>
       </div>
+
+      <Dialog 
+        open={!!(editingBatchId || viewingBatchId)} 
+        onClose={handleClearForm}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ style: { borderRadius: '14px', padding: '10px' } }}
+      >
+        <DialogTitle style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {viewingBatchId ? <Eye size={18} color="#10B981" /> : <Layers size={18} color="#7C3AED" />}
+          {viewingBatchId ? 'View Batch Details' : 'Modify Batch'}
+        </DialogTitle>
+        <DialogContent>
+          {formError && (
+            <div style={{ padding: '8px 10px', marginBottom: '10px', borderRadius: '6px', backgroundColor: '#FEE2E2', border: '1px solid #FCA5A5', color: '#B91C1C', fontSize: '11px', fontWeight: 600 }}>
+              {formError}
+            </div>
+          )}
+          {formSuccess && (
+            <div style={{ padding: '8px 10px', marginBottom: '10px', borderRadius: '6px', backgroundColor: '#DCFCE7', border: '1px solid #86EFAC', color: '#15803D', fontSize: '11px', fontWeight: 600 }}>
+              {formSuccess}
+            </div>
+          )}
+          <form id="edit-batch-form" onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px' }}>
+            <div>
+              <label style={labelStyle}>Batch Code (e.g. BSCS-2024)</label>
+              <input type="text" required disabled={!!viewingBatchId || !!editingBatchId} value={form.code} onChange={e => setForm(p => ({ ...p, code: e.target.value }))} style={{ ...inputStyle, textTransform: 'uppercase', backgroundColor: editingBatchId ? '#F1F5F9' : '#FFFFFF', opacity: viewingBatchId ? 0.7 : 1, cursor: viewingBatchId ? 'not-allowed' : 'text' }} />
+            </div>
+            <div>
+              <label style={labelStyle}>Start Year</label>
+              <input type="number" required disabled={!!viewingBatchId} value={form.startYear} onChange={e => setForm(p => ({ ...p, startYear: parseInt(e.target.value, 10) || '' }))} style={{ ...inputStyle, opacity: viewingBatchId ? 0.7 : 1, cursor: viewingBatchId ? 'not-allowed' : 'text' }} />
+            </div>
+            <div>
+              <label style={labelStyle}>Department</label>
+              <div style={{ position: 'relative' }}>
+                <select value={form.dept} disabled={!!viewingBatchId} onChange={e => setForm(p => ({ ...p, dept: e.target.value }))} style={{ ...selectStyle, opacity: viewingBatchId ? 0.7 : 1, cursor: viewingBatchId ? 'not-allowed' : 'pointer' }}>
+                  {departments.length === 0 ? (
+                    <option value="">No departments available — create one first</option>
+                  ) : (
+                    departments.map(d => <option key={d.id} value={d.name}>{d.name} ({d.code})</option>)
+                  )}
+                </select>
+                <ChevronDown size={12} color="#94A3B8" style={{ position: 'absolute', right: '9px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+              </div>
+            </div>
+            <div>
+              <label style={labelStyle}>Assign Advisor</label>
+              <div style={{ position: 'relative' }}>
+                <select value={form.advisor} disabled={!!viewingBatchId} onChange={e => setForm(p => ({ ...p, advisor: e.target.value }))} style={{ ...selectStyle, opacity: viewingBatchId ? 0.7 : 1, cursor: viewingBatchId ? 'not-allowed' : 'pointer' }}>
+                  <option value="Unassigned">Unassigned</option>
+                  {advisors.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}
+                </select>
+                <ChevronDown size={12} color="#94A3B8" style={{ position: 'absolute', right: '9px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+              </div>
+            </div>
+          </form>
+          {editingBatchId && (
+            <button
+              onClick={() => handleDeleteBatch(editingBatchId)}
+              style={{ width: '100%', marginTop: '16px', padding: '8px', borderRadius: '8px', border: '1px solid #FCA5A5', backgroundColor: '#FFF5F5', color: '#C53030', fontSize: '11px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontFamily: 'inherit', transition: 'all 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#FEE2E2'; }}
+              onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#FFF5F5'; }}
+            >
+              <Trash2 size={12} /> Delete Batch
+            </button>
+          )}
+        </DialogContent>
+        <DialogActions style={{ padding: '16px 24px' }}>
+          <MuiButton onClick={handleClearForm} style={{ color: '#64748B', fontWeight: 600 }}>Close</MuiButton>
+          {!viewingBatchId && (
+            <MuiButton type="submit" form="edit-batch-form" variant="contained" style={{ backgroundColor: '#2563EB', borderRadius: '8px', fontWeight: 600, textTransform: 'none' }}>
+              Save Advisor Allocation
+            </MuiButton>
+          )}
+        </DialogActions>
+      </Dialog>
     </div>
   );
 }

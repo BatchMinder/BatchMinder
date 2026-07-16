@@ -57,10 +57,10 @@ export default function SuperAdminSetup({ setCurrentPath }) {
             <ShieldAlert className="h-6 w-6" />
           </div>
           <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-            Super Admin Portal
+            Dean Portal
           </h2>
           <p className="text-slate-500 text-sm font-medium">
-            Register or recover the primary Super Admin profile
+            Register or recover the primary Dean profile
           </p>
         </div>
 

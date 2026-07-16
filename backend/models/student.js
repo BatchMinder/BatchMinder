@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import './degreeProgress.js';
-import sendEmail from '../utils/email.js';
+
 
 const courseEnrollmentSchema = new mongoose.Schema({
   courseCode: {
@@ -219,25 +219,7 @@ async function triggerAdvisorNotification(doc) {
         deepLinkUrl: `/advisor/students?search=${encodeURIComponent(doc.rollNumber)}`
       });
 
-      // 2. Dispatch Email to Advisor
-      try {
-        const advisorUser = await mongoose.model('User').findById(batch.advisorId);
-        if (advisorUser && advisorUser.email) {
-          await sendEmail({
-            email: advisorUser.email,
-            subject: `[BatchMinder] ${type.replace('_', ' ')}: CGPA Alert for Student ${doc.name}`,
-            message,
-            html: `
-              <h3>BatchMinder Academic Alert</h3>
-              <p>${message}</p>
-              <br/>
-              <p>Please log in to the advisor portal to review the student's status.</p>
-            `
-          });
-        }
-      } catch (emailErr) {
-        console.error('Failed to dispatch alert email to advisor:', emailErr);
-      }
+
     }
   }
 }

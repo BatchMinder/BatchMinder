@@ -49,13 +49,13 @@ async function seed() {
 
     // ── Users ──
     const users = await User.create([
-      { name: 'Super Admin User', email: 'superadmin@stmu.edu.pk', password: 'password123', role: 'super_admin', status: 'Active' },
+      { name: 'Dean User', email: 'dean@stmu.edu.pk', password: 'password123', role: 'super_admin', status: 'Active' },
       { name: 'Admin CS Only', email: 'admin.cs@stmu.edu.pk', password: 'password123', role: 'academic_admin', departmentIds: [cs], dept: 'Computer Science', status: 'Active' },
       { name: 'Admin CS+SE', email: 'admin.both@stmu.edu.pk', password: 'password123', role: 'academic_admin', departmentIds: [cs, se], dept: 'All Departments', status: 'Active' },
       { name: 'HOD Computer Science', email: 'hod.cs@stmu.edu.pk', password: 'password123', role: 'admin', departmentIds: [cs], dept: 'Computer Science', status: 'Active' },
       { name: 'HOD Software Engineering', email: 'hod.se@stmu.edu.pk', password: 'password123', role: 'admin', departmentIds: [se], dept: 'Software Engineering', status: 'Active' },
       { name: 'Advisor Ahmed', email: 'advisor.both@stmu.edu.pk', password: 'password123', role: 'advisor', dept: 'Computer Science', status: 'Active' },
-      { name: 'Advisor Fatima', email: 'batchadvisor@stmu.edu.pk', password: 'password123', role: 'advisor', dept: 'Computer Science', status: 'Active' },
+      { name: 'Advisor Fatima', email: 'advisor.cs@stmu.edu.pk', password: 'password123', role: 'advisor', dept: 'Computer Science', status: 'Active' },
       { name: 'Advisor Usman', email: 'advisor.se@stmu.edu.pk', password: 'password123', role: 'advisor', dept: 'Software Engineering', status: 'Active' },
       { name: 'HOD Electrical Engineering', email: 'hod.ee@stmu.edu.pk', password: 'password123', role: 'admin', departmentIds: [ee], dept: 'Electrical Engineering', status: 'Active' },
     ]);
@@ -83,7 +83,7 @@ async function seed() {
 
     // Assign batches to advisors
     const advisorAhmed = users.find(u => u.email === 'advisor.both@stmu.edu.pk');
-    const advisorFatima = users.find(u => u.email === 'batchadvisor@stmu.edu.pk');
+    const advisorFatima = users.find(u => u.email === 'advisor.cs@stmu.edu.pk');
     const advisorUsman = users.find(u => u.email === 'advisor.se@stmu.edu.pk');
 
     advisorAhmed.assignedBatchIds = [bscs22, bscs23];
@@ -593,7 +593,7 @@ async function seed() {
     console.log('\nTest logins (password: password123):');
     console.log('  Administrator (CS only): admin.cs@stmu.edu.pk / password123 / academic_admin');
     console.log('  Administrator (CS+SE):   admin.both@stmu.edu.pk / password123 / academic_admin');
-    console.log('  Super Admin:             superadmin@stmu.edu.pk / password123 / super_admin');
+    console.log('  Dean:                    dean@stmu.edu.pk / password123 / super_admin');
     console.log('  Batch Advisor:           batchadvisor@stmu.edu.pk / password123 / advisor');
 
     process.exit(0);

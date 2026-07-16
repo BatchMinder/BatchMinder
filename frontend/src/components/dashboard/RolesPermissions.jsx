@@ -6,7 +6,7 @@ import {
 import Header from './Header';
 
 const INITIAL_ROLES = [
-  { id: 1, name: 'Super Admin',      scope: 'System-wide',     status: 'Active', color: '#E11D48', permissions: ['manage_users', 'manage_depts', 'manage_batches', 'view_audits', 'approve_migrations', 'edit_curriculum', 'view_students'] },
+  { id: 1, name: 'Dean',      scope: 'System-wide',     status: 'Active', color: '#E11D48', permissions: ['manage_users', 'manage_depts', 'manage_batches', 'view_audits', 'approve_migrations', 'edit_curriculum', 'view_students'] },
   { id: 2, name: 'Academic Admin',   scope: 'Institution-wide',status: 'Active', color: '#10B981', permissions: ['manage_depts', 'manage_batches', 'view_audits', 'view_students', 'edit_curriculum'] },
   { id: 3, name: 'HOD / Admin',      scope: 'Department-wide', status: 'Active', color: '#7C3AED', permissions: ['manage_batches', 'view_students', 'approve_migrations', 'view_audits'] },
   { id: 4, name: 'Batch Advisor',    scope: 'Batch-specific',  status: 'Active', color: '#2563EB', permissions: ['view_students', 'view_audits'] }
@@ -33,15 +33,16 @@ const toUiRoleName = (apiRole) => {
     'academic_admin': 'Academic Admin',
     'Administrator': 'Academic Admin',
     'Academic Admin': 'Academic Admin',
-    'super_admin': 'Super Admin',
-    'Super Admin': 'Super Admin'
+    'super_admin': 'Dean',
+    'Super Admin': 'Dean',
+    'Dean': 'Dean'
   };
   return map[apiRole] || 'Batch Advisor';
 };
 
 const toApiPayloadRole = (uiRole) => {
   const map = {
-    'Super Admin': 'Super Admin',
+    'Dean': 'Super Admin',
     'Academic Admin': 'Administrator',
     'HOD / Admin': 'HOD',
     'Batch Advisor': 'Batch Advisor'
@@ -201,7 +202,7 @@ export default function RolesPermissions({ setActiveNav }) {
       fontFamily: "'Inter','Liberation Sans',-apple-system,sans-serif"
     }}>
 
-      <Header title="Roles & Permissions" subtitle="BatchMinder ERP • Super Admin • Roles & Permissions" setActiveNav={setActiveNav} />
+      <Header title="Roles & Permissions" subtitle="BatchMinder ERP • Dean • Roles & Permissions" setActiveNav={setActiveNav} />
 
       {/* ── Body Container ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, padding: '18px 24px', backgroundColor: '#F8FAFC', overflowY: 'auto' }}>

@@ -241,7 +241,7 @@ export default function NotificationsPage({ setActiveNav }) {
       fontFamily: "'Inter','Liberation Sans',-apple-system,sans-serif"
     }}>
 
-      <Header title="Notifications & Broadcasts" subtitle="BatchMinder ERP • Super Admin • Notifications" setActiveNav={setActiveNav} />
+      <Header title="Notifications & Broadcasts" subtitle="BatchMinder ERP • Dean • Notifications" setActiveNav={setActiveNav} />
 
       {/* ── Scrollable Body ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, padding: '18px 24px', backgroundColor: '#F8FAFC', overflowY: 'auto' }}>
@@ -552,7 +552,7 @@ export default function NotificationsPage({ setActiveNav }) {
                       <option value="Advisors">Batch Advisors</option>
                       <option value="HODs">HODs / Chairpersons</option>
                       <option value="Admins">Administrators</option>
-                      <option value="Super Admin">Super Admins Only</option>
+                      <option value="Super Admin">Deans Only</option>
                     </select>
                     <ChevronDown size={12} color="#94A3B8" style={{ position: 'absolute', right: '9px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
                   </div>

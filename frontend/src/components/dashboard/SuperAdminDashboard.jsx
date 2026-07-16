@@ -275,7 +275,7 @@ export default function SuperAdminDashboard({ onLogout }) {
     ]
   };
 
-  const displayName = user?.name || 'Super Admin';
+  const displayName = user?.name || 'Dean';
   const displayEmail = user?.email || '';
   const initials = displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'SA';
 
@@ -366,7 +366,7 @@ export default function SuperAdminDashboard({ onLogout }) {
           }}>
             <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#F59E0B', animation: 'pulse 2s infinite' }} />
             <span style={{ fontSize: '10px', fontWeight: 800, color: '#F59E0B', letterSpacing: '1px', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
-              Super Administrator
+              Dean
             </span>
           </div>
 
@@ -552,7 +552,7 @@ export default function SuperAdminDashboard({ onLogout }) {
         ) : (
           <div style={{ flex: 1, overflowY: 'auto', backgroundColor: '#F8FAFC', display: 'flex', flexDirection: 'column' }}>
             <Header
-              title="Super Admin Dashboard"
+              title="Dean Dashboard"
               subtitle="BatchMinder ERP • Dashboard"
               setActiveNav={setActiveNav}
             />
@@ -625,21 +625,6 @@ export default function SuperAdminDashboard({ onLogout }) {
                       <Home size={17} color="#64748B" />
                       <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Department Overview</h3>
                     </div>
-                    <button
-                      onClick={() => setActiveNav('departments')}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: '6px',
-                        padding: '7px 14px', borderRadius: '8px',
-                        backgroundColor: '#0F172A', border: 'none',
-                        color: '#fff', fontSize: '12px', fontWeight: 600,
-                        cursor: 'pointer', transition: 'background 0.15s'
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.backgroundColor = '#1E293B'}
-                      onMouseLeave={e => e.currentTarget.style.backgroundColor = '#0F172A'}
-                    >
-                      Manage Depts
-                      <ExternalLink size={12} />
-                    </button>
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>

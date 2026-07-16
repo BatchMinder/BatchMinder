@@ -315,7 +315,7 @@ function App() {
             </DialogTitle>
             <DialogContent>
               <DialogContentText style={{ fontSize: '14px', color: '#64748b' }}>
-                Are you sure you want to end your BatchMinder Super Admin session?
+                Are you sure you want to end your BatchMinder Dean session?
               </DialogContentText>
             </DialogContent>
             <DialogActions style={{ padding: '8px 24px 16px' }}>

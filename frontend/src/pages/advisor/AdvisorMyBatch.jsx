@@ -90,7 +90,7 @@ export default function AdvisorMyBatch({ selectedBatch }) {
       <div style={{ padding: '48px', textAlign: 'center', backgroundColor: '#FFFFFF', borderRadius: '14px', border: '1px solid #E2E8F0' }}>
         <AlertTriangle size={44} color="#EF4444" style={{ display: 'block', margin: '0 auto 14px' }} />
         <h3 style={{ margin: '0 0 8px', fontSize: '17px', fontWeight: 800, color: '#1E293B' }}>No Batches Assigned</h3>
-        <p style={{ margin: 0, fontSize: '13px', color: '#64748B' }}>Contact your Super Admin to get assigned to your academic batches.</p>
+        <p style={{ margin: 0, fontSize: '13px', color: '#64748B' }}>Contact your Dean to get assigned to your academic batches.</p>
       </div>
     );
   }

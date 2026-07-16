@@ -9,6 +9,8 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip
 } from 'recharts';
 import { useModal } from '../../contexts/ModalContext';
+import AcademicSummary from '../../pages/students/AcademicSummary';
+import DegreeProgress from '../../pages/students/DegreeProgress';
 
 export default function StudentRecords({ setActiveNav }) {
   const { showConfirm, showAlert, showSuccess } = useModal();
@@ -21,6 +23,7 @@ export default function StudentRecords({ setActiveNav }) {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [selected, setSelected] = useState(null);
+  const [detailTab, setDetailTab] = useState('profile');
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ rollNumber: '', name: '', email: '', departmentId: '', batchId: '', cgpa: '' });
   const [batches, setBatches] = useState([]);
@@ -132,6 +135,12 @@ export default function StudentRecords({ setActiveNav }) {
   useEffect(() => {
     fetchStudents();
   }, [page, search, statusFilter]);
+
+  useEffect(() => {
+    if (selected) {
+      setDetailTab('profile');
+    }
+  }, [selected]);
 
   const fetchStats = async () => {
     try {
@@ -364,7 +373,7 @@ export default function StudentRecords({ setActiveNav }) {
       </div>
 
       {/* ── Metric Cards Row ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4">
 
         {/* Total Students Card */}
         <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
@@ -399,12 +408,12 @@ export default function StudentRecords({ setActiveNav }) {
             <span style={{ fontSize: '12px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Graduated</span>
             <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748B' }}>Alumni</span>
           </div>
-          <h3 style={{ margin: 0, fontSize: '28px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>{stats.graduatedStudents}</h3>
+          <h3 style={{ margin: 0, fontSize: '28px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>{stats.graduatedStudents || 0}</h3>
         </div>
       </div>
 
       {/* ── Two Column Main Layout ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5 items-stretch flex-1">
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-5 items-stretch flex-1">
 
         {/* Left Column: Filters and Table Container */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -662,7 +671,7 @@ export default function StudentRecords({ setActiveNav }) {
       </div>
 
       {/* ── Bottom Section: Charts Panel ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px_320px] gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[1fr_300px_320px] gap-4">
 
         {/* Chart 1: CGPA Distribution Doughnut Chart */}
         <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
@@ -764,42 +773,82 @@ export default function StudentRecords({ setActiveNav }) {
       {/* ── Detail Modal ── */}
       {selected && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div style={{ backgroundColor: '#fff', borderRadius: 24, padding: 24, maxWidth: 480, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: 24, padding: 24, maxWidth: detailTab === 'profile' ? 480 : 900, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)', transition: 'max-width 0.2s ease-in-out' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#1B3A6B', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <User size={18} /> Student Details
               </h3>
               <button onClick={() => setSelected(null)} style={{ padding: 4, border: 'none', backgroundColor: 'transparent', cursor: 'pointer', color: '#94A3B8' }}><X size={20} /></button>
             </div>
-            <div style={{ backgroundColor: '#F8FAFC', padding: 16, borderRadius: 12, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 48, height: 48, borderRadius: '50%', backgroundColor: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 18, color: '#2563EB' }}>
-                {selected.name.split(' ').map(n => n[0]).join('')}
-              </div>
-              <div>
-                <div style={{ fontWeight: 700, color: '#0F172A' }}>{selected.name}</div>
-                <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#64748B' }}>{selected.rollNumber}</div>
-              </div>
+
+            {/* Tabs for details modal */}
+            <div style={{ display: 'flex', borderBottom: '1px solid #E2E8F0', gap: '16px', paddingBottom: '2px', marginBottom: '14px' }}>
+              {[
+                { id: 'profile', label: 'Basic Profile' },
+                { id: 'academic', label: 'Academic Summary' },
+                { id: 'degree', label: 'Degree Progress Plan' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setDetailTab(tab.id)}
+                  style={{
+                    padding: '8px 4px 10px', border: 'none', background: 'none',
+                    borderBottom: detailTab === tab.id ? '2px solid #2563EB' : '2px solid transparent',
+                    color: detailTab === tab.id ? '#2563EB' : '#64748B',
+                    fontWeight: detailTab === tab.id ? 700 : 500,
+                    fontSize: '12.5px', cursor: 'pointer', fontFamily: 'inherit'
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-              <div style={{ padding: 12, border: '1px solid #E2E8F0', borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Department</div>
-                <div style={{ fontWeight: 600, color: '#0F172A', marginTop: 4 }}>{selected.departmentId?.name || 'Computer Science'}</div>
-              </div>
-              <div style={{ padding: 12, border: '1px solid #E2E8F0', borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>CGPA</div>
-                <div style={{ fontWeight: 700, color: '#0F172A', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Award size={14} color="#F59E0B" /> {selected.cgpa.toFixed(2)}
+
+            {detailTab === 'profile' && (
+              <>
+                <div style={{ backgroundColor: '#F8FAFC', padding: 16, borderRadius: 12, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 48, height: 48, borderRadius: '50%', backgroundColor: '#EFF6FF', display: 'flex', alignItems: 'center', justifySelf: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 18, color: '#2563EB' }}>
+                    {selected.name.split(' ').map(n => n[0]).join('')}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 700, color: '#0F172A' }}>{selected.name}</div>
+                    <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#64748B' }}>{selected.rollNumber}</div>
+                  </div>
                 </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                  <div style={{ padding: 12, border: '1px solid #E2E8F0', borderRadius: 8 }}>
+                    <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Department</div>
+                    <div style={{ fontWeight: 600, color: '#0F172A', marginTop: 4 }}>{selected.departmentId?.name || 'Computer Science'}</div>
+                  </div>
+                  <div style={{ padding: 12, border: '1px solid #E2E8F0', borderRadius: 8 }}>
+                    <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>CGPA</div>
+                    <div style={{ fontWeight: 700, color: '#0F172A', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Award size={14} color="#F59E0B" /> {selected.cgpa.toFixed(2)}
+                    </div>
+                  </div>
+                  <div style={{ padding: 12, border: '1px solid #E2E8F0', borderRadius: 8 }}>
+                    <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Semester</div>
+                    <div style={{ fontWeight: 600, color: '#0F172A', marginTop: 4 }}>{selected.currentSemester}</div>
+                  </div>
+                  <div style={{ padding: 12, border: '1px solid #E2E8F0', borderRadius: 8 }}>
+                    <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status</div>
+                    <div style={{ fontWeight: 600, color: '#0F172A', marginTop: 4, textTransform: 'capitalize' }}>{selected.status}</div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {detailTab === 'academic' && (
+              <div style={{ maxHeight: '60vh', overflowY: 'auto', paddingRight: '4px' }}>
+                <AcademicSummary student={selected} />
               </div>
-              <div style={{ padding: 12, border: '1px solid #E2E8F0', borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Semester</div>
-                <div style={{ fontWeight: 600, color: '#0F172A', marginTop: 4 }}>{selected.currentSemester}</div>
+            )}
+
+            {detailTab === 'degree' && (
+              <div style={{ maxHeight: '60vh', overflowY: 'auto', paddingRight: '4px' }}>
+                <DegreeProgress student={selected} />
               </div>
-              <div style={{ padding: 12, border: '1px solid #E2E8F0', borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status</div>
-                <div style={{ fontWeight: 600, color: '#0F172A', marginTop: 4, textTransform: 'capitalize' }}>{selected.status}</div>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       )}
