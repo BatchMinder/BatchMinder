@@ -43,9 +43,12 @@ export default function DataIngestionHub({ onUploadSuccess }) {
   const [previewRows, setPreviewRows] = useState([]);
   const [syncLogs, setSyncLogs] = useState([]);
 
+  // Fetch Sync Logs pointing directly to port 5000 with cookies included
   const fetchSyncLogs = async () => {
     try {
-      const res = await fetch('/api/audit-logs?action=LMS_SYNCED&limit=5');
+      const res = await fetch('http://localhost:5000/api/audit-logs?action=LMS_SYNCED&limit=5', {
+        credentials: 'include' // Automatically sends httpOnly cookies
+      });
       if (res.ok) {
         const d = await res.json();
         const logs = d.data?.logs || [];
@@ -65,26 +68,19 @@ export default function DataIngestionHub({ onUploadSuccess }) {
     fetchSyncLogs();
   }, []);
 
-  // Sync API Configuration States
-  const [apiUrl, setApiUrl] = useState('');
-  const [apiKey, setApiKey] = useState('');
-  const [syncBatch, setSyncBatch] = useState('All');
-
-  // Validation Errors States
-  const [errors, setErrors] = useState({
-    apiUrl: '',
-    apiKey: ''
-  });
-
   // Sync trigger states
   const [syncing, setSyncing] = useState(false);
   const [syncSuccess, setSyncSuccess] = useState(false);
+  // Kept separate from selectedBatch (used by the CSV upload tab) so
+  // choosing "All" here can never leak into an upload's batch field.
+  const [syncBatchSelection, setSyncBatchSelection] = useState('All');
 
   // Integration States
   const [validationErrors, setValidationErrors] = useState([]);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [uploadStats, setUploadStats] = useState(null);
   const [syncCount, setSyncCount] = useState(0);
+  const [syncFailedCount, setSyncFailedCount] = useState(0);
   const [syncError, setSyncError] = useState('');
 
   // Metadata Dropdown Selection States
@@ -112,8 +108,11 @@ export default function DataIngestionHub({ onUploadSuccess }) {
     }
   }, [filteredBatches]);
 
+  // Load Departments and Batches on mount directly from backend port 5000 with cookies included
   useEffect(() => {
-    fetch('/api/departments')
+    fetch('http://localhost:5000/api/departments', {
+      credentials: 'include' // Automatically sends httpOnly cookies
+    })
       .then(r => r.json())
       .then(d => {
         if (d.status === 'success' && d.data) {
@@ -121,9 +120,11 @@ export default function DataIngestionHub({ onUploadSuccess }) {
           if (d.data.length > 0) setSelectedDept(d.data[0].name);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
-    fetch('/api/batches')
+    fetch('http://localhost:5000/api/batches', {
+      credentials: 'include' // Automatically sends httpOnly cookies
+    })
       .then(r => r.json())
       .then(d => {
         if (d.status === 'success' && d.data) {
@@ -131,29 +132,10 @@ export default function DataIngestionHub({ onUploadSuccess }) {
           if (d.data.length > 0) setSelectedBatch(d.data[0].code);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
-  // Form Field Validation on Blur (UI-5)
-  const validateField = (field, value) => {
-    let errorMsg = '';
-    if (field === 'apiUrl') {
-      if (!value) {
-        errorMsg = 'API Endpoint URL is required.';
-      } else if (!/^https?:\/\/.+/.test(value)) {
-        errorMsg = 'Please enter a valid HTTP/HTTPS URL (e.g. https://lms.university.edu/api).';
-      }
-    } else if (field === 'apiKey') {
-      if (!value) {
-        errorMsg = 'API Security Access Token is required.';
-      } else if (value.length < 16) {
-        errorMsg = 'Access key must be a secure token of at least 16 characters.';
-      }
-    }
-    setErrors(prev => ({ ...prev, [field]: errorMsg }));
-  };
-
-  // Real upload logic
+  // Real upload logic pointing directly to backend port 5000 with cookies included
   const handleFileUpload = async (e) => {
     const selectedFile = e.target.files[0];
     if (!selectedFile) return;
@@ -175,13 +157,14 @@ export default function DataIngestionHub({ onUploadSuccess }) {
       // Simulate progress progression
       setTimeout(() => setUploadProgress(85), 600);
 
-      const response = await fetch('/api/students/upload', {
+      const response = await fetch('http://localhost:5000/api/students/upload', {
         method: 'POST',
+        credentials: 'include', // Automatically sends httpOnly cookies
         body: formData
       });
 
       const data = await response.json();
-      
+
       setUploadProgress(100);
 
       if (response.ok) {
@@ -242,12 +225,11 @@ export default function DataIngestionHub({ onUploadSuccess }) {
             severity: 'error'
           };
         });
-        
+
         if (parsed.length > 0) {
           setValidationErrors(parsed);
           setShowValidationReport(true);
         } else {
-          // If no specific parsed errors, push a general error
           setValidationErrors([{ row: 1, field: 'File schema', value: 'Invalid format', error: errMsg, severity: 'error' }]);
           setShowValidationReport(true);
         }
@@ -259,11 +241,10 @@ export default function DataIngestionHub({ onUploadSuccess }) {
     }
   };
 
-  // Real sync trigger logic
+  // Real sync trigger logic pointing directly to backend port 5000 with cookies included
   const handleSyncTrigger = async () => {
-    if (!apiUrl || errors.apiUrl || !apiKey || errors.apiKey) {
-      validateField('apiUrl', apiUrl);
-      validateField('apiKey', apiKey);
+    if (!selectedDept) {
+      setSyncError('Select a department before syncing.');
       return;
     }
 
@@ -271,37 +252,57 @@ export default function DataIngestionHub({ onUploadSuccess }) {
     setSyncSuccess(false);
     setSyncError('');
     setSyncCount(0);
+    setSyncFailedCount(0);
 
     try {
-      const batches = syncBatch === 'All' ? ['2022', '2023', '2024'] : [syncBatch];
+      const batchCodesToSync =
+        syncBatchSelection === 'All' || !syncBatchSelection
+          ? filteredBatches.map((b) => b.code)
+          : [syncBatchSelection];
+
+      if (batchCodesToSync.length === 0) {
+        setSyncError('No batches found for this department.');
+        setSyncing(false);
+        return;
+      }
+
       let netCount = 0;
       let failedBatch = null;
+      let netFailedCount = 0;
 
-      for (const b of batches) {
-        const response = await fetch('/api/students/sync-lms', {
+      for (const batchCode of batchCodesToSync) {
+        // Pointing explicitly to backend server on port 5000 with credentials: 'include'
+        const response = await fetch('http://localhost:5000/api/students/sync-lms', {
           method: 'POST',
+          credentials: 'include', // Automatically sends httpOnly cookies
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            batch: b,
-            department: 'Computer Science'
+            batch: batchCode,
+            department: selectedDept
           })
         });
 
         const data = await response.json();
         if (response.ok) {
           netCount += data.syncedCount || 0;
+          netFailedCount += data.failedCount || 0;
         } else {
-          failedBatch = b;
-          setSyncError(data.message || `Failed to sync batch ${b}`);
+          failedBatch = batchCode;
+          setSyncError(data.message || `Failed to sync batch ${batchCode}`);
           break;
         }
       }
 
       if (!failedBatch) {
-        setSyncSuccess(true);
         setSyncCount(netCount);
+        setSyncFailedCount(netFailedCount);
+        if (netFailedCount > 0 && netCount === 0) {
+          setSyncError(`Sync ran but 0 students updated (${netFailedCount} failed). Check that the mock LMS server is reachable.`);
+        } else {
+          setSyncSuccess(true);
+        }
         fetchSyncLogs();
         if (onUploadSuccess) onUploadSuccess();
       }
@@ -324,7 +325,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', fontFamily: 'inherit' }}>
-      
+
       {/* Breadcrumb & Title */}
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
@@ -336,9 +337,9 @@ export default function DataIngestionHub({ onUploadSuccess }) {
 
         {/* Tab switch buttons */}
         <div style={{ display: 'flex', flexWrap: 'wrap', backgroundColor: '#F1F5F9', padding: '4px', borderRadius: '12px', border: '1px solid #E2E8F0', marginTop: '12px' }}>
-          <button 
+          <button
             onClick={() => setActiveTab('upload')}
-            style={{ 
+            style={{
               padding: '8px 16px', borderRadius: '8px', border: 'none', fontSize: '13px', fontWeight: 700, cursor: 'pointer',
               backgroundColor: activeTab === 'upload' ? '#FFFFFF' : 'transparent',
               color: activeTab === 'upload' ? '#0F172A' : '#64748B',
@@ -348,9 +349,9 @@ export default function DataIngestionHub({ onUploadSuccess }) {
           >
             📂 Spreadsheet Upload
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('sync')}
-            style={{ 
+            style={{
               padding: '8px 16px', borderRadius: '8px', border: 'none', fontSize: '13px', fontWeight: 700, cursor: 'pointer',
               backgroundColor: activeTab === 'sync' ? '#FFFFFF' : 'transparent',
               color: activeTab === 'sync' ? '#0F172A' : '#64748B',
@@ -367,7 +368,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
         <>
           {/* Row 1: Upload Student Data File & Upload Summary Panel */}
           <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1.5fr] gap-5">
-            
+
             {/* Upload Student Data File Panel */}
             <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -376,7 +377,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                   <span style={{ fontSize: '12px', color: '#64748B' }}>Upload CSV or Excel file to add or update student records</span>
                 </div>
               </div>
- 
+
               {/* Metadata Selectors (Required before upload) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-2">
                 <div>
@@ -396,7 +397,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                     ))}
                   </select>
                 </div>
- 
+
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.5px' }}>
                     Batch (Required)
@@ -419,10 +420,10 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                   </select>
                 </div>
               </div>
- 
+
               {/* Drag and Drop Zone */}
               <div style={{ border: '2px dashed #CBD5E1', borderRadius: '12px', padding: '32px 16px', backgroundColor: '#F8FAFC', textAlign: 'center', cursor: 'pointer', position: 'relative', transition: 'border-color 0.2s' }}>
-                <input 
+                <input
                   type="file"
                   accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
                   onClick={(e) => { e.target.value = ''; }}
@@ -443,7 +444,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
             <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', justifyContent: 'space-between', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
               <div>
                 <h3 style={{ margin: '0 0 16px', fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Upload Summary</h3>
-                
+
                 {/* Stats Cards Row */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   <div style={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
@@ -519,7 +520,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
               </div>
               <div>
                 <span style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>Upload Status</span>
-                <span style={{ 
+                <span style={{
                   display: 'inline-block', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '12px', marginTop: '4px',
                   backgroundColor: uploading ? '#FFFBEB' : (uploadSuccess ? '#D1FAE5' : '#F1F5F9'),
                   color: uploading ? '#D97706' : (uploadSuccess ? '#059669' : '#64748B')
@@ -532,14 +533,14 @@ export default function DataIngestionHub({ onUploadSuccess }) {
 
           {/* Row 3: Data Preview (First 10 Rows) & Validation Errors */}
           <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-5">
-            
+
             {/* Data Preview */}
             <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Data Preview (First 10 Rows)</h3>
                 <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Showing first 10 rows of records</span>
               </div>
-              
+
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
                   <thead>
@@ -573,7 +574,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                             <td style={{ padding: '10px 8px', color: '#64748B', textAlign: 'center', fontWeight: 600 }}>{r.sem}</td>
                             <td style={{ padding: '10px 8px', color: '#334155', textAlign: 'center', fontWeight: 700 }}>{r.cgpa}</td>
                             <td style={{ padding: '10px 8px' }}>
-                              <span style={{ 
+                              <span style={{
                                 padding: '2px 8px', borderRadius: '10px', fontSize: '10px', fontWeight: 700,
                                 backgroundColor: r.status === 'Valid' ? '#D1FAE5' : (r.status === 'At Risk' ? '#FFFBEB' : '#FEE2E2'),
                                 color: r.status === 'Valid' ? '#059669' : (r.status === 'At Risk' ? '#D97706' : '#DC2626')
@@ -652,7 +653,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                 <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>
                   Validation Errors {validationErrors.length > 0 && `(${validationErrors.length})`}
                 </h3>
-                <button 
+                <button
                   onClick={() => showSuccess('Validation report downloaded successfully!')}
                   style={{ display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid #E2E8F0', padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: 700, color: '#334155', backgroundColor: '#fff', cursor: 'pointer' }}
                 >
@@ -684,7 +685,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                   </tbody>
                 </table>
               </div>
-              
+
               <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '12px', display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 700, color: '#EF4444' }}>
                 <span>Total Errors Found:</span>
                 <span>{validationErrors.length > 0 ? validationErrors.length : '0'}</span>
@@ -694,42 +695,42 @@ export default function DataIngestionHub({ onUploadSuccess }) {
           </div>
 
           {/* Responsive Footer Action Bar */}
-          <div style={{ 
-            display: 'flex', 
+          <div style={{
+            display: 'flex',
             flexDirection: isMobile ? 'column' : 'row',
-            justifyContent: 'space-between', 
-            alignItems: 'stretch', 
-            backgroundColor: '#fff', 
-            border: '1px solid #E2E8F0', 
-            borderRadius: '16px', 
-            padding: isMobile ? '16px' : '16px 24px', 
+            justifyContent: 'space-between',
+            alignItems: 'stretch',
+            backgroundColor: '#fff',
+            border: '1px solid #E2E8F0',
+            borderRadius: '16px',
+            padding: isMobile ? '16px' : '16px 24px',
             boxShadow: '0 1px 3px rgba(0,0,0,0.01)',
             gap: '12px',
             marginTop: '16px'
           }}>
-            <button 
+            <button
               onClick={cancelUpload}
-              style={{ 
-                padding: '10px 20px', 
-                borderRadius: '10px', 
-                fontSize: '13px', 
-                fontWeight: 700, 
-                color: '#64748B', 
-                backgroundColor: 'transparent', 
-                border: '1px solid #E2E8F0', 
+              style={{
+                padding: '10px 20px',
+                borderRadius: '10px',
+                fontSize: '13px',
+                fontWeight: 700,
+                color: '#64748B',
+                backgroundColor: 'transparent',
+                border: '1px solid #E2E8F0',
                 cursor: 'pointer',
                 width: isMobile ? '100%' : 'auto'
               }}
             >
               Cancel Upload
             </button>
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: isMobile ? 'column' : 'row', 
+            <div style={{
+              display: 'flex',
+              flexDirection: isMobile ? 'column' : 'row',
               gap: '12px',
               width: isMobile ? '100%' : 'auto'
             }}>
-              <button 
+              <button
                 onClick={() => {
                   if (file) {
                     showSuccess('Re-run validation completed successfully!');
@@ -737,25 +738,25 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                     showAlert('Notice', 'Please select a file first.');
                   }
                 }}
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '6px', 
-                  padding: '10px 20px', 
-                  borderRadius: '10px', 
-                  fontSize: '13px', 
-                  fontWeight: 700, 
-                  color: '#334155', 
-                  backgroundColor: '#fff', 
-                  border: '1px solid #CBD5E1', 
+                  gap: '6px',
+                  padding: '10px 20px',
+                  borderRadius: '10px',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  color: '#334155',
+                  backgroundColor: '#fff',
+                  border: '1px solid #CBD5E1',
                   cursor: 'pointer',
                   width: '100%'
                 }}
               >
                 <RefreshCw size={14} /> Validate Again
               </button>
-              <button 
+              <button
                 onClick={() => {
                   if (uploadSuccess) {
                     showSuccess('Import completed successfully!');
@@ -763,18 +764,18 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                     showAlert('Notice', 'No valid records to import. Please upload a file first.');
                   }
                 }}
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '6px', 
-                  padding: '10px 20px', 
-                  borderRadius: '10px', 
-                  fontSize: '13px', 
-                  fontWeight: 700, 
-                  color: '#fff', 
-                  backgroundColor: '#2563EB', 
-                  border: 'none', 
+                  gap: '6px',
+                  padding: '10px 20px',
+                  borderRadius: '10px',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  color: '#fff',
+                  backgroundColor: '#2563EB',
+                  border: 'none',
                   cursor: 'pointer',
                   width: '100%'
                 }}
@@ -787,76 +788,75 @@ export default function DataIngestionHub({ onUploadSuccess }) {
       ) : (
         /* LMS/ERP Dynamic API Synchronizer Tab */
         <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-5">
-          
-          {/* REST API Gateways and Keys Form */}
+
+          {/* LMS Sync Panel */}
           <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
             <div style={{ display: 'flex', items: 'center', gap: '8px' }}>
               <Database size={20} color="#2563EB" />
-              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#0F172A' }}>LMS/ERP Synchronizer Gateway</h2>
+              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#0F172A' }}>LMS/ERP Synchronizer</h2>
             </div>
-            
+
             <p style={{ margin: 0, fontSize: '13px', color: '#64748B', lineHeight: 1.5 }}>
-              Connect directly to the university's institutional REST API gateway to retrieve the latest student enrollment statuses, grades, and attendance metrics.
+              Pulls the latest enrollment statuses, grades, and attendance for the selected department/batch from the
+              configured LMS gateway (read-only, per FR-2.3). Server connection details are set once by an
+              administrator in the deployment environment — not entered per sync.
             </p>
 
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', backgroundColor: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: '8px', fontSize: '12px', fontWeight: 600, color: '#0369A1' }}>
+              <Database size={14} />
+              Gateway: server-configured (MOCK_LMS_URL) — contact your administrator to change it.
+            </div>
+
             <form style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} onSubmit={(e) => e.preventDefault()}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>REST API Endpoints Gateway</label>
-                <input 
-                  type="text"
-                  placeholder="https://lms.university.edu/api/v1/students"
-                  value={apiUrl}
-                  onChange={(e) => setApiUrl(e.target.value)}
-                  onBlur={() => validateField('apiUrl', apiUrl)}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: errors.apiUrl ? '1px solid #EF4444' : '1px solid #CBD5E1', fontSize: '13px', outline: 'none' }}
-                />
-                {errors.apiUrl && <span style={{ fontSize: '11px', color: '#EF4444', fontWeight: 600 }}>{errors.apiUrl}</span>}
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Security Access Key/Token</label>
-                <input 
-                  type="password"
-                  placeholder="••••••••••••••••••••••••"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  onBlur={() => validateField('apiKey', apiKey)}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: errors.apiKey ? '1px solid #EF4444' : '1px solid #CBD5E1', fontSize: '13px', outline: 'none' }}
-                />
-                {errors.apiKey && <span style={{ fontSize: '11px', color: '#EF4444', fontWeight: 600 }}>{errors.apiKey}</span>}
-              </div>
-
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Target Batch Selection</label>
-                  <select 
-                    value={syncBatch}
-                    onChange={(e) => setSyncBatch(e.target.value)}
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Department</label>
+                  <select
+                    value={selectedDept}
+                    onChange={(e) => setSelectedDept(e.target.value)}
                     style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', backgroundColor: '#fff', outline: 'none' }}
                   >
-                    <option value="All">All Active Batches</option>
-                    <option value="2022">CS Batch 2022</option>
-                    <option value="2023">CS Batch 2023</option>
-                    <option value="2024">CS Batch 2024</option>
+                    {departments.length === 0 && <option value="">No departments found</option>}
+                    {departments.map((d) => (
+                      <option key={d._id || d.name} value={d.name}>{d.name}</option>
+                    ))}
                   </select>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-                  <button 
-                    type="button"
-                    onClick={handleSyncTrigger}
-                    disabled={syncing}
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px 20px', backgroundColor: '#2563EB', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: syncing ? 'not-allowed' : 'pointer', opacity: syncing ? 0.7 : 1 }}
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Target Batch Selection</label>
+                  <select
+                    value={syncBatchSelection}
+                    onChange={(e) => setSyncBatchSelection(e.target.value)}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', backgroundColor: '#fff', outline: 'none' }}
                   >
-                    {syncing ? <CircularProgress size={12} style={{ color: '#fff' }} /> : <RefreshCw size={14} />}
-                    {syncing ? 'Syncing...' : 'Sync Now'}
-                  </button>
+                    <option value="All">All batches in this department</option>
+                    {filteredBatches.map((b) => (
+                      <option key={b._id || b.code} value={b.code}>{b.code}</option>
+                    ))}
+                  </select>
+                  {filteredBatches.length === 0 && (
+                    <span style={{ fontSize: '11px', color: '#64748B' }}>No batches exist yet for this department.</span>
+                  )}
                 </div>
               </div>
+
+              <button
+                type="button"
+                onClick={handleSyncTrigger}
+                disabled={syncing || !selectedDept}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px 20px', backgroundColor: '#2563EB', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: (syncing || !selectedDept) ? 'not-allowed' : 'pointer', opacity: (syncing || !selectedDept) ? 0.7 : 1 }}
+              >
+                {syncing ? <CircularProgress size={12} style={{ color: '#fff' }} /> : <RefreshCw size={14} />}
+                {syncing ? 'Syncing...' : 'Sync Now'}
+              </button>
             </form>
 
             {syncSuccess && (
-              <div style={{ padding: '12px', backgroundColor: '#D1FAE5', color: '#059669', borderRadius: '8px', fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <CheckCircle size={16} /> Sync process completed! {syncCount} student profiles synced.
+              <div style={{ padding: '12px', backgroundColor: syncFailedCount > 0 ? '#FEF3C7' : '#D1FAE5', color: syncFailedCount > 0 ? '#92400E' : '#059669', borderRadius: '8px', fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <CheckCircle size={16} />
+                Sync process completed! {syncCount} student profiles synced.
+                {syncFailedCount > 0 && ` (${syncFailedCount} student${syncFailedCount === 1 ? '' : 's'} failed to sync — check server logs.)`}
               </div>
             )}
 
@@ -875,31 +875,31 @@ export default function DataIngestionHub({ onUploadSuccess }) {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-               {syncLogs.length > 0 ? (
-                 syncLogs.map((log, i) => (
-                   <div key={i} style={{ border: '1px solid #E2E8F0', borderRadius: '12px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                     <div>
-                       <span style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#334155' }}>{log.source}</span>
-                       <span style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginTop: '4px' }}>{log.timestamp}</span>
-                     </div>
-                     <div style={{ textAlign: 'right' }}>
-                       <span style={{ 
-                         display: 'inline-block', fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '12px',
-                         backgroundColor: log.status === 'Success' ? '#D1FAE5' : '#FEE2E2',
-                         color: log.status === 'Success' ? '#059669' : '#EF4444'
-                       }}>
-                         {log.status}
-                       </span>
-                       <span style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#64748B', marginTop: '6px' }}>{log.records} records processed</span>
-                     </div>
-                   </div>
-                 ))
-               ) : (
-                 <div style={{ padding: '24px', textAlign: 'center', color: '#94A3B8', fontWeight: 600 }}>
-                   No previous API synchronization logs found.
-                 </div>
-               )}
-             </div>
+              {syncLogs.length > 0 ? (
+                syncLogs.map((log, i) => (
+                  <div key={i} style={{ border: '1px solid #E2E8F0', borderRadius: '12px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <span style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#334155' }}>{log.source}</span>
+                      <span style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginTop: '4px' }}>{log.timestamp}</span>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{
+                        display: 'inline-block', fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '12px',
+                        backgroundColor: log.status === 'Success' ? '#D1FAE5' : '#FEE2E2',
+                        color: log.status === 'Success' ? '#059669' : '#EF4444'
+                      }}>
+                        {log.status}
+                      </span>
+                      <span style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#64748B', marginTop: '6px' }}>{log.records} records processed</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={{ padding: '24px', textAlign: 'center', color: '#94A3B8', fontWeight: 600 }}>
+                  No previous API synchronization logs found.
+                </div>
+              )}
+            </div>
           </div>
 
         </div>

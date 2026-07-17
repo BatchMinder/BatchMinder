@@ -566,24 +566,61 @@ export const syncLmsRecords = async (req, res, next) => {
       return res.status(404).json({ message: 'Department or Batch not found' });
     }
 
+    if (!process.env.MOCK_LMS_URL || !process.env.MOCK_LMS_API_KEY) {
+      return res.status(503).json({ message: 'LMS sync is not configured on this server (MOCK_LMS_URL / MOCK_LMS_API_KEY missing).' });
+    }
+
     const students = await Student.find({ departmentId: dept._id, batchId: batchDoc._id });
+    let syncedCount = 0;
+    let failedCount = 0;
 
     for (const student of students) {
-      const updatedCourses = student.courses.map(course => {
-        if (course.grade === 'IP' || course.status === 'enrolled' || course.enrollmentStatus === 'enrolled') {
-          return {
-            ...course.toObject(),
-            grade: 'B+',
-            enrollmentStatus: 'completed',
-            status: 'completed',
-            attendance: 90
-          };
+      const inProgressCourses = student.courses.filter(
+        c => c.grade === 'IP' || c.status === 'enrolled' || c.enrollmentStatus === 'enrolled'
+      );
+      if (inProgressCourses.length === 0) continue;
+
+      // Real authenticated HTTP call to the (mock) external LMS, exactly the
+      // pattern a genuine integration would use — API key auth, JSON payload.
+      let lmsResponse;
+      try {
+        const apiRes = await fetch(`${process.env.MOCK_LMS_URL}/api/mock-lms/sync`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': process.env.MOCK_LMS_API_KEY
+          },
+          body: JSON.stringify({
+            rollNumber: student.rollNumber,
+            courseCodes: inProgressCourses.map(c => c.courseCode)
+          })
+        });
+
+        if (!apiRes.ok) {
+          throw new Error(`LMS responded with status ${apiRes.status}`);
         }
-        return course;
+        lmsResponse = await apiRes.json();
+      } catch (err) {
+        console.error(`LMS sync failed for student ${student.rollNumber}:`, err.message);
+        failedCount++;
+        continue;
+      }
+
+      const resultByCourse = new Map(lmsResponse.results.map(r => [r.courseCode, r]));
+
+      student.courses = student.courses.map(course => {
+        const lmsResult = resultByCourse.get(course.courseCode);
+        if (!lmsResult) return course;
+        return {
+          ...course.toObject(),
+          grade: lmsResult.grade,
+          enrollmentStatus: lmsResult.status,
+          status: lmsResult.status
+        };
       });
 
-      student.courses = updatedCourses;
       await student.save();
+      syncedCount++;
 
       await logAudit({
         actorId: req.user?._id || new mongoose.Types.ObjectId(),
@@ -596,7 +633,12 @@ export const syncLmsRecords = async (req, res, next) => {
       });
     }
 
-    res.status(200).json({ status: 'success', message: 'LMS synced successfully', syncedCount: students.length });
+    res.status(200).json({
+      status: 'success',
+      message: 'LMS synced successfully',
+      syncedCount,
+      failedCount
+    });
   } catch (err) {
     next(err);
   }
