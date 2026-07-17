@@ -18,7 +18,7 @@ export const validateUpload = async (req, res) => {
     }
 
     // Security check: ensure requesting user has access to this department
-    if (req.user.role !== 'super_admin') {
+    if (req.user.role !== 'dean') {
       const scope = scopeToUserDepartments(req);
       const allowed = scope.departmentId && scope.departmentId.$in
         ? scope.departmentId.$in.some(id => id.toString() === departmentId.toString())

@@ -8,12 +8,12 @@ const router = express.Router();
 router.use(protect);
 
 router.route('/')
-  .get(restrictTo('super_admin', 'academic_admin', 'admin', 'advisor'), getAllBatches)
-  .post(restrictTo('super_admin', 'academic_admin'), createBatch);
+  .get(restrictTo('dean', 'academic_admin', 'admin', 'advisor'), getAllBatches)
+  .post(restrictTo('dean', 'academic_admin'), createBatch);
 
 router.route('/:id')
-  .get(restrictTo('super_admin', 'academic_admin', 'admin', 'advisor'), getBatchById)
-  .patch(restrictTo('super_admin', 'academic_admin'), updateBatch)
-  .delete(restrictTo('super_admin', 'academic_admin'), deleteBatch);
+  .get(restrictTo('dean', 'academic_admin', 'admin', 'advisor'), getBatchById)
+  .patch(restrictTo('dean', 'academic_admin'), updateBatch)
+  .delete(restrictTo('dean', 'academic_admin'), deleteBatch);
 
 export default router;

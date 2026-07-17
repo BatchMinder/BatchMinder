@@ -4,7 +4,7 @@ import Student from '../models/student.js';
 import Batch from '../models/batch.js';
 import { logAudit } from '../utils/logger.js';
 
-// Always returns consistent shape for the SuperAdmin frontend
+// Always returns consistent shape for the Dean frontend
 const normalizeDept = async (d) => {
   // Student count: handle both old string 'department' and new ObjectId 'departmentId'
   const studentCount = await Student.countDocuments({
@@ -49,7 +49,7 @@ const normalizeDept = async (d) => {
 export const getAllDepartments = async (req, res) => {
   try {
     let departments;
-    if (req.user.role === 'super_admin') {
+    if (req.user.role === 'dean') {
       departments = await Department.find({}).sort({ code: 1 });
     } else {
       const ids = req.user.departmentIds || [];
@@ -130,9 +130,9 @@ export const updateDepartment = async (req, res) => {
       return res.status(404).json({ status: 'error', message: 'Department not found.' });
     }
 
-    // Only super_admin can update departments
-    if (req.user.role !== 'super_admin') {
-      return res.status(403).json({ status: 'error', message: 'Only Super Admin can update departments.' });
+    // Only dean can update departments
+    if (req.user.role !== 'dean') {
+      return res.status(403).json({ status: 'error', message: 'Only Dean can update departments.' });
     }
 
     if (code) dept.code = code.toUpperCase();
@@ -178,8 +178,8 @@ export const deleteDepartment = async (req, res) => {
   try {
     const { id } = req.params;
 
-    if (req.user.role !== 'super_admin') {
-      return res.status(403).json({ status: 'error', message: 'Only Super Admin can delete departments.' });
+    if (req.user.role !== 'dean') {
+      return res.status(403).json({ status: 'error', message: 'Only Dean can delete departments.' });
     }
 
     const dept = await Department.findByIdAndDelete(id);

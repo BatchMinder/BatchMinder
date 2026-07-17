@@ -8,12 +8,12 @@ const router = express.Router();
 router.use(protect);
 
 router.route('/')
-  .get(restrictTo('super_admin', 'academic_admin', 'admin'), getAllMigrations)
-  .post(restrictTo('super_admin', 'academic_admin'), createMigration);
+  .get(restrictTo('dean', 'academic_admin', 'admin'), getAllMigrations)
+  .post(restrictTo('dean', 'academic_admin'), createMigration);
 
 router.route('/:id')
-  .patch(restrictTo('super_admin', 'academic_admin'), updateMigration);
+  .patch(restrictTo('dean', 'academic_admin'), updateMigration);
 
-router.post('/:id/decide', restrictTo('super_admin', 'academic_admin'), decideMigration);
+router.post('/:id/decide', restrictTo('dean', 'academic_admin'), decideMigration);
 
 export default router;

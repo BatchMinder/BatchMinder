@@ -444,7 +444,7 @@ export const createHODSpecialPermission = async (req, res, next) => {
 
     // Security check: Verify HOD is HOD of the student's department
     const isHOD = req.user.departmentIds && req.user.departmentIds.some(id => id.toString() === student.departmentId.toString());
-    if (!isHOD && req.user.role !== 'super_admin') {
+    if (!isHOD && req.user.role !== 'dean') {
       return res.status(403).json({
         status: 'error',
         message: 'Access denied: You are not authorized for this student\'s department.'
@@ -624,7 +624,7 @@ export const resolveHODDecision = async (req, res, next) => {
 
     // Security check
     const isHOD = req.user.departmentIds && req.user.departmentIds.some(did => did.toString() === request.departmentId.toString());
-    if (!isHOD && req.user.role !== 'super_admin') {
+    if (!isHOD && req.user.role !== 'dean') {
       return res.status(403).json({
         status: 'error',
         message: 'Access denied: You are not authorized for this student\'s department.'

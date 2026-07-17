@@ -8,7 +8,7 @@ const toDbRole = (feRole) => {
     'Batch Advisor': 'advisor',
     'HOD': 'admin',
     'Administrator': 'academic_admin',
-    'Super Admin': 'super_admin'
+    'Dean': 'dean'
   };
   return map[feRole] || 'advisor';
 };
@@ -18,7 +18,7 @@ const toFeRole = (dbRole) => {
     'advisor': 'Batch Advisor',
     'admin': 'HOD',
     'academic_admin': 'Administrator',
-    'super_admin': 'Super Admin'
+    'dean': 'Dean'
   };
   return map[dbRole] || 'Batch Advisor';
 };
@@ -31,7 +31,7 @@ const toFeUser = (user) => {
   
   // colors mapping based on role
   const colors = {
-    'super_admin': '#E11D48',
+    'dean': '#E11D48',
     'academic_admin': '#10B981',
     'admin': '#7C3AED',
     'advisor': '#2563EB'
@@ -62,7 +62,7 @@ const toLoggedInUserFe = (user) => {
   const initials = nameParts.map(p => p[0]).join('').substring(0, 2).toUpperCase() || 'US';
   
   const colors = {
-    'super_admin': '#E11D48',
+    'dean': '#E11D48',
     'academic_admin': '#10B981',
     'admin': '#7C3AED',
     'advisor': '#2563EB'

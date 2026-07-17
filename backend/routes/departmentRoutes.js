@@ -13,11 +13,11 @@ const router = express.Router();
 router.use(protect);
 
 router.route('/')
-  .get(restrictTo('super_admin', 'academic_admin', 'admin', 'advisor'), getAllDepartments)
-  .post(restrictTo('super_admin'), createDepartment);
+  .get(restrictTo('dean', 'academic_admin', 'admin', 'advisor'), getAllDepartments)
+  .post(restrictTo('dean'), createDepartment);
 
 router.route('/:id')
-  .patch(restrictTo('super_admin'), updateDepartment)
-  .delete(restrictTo('super_admin'), deleteDepartment);
+  .patch(restrictTo('dean'), updateDepartment)
+  .delete(restrictTo('dean'), deleteDepartment);
 
 export default router;

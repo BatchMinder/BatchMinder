@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ShieldAlert, Mail, Lock, Key, User, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { CircularProgress } from '@mui/material';
 
-export default function SuperAdminSetup({ setCurrentPath }) {
+export default function DeanSetup({ setCurrentPath }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,7 +22,7 @@ export default function SuperAdminSetup({ setCurrentPath }) {
     setSuccess('');
 
     try {
-      const response = await fetch('/api/auth/setup-super-admin', {
+      const response = await fetch('/api/auth/setup-dean', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password, secret })

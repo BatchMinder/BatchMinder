@@ -49,7 +49,7 @@ async function seed() {
 
     // ── Users ──
     const users = await User.create([
-      { name: 'Dean User', email: 'dean@stmu.edu.pk', password: 'password123', role: 'super_admin', status: 'Active' },
+      { name: 'Dean User', email: 'dean@stmu.edu.pk', password: 'password123', role: 'dean', status: 'Active' },
       { name: 'Admin CS Only', email: 'admin.cs@stmu.edu.pk', password: 'password123', role: 'academic_admin', departmentIds: [cs], dept: 'Computer Science', status: 'Active' },
       { name: 'Admin CS+SE', email: 'admin.both@stmu.edu.pk', password: 'password123', role: 'academic_admin', departmentIds: [cs, se], dept: 'All Departments', status: 'Active' },
       { name: 'HOD Computer Science', email: 'hod.cs@stmu.edu.pk', password: 'password123', role: 'admin', departmentIds: [cs], dept: 'Computer Science', status: 'Active' },
@@ -593,7 +593,7 @@ async function seed() {
     console.log('\nTest logins (password: password123):');
     console.log('  Administrator (CS only): admin.cs@stmu.edu.pk / password123 / academic_admin');
     console.log('  Administrator (CS+SE):   admin.both@stmu.edu.pk / password123 / academic_admin');
-    console.log('  Dean:                    dean@stmu.edu.pk / password123 / super_admin');
+    console.log('  Dean:                    dean@stmu.edu.pk / password123 / dean');
     console.log('  Batch Advisor:           batchadvisor@stmu.edu.pk / password123 / advisor');
 
     process.exit(0);

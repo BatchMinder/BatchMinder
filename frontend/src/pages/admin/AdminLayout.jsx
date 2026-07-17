@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import LogoutModal from '../../components/shared/LogoutModal';
 import {
   LayoutDashboard, Users, Upload, ArrowRightLeft, BookOpen, Layers,
   LogOut, GraduationCap, ChevronDown, ChevronUp, Building2, Calendar,
@@ -47,10 +48,10 @@ const SidebarSection = ({ title, items, activeNav, handleNavigate, expandedFolde
   const isExpanded = expandedFolders[title];
   return (
     <div style={{ marginBottom: 0 }}>
-      <button 
+      <button
         onClick={() => toggleFolder(title)}
-        style={{ 
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           width: '100%', background: 'none', border: 'none', padding: '0 0 6px 8px', cursor: 'pointer',
           color: '#475569'
         }}
@@ -588,7 +589,7 @@ export default function AdminLayout({
           >
             <Menu size={18} />
           </button>
-          
+
           <div style={{ flex: 1, minWidth: 0 }} />
 
 
@@ -771,35 +772,12 @@ export default function AdminLayout({
       </main>
 
       {/* Logout Modal */}
-      {showLogoutModal && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 1000,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          backgroundColor: 'rgba(0,0,0,0.5)'
-        }}>
-          <div style={{
-            backgroundColor: '#fff', borderRadius: 24, padding: 24, maxWidth: 380, width: '100%',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
-          }}>
-            <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700, color: '#1B3A6B' }}>Confirm Log Out</h3>
-            <p style={{ margin: '0 0 20px', fontSize: 14, color: '#64748B' }}>Are you sure you want to end your session?</p>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => setShowLogoutModal(false)}
-                style={{ padding: '8px 20px', borderRadius: 12, border: '1px solid #E2E8F0', backgroundColor: '#fff', color: '#64748B', fontWeight: 600, cursor: 'pointer', fontSize: 14 }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => { setShowLogoutModal(false); logout(); }}
-                style={{ padding: '8px 20px', borderRadius: 12, border: 'none', backgroundColor: '#EF4444', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 14 }}
-              >
-                Log Out
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <LogoutModal
+        open={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={() => { setShowLogoutModal(false); logout(); }}
+        role={user?.role}
+      />
     </div>
   );
 }

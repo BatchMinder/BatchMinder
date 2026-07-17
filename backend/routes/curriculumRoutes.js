@@ -7,8 +7,8 @@ const router = express.Router();
 
 router.use(protect);
 
-router.get('/', restrictTo('super_admin', 'academic_admin', 'admin'), getAllCurriculums);
-router.get('/batch/:batchId', restrictTo('super_admin', 'academic_admin', 'admin'), getCurriculumByBatch);
-router.post('/', restrictTo('super_admin', 'academic_admin'), createOrUpdateCurriculum);
+router.get('/', restrictTo('dean', 'academic_admin', 'admin'), getAllCurriculums);
+router.get('/batch/:batchId', restrictTo('dean', 'academic_admin', 'admin'), getCurriculumByBatch);
+router.post('/', restrictTo('dean', 'academic_admin'), createOrUpdateCurriculum);
 
 export default router;

@@ -11,8 +11,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Please provide an email'],
     lowercase: true,
-    trim: true,
-    match: [/^[\w-\.]+@stmu\.edu\.pk$/, 'Must match STMU domain / official format']
+    trim: true
   },
   password: {
     type: String,
@@ -22,7 +21,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['super_admin', 'academic_admin', 'admin', 'advisor'],
+    enum: ['dean', 'academic_admin', 'admin', 'advisor'],
     default: 'advisor',
   },
   // ObjectId array — populated for academic_admin (Administrator), single for admin (HOD)
@@ -30,7 +29,7 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Department'
   }],
-  // Legacy string field kept for backward compat with Module 1 SuperAdmin UI
+  // Legacy string field kept for backward compat with Module 1 Dean UI
   dept: {
     type: String,
     default: 'All Departments'
@@ -56,9 +55,11 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
-  firebaseUid: {
-    type: String,
-    default: null
+  // Updated on every authenticated request; used to enforce inactivity-based
+  // session timeout (FR-1.4), independent of the refresh token's absolute 7-day expiry.
+  lastActivityAt: {
+    type: Date,
+    default: Date.now
   },
   profilePictureUrl: {
     type: String,

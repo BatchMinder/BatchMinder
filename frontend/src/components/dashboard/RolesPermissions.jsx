@@ -6,20 +6,20 @@ import {
 import Header from './Header';
 
 const INITIAL_ROLES = [
-  { id: 1, name: 'Dean',      scope: 'System-wide',     status: 'Active', color: '#E11D48', permissions: ['manage_users', 'manage_depts', 'manage_batches', 'view_audits', 'approve_migrations', 'edit_curriculum', 'view_students'] },
-  { id: 2, name: 'Academic Admin',   scope: 'Institution-wide',status: 'Active', color: '#10B981', permissions: ['manage_depts', 'manage_batches', 'view_audits', 'view_students', 'edit_curriculum'] },
-  { id: 3, name: 'HOD / Admin',      scope: 'Department-wide', status: 'Active', color: '#7C3AED', permissions: ['manage_batches', 'view_students', 'approve_migrations', 'view_audits'] },
-  { id: 4, name: 'Batch Advisor',    scope: 'Batch-specific',  status: 'Active', color: '#2563EB', permissions: ['view_students', 'view_audits'] }
+  { id: 1, name: 'Dean', scope: 'System-wide', status: 'Active', color: '#E11D48', permissions: ['manage_users', 'manage_depts', 'manage_batches', 'view_audits', 'approve_migrations', 'edit_curriculum', 'view_students'] },
+  { id: 2, name: 'Academic Admin', scope: 'Institution-wide', status: 'Active', color: '#10B981', permissions: ['manage_depts', 'manage_batches', 'view_audits', 'view_students', 'edit_curriculum'] },
+  { id: 3, name: 'HOD / Admin', scope: 'Department-wide', status: 'Active', color: '#7C3AED', permissions: ['manage_batches', 'view_students', 'approve_migrations', 'view_audits'] },
+  { id: 4, name: 'Batch Advisor', scope: 'Batch-specific', status: 'Active', color: '#2563EB', permissions: ['view_students', 'view_audits'] }
 ];
 
 const PERMISSIONS_LIST = [
-  { key: 'manage_users',       label: 'User Account CRUD',      group: 'System Access' },
-  { key: 'manage_depts',       label: 'Create & Manage Depts',  group: 'System Access' },
-  { key: 'manage_batches',     label: 'Academic Batch Control', group: 'System Access' },
-  { key: 'view_audits',        label: 'View System Audit Logs',  group: 'Auditing & Logs' },
+  { key: 'manage_users', label: 'User Account CRUD', group: 'System Access' },
+  { key: 'manage_depts', label: 'Create & Manage Depts', group: 'System Access' },
+  { key: 'manage_batches', label: 'Academic Batch Control', group: 'System Access' },
+  { key: 'view_audits', label: 'View System Audit Logs', group: 'Auditing & Logs' },
   { key: 'approve_migrations', label: 'Approve Student Transfers', group: 'Academic Flows' },
-  { key: 'edit_curriculum',    label: 'Modify Core Curriculum',  group: 'Academic Flows' },
-  { key: 'view_students',      label: 'Read Student Records',    group: 'Academic Flows' }
+  { key: 'edit_curriculum', label: 'Modify Core Curriculum', group: 'Academic Flows' },
+  { key: 'view_students', label: 'Read Student Records', group: 'Academic Flows' }
 ];
 
 // UI <-> API Role mappings
@@ -33,8 +33,7 @@ const toUiRoleName = (apiRole) => {
     'academic_admin': 'Academic Admin',
     'Administrator': 'Academic Admin',
     'Academic Admin': 'Academic Admin',
-    'super_admin': 'Dean',
-    'Super Admin': 'Dean',
+    'dean': 'Dean',
     'Dean': 'Dean'
   };
   return map[apiRole] || 'Batch Advisor';
@@ -42,7 +41,7 @@ const toUiRoleName = (apiRole) => {
 
 const toApiPayloadRole = (uiRole) => {
   const map = {
-    'Dean': 'Super Admin',
+    'Dean': 'Dean',
     'Academic Admin': 'Administrator',
     'HOD / Admin': 'HOD',
     'Batch Advisor': 'Batch Advisor'
@@ -153,9 +152,9 @@ export default function RolesPermissions({ setActiveNav }) {
   const totalAssignedUsers = usersList.length;
 
   const stats = [
-    { label: 'System Roles',       value: roles.length,        icon: Shield,   iconColor: '#2563EB', iconBg: '#EFF6FF' },
-    { label: 'Permissions Items',  value: PERMISSIONS_LIST.length, icon: Lock,     iconColor: '#10B981', iconBg: '#F0FDF4' },
-    { label: 'Assigned Users',     value: totalAssignedUsers,  icon: Check,    iconColor: '#7C3AED', iconBg: '#F5F3FF' }
+    { label: 'System Roles', value: roles.length, icon: Shield, iconColor: '#2563EB', iconBg: '#EFF6FF' },
+    { label: 'Permissions Items', value: PERMISSIONS_LIST.length, icon: Lock, iconColor: '#10B981', iconBg: '#F0FDF4' },
+    { label: 'Assigned Users', value: totalAssignedUsers, icon: Check, iconColor: '#7C3AED', iconBg: '#F5F3FF' }
   ];
 
   // Group permission definitions
@@ -176,7 +175,7 @@ export default function RolesPermissions({ setActiveNav }) {
     return !q || nameVal.includes(q) || emailVal.includes(q) || deptVal.includes(q) || dbRoleVal.includes(q) || uiRole.includes(q);
   });
 
-  const labelStyle  = {
+  const labelStyle = {
     display: 'block', fontSize: '10px', fontWeight: 700,
     color: '#94A3B8', letterSpacing: '0.7px',
     textTransform: 'uppercase', marginBottom: '4px'
@@ -279,7 +278,7 @@ export default function RolesPermissions({ setActiveNav }) {
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ backgroundColor: '#F8FAFC' }}>
-                        {['ROLE NAME','SCOPE OF CONTROL','ASSIGNED USERS','PERMISSIONS GRANTED','STATUS'].map(col => (
+                        {['ROLE NAME', 'SCOPE OF CONTROL', 'ASSIGNED USERS', 'PERMISSIONS GRANTED', 'STATUS'].map(col => (
                           <th key={col} style={{
                             padding: '11px 16px', textAlign: 'left',
                             fontSize: '9.5px', fontWeight: 800, color: '#94A3B8',
@@ -362,7 +361,7 @@ export default function RolesPermissions({ setActiveNav }) {
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ backgroundColor: '#F8FAFC' }}>
-                        {['NAME','DEPARTMENT','ROLE ASSIGNMENT','STATUS'].map(col => (
+                        {['NAME', 'DEPARTMENT', 'ROLE ASSIGNMENT', 'STATUS'].map(col => (
                           <th key={col} style={{
                             padding: '11px 16px', textAlign: 'left',
                             fontSize: '9.5px', fontWeight: 800, color: '#94A3B8',

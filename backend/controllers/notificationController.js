@@ -8,7 +8,7 @@ export const getAllNotifications = async (req, res, next) => {
     const scopeFilter = await scopeQueryToRole(req.user);
     
     let filter = {};
-    if (req.user.role !== 'super_admin') {
+    if (req.user.role !== 'dean') {
       filter = {
         $or: [
           scopeFilter,
@@ -163,7 +163,7 @@ export const markAllAsRead = async (req, res, next) => {
     const scopeFilter = await scopeQueryToRole(req.user);
     
     let filter = {};
-    if (req.user.role !== 'super_admin') {
+    if (req.user.role !== 'dean') {
       filter = {
         $or: [
           scopeFilter,

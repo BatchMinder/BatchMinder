@@ -44,10 +44,10 @@ router.route('/me/profile-picture')
 
 router.route('/')
   .get(getAllUsers)
-  .post(restrictTo('super_admin', 'academic_admin'), createUser);
+  .post(restrictTo('dean', 'academic_admin'), createUser);
 
 router.route('/:id')
-  .patch(restrictTo('super_admin', 'academic_admin'), updateUser)
-  .delete(restrictTo('super_admin', 'academic_admin'), deleteUser);
+  .patch(restrictTo('dean', 'academic_admin'), updateUser)
+  .delete(restrictTo('dean', 'academic_admin'), deleteUser);
 
 export default router;

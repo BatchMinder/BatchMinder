@@ -9,8 +9,8 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 
 router.use(protect);
 
-router.get('/', restrictTo('super_admin', 'academic_admin'), getUploadHistory);
-router.post('/', restrictTo('super_admin', 'academic_admin'), upload.single('file'), validateUpload);
-router.post('/:id/import', restrictTo('super_admin', 'academic_admin'), importValidRows);
+router.get('/', restrictTo('dean', 'academic_admin'), getUploadHistory);
+router.post('/', restrictTo('dean', 'academic_admin'), upload.single('file'), validateUpload);
+router.post('/:id/import', restrictTo('dean', 'academic_admin'), importValidRows);
 
 export default router;

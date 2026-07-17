@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import Login from './components/auth/Login';
-import SuperAdminSetup from './components/auth/SuperAdminSetup';
-import SuperAdminDashboard from './components/dashboard/SuperAdminDashboard';
+import DeanSetup from './components/auth/DeanSetup';
+import DeanDashboard from './components/dashboard/DeanDashboard';
 import CurriculumGrid from './components/curriculum/CurriculumGrid';
 import EquivalencyForm from './components/curriculum/EquivalencyForm';
 import FileDropzone from './components/ingestion/FileDropzone';
@@ -45,7 +45,6 @@ import AdvisorRiskDashboard from './pages/advisor/AdvisorRiskDashboard';
 import {
   Layers,
   CheckCircle,
-  AlertTriangle,
   RefreshCw,
   LogOut,
   Shield,
@@ -58,14 +57,9 @@ import {
   Zap
 } from 'lucide-react';
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
-  Button as MuiButton,
   CircularProgress
 } from '@mui/material';
+import LogoutModal from './components/shared/LogoutModal';
 
 function App() {
   const { user, loading, logout } = useAuth();
@@ -181,7 +175,7 @@ function App() {
         }
         return;
       }
-      
+
       const subPage = path.substring('/dashboard/'.length);
       if (user?.role === 'academic_admin') {
         const validPages = ['dashboard', 'students', 'upload', 'migrations', 'curriculum', 'batches', 'timetable', 'datesheet', 'override', 'audit_logs', 'settings', 'timetable_generator', 'datesheet_generator', 'schedule_override', 'notifications', 'attendance', 'reports', 'special_permission'];
@@ -304,25 +298,17 @@ function App() {
   }
 
   if (user) {
-    if (user.role === 'super_admin') {
+    if (user.role === 'dean') {
       return (
         <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: "'Inter', sans-serif" }}>
-          <SuperAdminDashboard onLogout={() => setShowLogoutModal(true)} />
+          <DeanDashboard onLogout={() => setShowLogoutModal(true)} />
 
-          <Dialog open={showLogoutModal} onClose={() => setShowLogoutModal(false)} sx={{ '& .MuiDialog-paper': { borderRadius: '24px', padding: '16px', maxWidth: '380px', width: '100%' } }}>
-            <DialogTitle style={{ fontWeight: 'bold', fontSize: '18px', color: '#1B3A6B', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <AlertTriangle style={{ color: '#EF4444' }} /> Confirm Log Out
-            </DialogTitle>
-            <DialogContent>
-              <DialogContentText style={{ fontSize: '14px', color: '#64748b' }}>
-                Are you sure you want to end your BatchMinder Dean session?
-              </DialogContentText>
-            </DialogContent>
-            <DialogActions style={{ padding: '8px 24px 16px' }}>
-              <MuiButton onClick={() => setShowLogoutModal(false)} style={{ color: '#64748b', textTransform: 'none', fontWeight: '600', fontSize: '14px' }}>Cancel</MuiButton>
-              <MuiButton onClick={() => { setShowLogoutModal(false); logout(); }} style={{ backgroundColor: '#EF4444', color: '#ffffff', textTransform: 'none', fontWeight: '600', fontSize: '14px', padding: '6px 20px', borderRadius: '12px' }}>Log Out</MuiButton>
-            </DialogActions>
-          </Dialog>
+          <LogoutModal
+            open={showLogoutModal}
+            onClose={() => setShowLogoutModal(false)}
+            onConfirm={() => { setShowLogoutModal(false); logout(); }}
+            role={user.role}
+          />
         </div>
       );
     }
@@ -581,8 +567,8 @@ function App() {
 
   return (
     <div className="min-h-screen flex flex-col justify-between font-sans bg-slate-50 overflow-x-hidden">
-      {currentPath === '/super-admin-setup' ? (
-        <SuperAdminSetup setCurrentPath={setCurrentPath} />
+      {currentPath === '/dean-setup' ? (
+        <DeanSetup setCurrentPath={setCurrentPath} />
       ) : (
         <Login />
       )}

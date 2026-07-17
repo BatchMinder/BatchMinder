@@ -7,9 +7,9 @@ const router = express.Router();
 
 router.use(protect);
 
-router.get('/courses', restrictTo('advisor', 'academic_admin', 'super_admin'), getBatchCourses);
-router.get('/', restrictTo('advisor', 'academic_admin', 'super_admin'), getAttendanceRoster);
-router.put('/', restrictTo('advisor', 'academic_admin', 'super_admin'), updateAttendance);
-router.get('/report', restrictTo('advisor', 'academic_admin', 'super_admin'), getLowAttendanceReport);
+router.get('/courses', restrictTo('advisor', 'academic_admin', 'dean'), getBatchCourses);
+router.get('/', restrictTo('advisor', 'academic_admin', 'dean'), getAttendanceRoster);
+router.put('/', restrictTo('advisor', 'academic_admin', 'dean'), updateAttendance);
+router.get('/report', restrictTo('advisor', 'academic_admin', 'dean'), getLowAttendanceReport);
 
 export default router;

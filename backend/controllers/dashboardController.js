@@ -11,14 +11,14 @@ import Timetable from '../models/timetable.js';
 import Upload from '../models/upload.js';
 
 // GET /api/dashboard/stats
-// Returns stats compatible with BOTH SuperAdmin dashboard and new Admin dashboard
+// Returns stats compatible with BOTH Dean dashboard and new Admin dashboard
 export const getDashboardStats = async (req, res) => {
   try {
-    const isSuperAdmin = req.user.role === 'super_admin';
+    const isDean = req.user.role === 'dean';
 
     // --- Student counts (handle both old 'department' string and new 'departmentId' ObjectId) ---
     let studentQuery = {};
-    if (!isSuperAdmin) {
+    if (!isDean) {
       // Advisors are scoped by assignedBatchIds; other roles by departmentIds
       const scope = req.user.role === 'advisor'
         ? scopeQueryToRole(req.user)
@@ -53,14 +53,14 @@ export const getDashboardStats = async (req, res) => {
       recentUploads
     ] = await Promise.all([
       Student.find(studentQuery).lean(),
-      Batch.countDocuments(isSuperAdmin ? {} : scopeToUserDepartments(req)),
-      Batch.countDocuments({ status: 'Allocated', ...(isSuperAdmin ? {} : scopeToUserDepartments(req)) }),
-      isSuperAdmin ? User.countDocuments({}) : Promise.resolve(0),
-      isSuperAdmin ? User.countDocuments({ status: 'Active' }) : Promise.resolve(0),
-      Department.find(isSuperAdmin ? {} : { _id: { $in: req.user.departmentIds || [] } }).lean(),
-      isSuperAdmin ? AuditLog.find({}).sort({ timestamp: -1 }).limit(6).lean() : Promise.resolve([]),
+      Batch.countDocuments(isDean ? {} : scopeToUserDepartments(req)),
+      Batch.countDocuments({ status: 'Allocated', ...(isDean ? {} : scopeToUserDepartments(req)) }),
+      isDean ? User.countDocuments({}) : Promise.resolve(0),
+      isDean ? User.countDocuments({ status: 'Active' }) : Promise.resolve(0),
+      Department.find(isDean ? {} : { _id: { $in: req.user.departmentIds || [] } }).lean(),
+      isDean ? AuditLog.find({}).sort({ timestamp: -1 }).limit(6).lean() : Promise.resolve([]),
       Migration.countDocuments({ decidedAt: null }),
-      Curriculum.find(isSuperAdmin ? {} : scopeToUserDepartments(req)).lean(),
+      Curriculum.find(isDean ? {} : scopeToUserDepartments(req)).lean(),
       Timetable.countDocuments(),
       Upload.find({}).sort({ createdAt: -1 }).limit(4).populate('uploadedBy', 'name').lean()
     ]);
@@ -81,7 +81,7 @@ export const getDashboardStats = async (req, res) => {
       totalCourses = courseCodes.size;
     }
 
-    // Build department stats for SuperAdmin dashboard
+    // Build department stats for Dean dashboard
     const deptStats = await Promise.all(departments.map(async (d) => {
       const studentCount = await Student.countDocuments({
         $or: [{ departmentId: d._id }, { department: d.name }]
@@ -106,7 +106,7 @@ export const getDashboardStats = async (req, res) => {
         atRiskStudents,
         studentsByStatus: { good: goodStudents, warning: warningStudents, critical: criticalStudents },
         totalBatches,
-        // Legacy shape for SuperAdmin dashboard
+        // Legacy shape for Dean dashboard
         students: { total: totalStudents, goodStanding: goodStudents, warning: warningStudents, critical: criticalStudents },
         users: { total: totalUsers, active: activeUsers },
         batches: { total: totalBatches, allocated: allocatedBatches },
@@ -141,7 +141,7 @@ export const getDashboardStats = async (req, res) => {
 export const getCgpaDistribution = async (req, res) => {
   try {
     let scope;
-    if (req.user.role === 'super_admin') {
+    if (req.user.role === 'dean') {
       scope = {};
     } else if (req.user.role === 'advisor') {
       scope = scopeQueryToRole(req.user);
@@ -174,7 +174,7 @@ export const getCgpaDistribution = async (req, res) => {
 export const getStudentsByBatch = async (req, res) => {
   try {
     let scope;
-    if (req.user.role === 'super_admin') {
+    if (req.user.role === 'dean') {
       scope = {};
     } else if (req.user.role === 'advisor') {
       scope = scopeQueryToRole(req.user);
@@ -211,7 +211,7 @@ export const getStudentsByBatch = async (req, res) => {
 export const getAtRiskTrend = async (req, res) => {
   try {
     let scope;
-    if (req.user.role === 'super_admin') {
+    if (req.user.role === 'dean') {
       scope = {};
     } else if (req.user.role === 'advisor') {
       scope = scopeQueryToRole(req.user);

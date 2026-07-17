@@ -67,9 +67,9 @@ export default function AuditLogsPage({ setActiveNav }) {
   const [totalLogs, setTotalLogs] = useState(0);
   const itemsPerPage = 25;
 
-  // Load batches for dropdown filter (SuperAdmin only)
+  // Load batches for dropdown filter (Dean only)
   const fetchBatches = async () => {
-    if (user?.role !== 'super_admin') return;
+    if (user?.role !== 'dean') return;
     try {
       const response = await fetch('/api/batches');
       const data = await response.json();
@@ -88,7 +88,7 @@ export default function AuditLogsPage({ setActiveNav }) {
       let url = '/api/audit-logs';
       const params = new URLSearchParams();
 
-      if (user?.role === 'super_admin') {
+      if (user?.role === 'dean') {
         if (deptFilter !== 'All Departments') {
           params.append('departmentId', deptFilter);
         }
@@ -149,7 +149,7 @@ export default function AuditLogsPage({ setActiveNav }) {
   }, [currentPage, deptFilter, batchFilter, actionFilter, startDateFilter, endDateFilter]);
 
   const currentLogs = logs;
-  const isSuperAdmin = user?.role === 'super_admin';
+  const isDean = user?.role === 'dean';
 
   // Styling helper
   const cellStyle = { padding: '10px 14px', fontSize: '12px', color: '#334155' };
@@ -159,7 +159,7 @@ export default function AuditLogsPage({ setActiveNav }) {
 
       <Header
         title="System Audit Logs"
-        subtitle={isSuperAdmin ? 'BatchMinder ERP • Dean • Audit Logs' : 'BatchMinder ERP • Audit Logs'}
+        subtitle={isDean ? 'BatchMinder ERP • Dean • Audit Logs' : 'BatchMinder ERP • Audit Logs'}
         setActiveNav={setActiveNav}
       >
         <button
@@ -228,7 +228,7 @@ export default function AuditLogsPage({ setActiveNav }) {
               paddingTop: isMobile ? '12px' : 0
             }}>
 
-          {isSuperAdmin && (
+          {isDean && (
             <>
               {/* Department Filter */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -372,7 +372,7 @@ export default function AuditLogsPage({ setActiveNav }) {
                   const actorName = log.actorId?.name || log.userId?.name || log.userEmail || log.metadata?.email || 'System';
                   const actionLabel = log.action || 'EVENT';
                   const rColors = {
-                    'super_admin': { bg: '#FEE2E2', color: '#991B1B' },
+                    'dean': { bg: '#FEE2E2', color: '#991B1B' },
                     'academic_admin': { bg: '#D1FAE5', color: '#065F46' },
                     'admin': { bg: '#F5F3FF', color: '#5B21B6' },
                     'advisor': { bg: '#EFF6FF', color: '#1E40AF' }
@@ -455,7 +455,7 @@ export default function AuditLogsPage({ setActiveNav }) {
 
                     // role colors
                     const rColors = {
-                      'super_admin': { bg: '#FEE2E2', color: '#991B1B' },
+                      'dean': { bg: '#FEE2E2', color: '#991B1B' },
                       'academic_admin': { bg: '#D1FAE5', color: '#065F46' },
                       'admin': { bg: '#F5F3FF', color: '#5B21B6' },
                       'advisor': { bg: '#EFF6FF', color: '#1E40AF' }
@@ -694,8 +694,8 @@ export default function AuditLogsPage({ setActiveNav }) {
                     <span style={{
                       padding: '2px 8px', borderRadius: '5px',
                       fontSize: '10px', fontWeight: 800,
-                      backgroundColor: selectedAudit.actorRole === 'super_admin' ? '#FEE2E2' : selectedAudit.actorRole === 'academic_admin' ? '#D1FAE5' : selectedAudit.actorRole === 'admin' ? '#F5F3FF' : '#EFF6FF',
-                      color: selectedAudit.actorRole === 'super_admin' ? '#991B1B' : selectedAudit.actorRole === 'academic_admin' ? '#065F46' : selectedAudit.actorRole === 'admin' ? '#5B21B6' : '#1E40AF',
+                      backgroundColor: selectedAudit.actorRole === 'dean' ? '#FEE2E2' : selectedAudit.actorRole === 'academic_admin' ? '#D1FAE5' : selectedAudit.actorRole === 'admin' ? '#F5F3FF' : '#EFF6FF',
+                      color: selectedAudit.actorRole === 'dean' ? '#991B1B' : selectedAudit.actorRole === 'academic_admin' ? '#065F46' : selectedAudit.actorRole === 'admin' ? '#5B21B6' : '#1E40AF',
                       textTransform: 'uppercase', letterSpacing: '0.3px'
                     }}>
                       {selectedAudit.actorRole || 'System'}

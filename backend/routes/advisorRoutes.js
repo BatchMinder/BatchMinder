@@ -12,7 +12,7 @@ import { restrictTo } from '../middleware/roleMiddleware.js';
 const router = express.Router();
 
 router.use(protect);
-router.use(restrictTo('advisor', 'super_admin'));
+router.use(restrictTo('advisor', 'dean'));
 
 // Student profile lists and details
 router.get('/dashboard-summary', getDashboardSummary);

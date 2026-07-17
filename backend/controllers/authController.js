@@ -1,9 +1,11 @@
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 import User from '../models/user.js';
 import AuditLog from '../models/auditLog.js';
+import Session from '../models/session.js';
+import { hashToken } from '../utils/tokenHash.js';
 import { scopeQueryToRole } from '../middleware/scopeMiddleware.js';
 import { logAudit as sharedLogAudit } from '../utils/logger.js';
-
 
 const parseExpiresIn = (str) => {
   const match = str.match(/^(\d+)([smhd])$/);
@@ -31,7 +33,7 @@ const signRefreshToken = (id) => {
   });
 };
 
-const sendTokenCookies = (res, userId) => {
+const sendTokenCookies = async (req, res, userId) => {
   const accessToken = signAccessToken(userId);
   const refreshToken = signRefreshToken(userId);
 
@@ -52,6 +54,26 @@ const sendTokenCookies = (res, userId) => {
     ...cookieOptions,
     expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
   });
+
+  // Record this refresh token server-side so it can be revoked on demand
+  // (e.g. force-logout after a password reset), independent of its own JWT expiry.
+  try {
+    await Session.create({
+      userId,
+      tokenHash: hashToken(refreshToken),
+      userAgent: req.headers['user-agent'] || null,
+      ipAddress: req.ip,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    });
+  } catch (err) {
+    console.error('Failed to create session record:', err);
+  }
+};
+
+// Revokes every active session for a user — call this after a password reset
+// or whenever all existing logins should be forced to re-authenticate.
+export const revokeAllSessionsForUser = async (userId) => {
+  await Session.updateMany({ userId, revoked: false }, { revoked: true });
 };
 
 const logAudit = async (userId, userEmail, action, description, role = '', ipAddress = null) => {
@@ -66,7 +88,7 @@ const logAudit = async (userId, userEmail, action, description, role = '', ipAdd
       actorRole: actorRole || 'system',
       action,
       targetType: 'Auth',
-      metadata: { 
+      metadata: {
         description,
         email: userEmail
       },
@@ -100,7 +122,7 @@ export const register = async (req, res) => {
       role: role || 'advisor',
     });
 
-    sendTokenCookies(res, newUser._id);
+    await sendTokenCookies(req, res, newUser._id);
 
     // Log action
     await logAudit(newUser._id, newUser.email, 'USER_REGISTERED', `New user registered with role: ${newUser.role}`);
@@ -135,13 +157,14 @@ export const login = async (req, res) => {
       return res.status(401).json({ message: 'Incorrect email, password, or role' });
     }
 
-    sendTokenCookies(res, user._id);
+    await sendTokenCookies(req, res, user._id);
 
     // Log action
     await logAudit(user._id, user.email, 'USER_LOGGED_IN', 'User logged in successfully.', user.role, req.ip);
 
-    // Update lastLogin
+    // Update lastLogin and start the inactivity clock (FR-1.4)
     user.lastLogin = new Date();
+    user.lastActivityAt = new Date();
     await user.save({ validateBeforeSave: false });
 
     // Hide password
@@ -173,6 +196,19 @@ export const logout = async (req, res) => {
         }
       } catch (err) {
         // ignore decoding errors during logout
+      }
+    }
+
+    // Revoke the server-side session tied to this refresh token so it can't be
+    // silently reused even if the JWT itself hasn't expired yet.
+    if (req.cookies && req.cookies.refreshToken) {
+      try {
+        await Session.updateOne(
+          { tokenHash: hashToken(req.cookies.refreshToken) },
+          { revoked: true }
+        );
+      } catch (err) {
+        console.error('Failed to revoke session on logout:', err);
       }
     }
 
@@ -231,7 +267,7 @@ export const checkEmail = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-export const setupSuperAdmin = async (req, res) => {
+export const setupDean = async (req, res) => {
   try {
     const { name, email, password, secret } = req.body;
 
@@ -239,41 +275,46 @@ export const setupSuperAdmin = async (req, res) => {
       return res.status(400).json({ message: 'Email, password, and secret key are required' });
     }
 
-    if (secret !== 'BatchMinderSecretKey2026') {
+    const expectedSecret = process.env.DEAN_SETUP_SECRET;
+    // Fail closed: if the env var isn't configured, refuse rather than fall back
+    // to a hardcoded default that would be visible to anyone with repo access.
+    if (!expectedSecret) {
+      console.error('DEAN_SETUP_SECRET is not set in the environment.');
+      return res.status(503).json({ message: 'Dean setup is not configured on this server.' });
+    }
+    if (secret !== expectedSecret) {
       return res.status(403).json({ message: 'Invalid secret key' });
     }
 
     // Check if user already exists
-    let user = await User.findOne({ email: email.toLowerCase().trim(), role: 'super_admin' });
+    let user = await User.findOne({ email: email.toLowerCase().trim(), role: 'dean' });
     if (user) {
       // Update password
       user.password = password;
       if (name) user.name = name;
       await user.save();
-      await logAudit(user._id, user.email, 'SUPER_ADMIN_RECOVERED', 'Super admin password reset completed via secret link.');
+      await logAudit(user._id, user.email, 'DEAN_RECOVERED', 'Dean password reset completed via secret link.');
       return res.status(200).json({
         status: 'success',
-        message: 'Super admin password updated successfully'
+        message: 'Dean password updated successfully'
       });
     }
 
-    // Create new super admin
+    // Create new dean
     user = await User.create({
-      name: name || 'Super Admin',
+      name: name || 'Dean',
       email: email.toLowerCase().trim(),
       password,
-      role: 'super_admin'
+      role: 'dean'
     });
 
-    await logAudit(user._id, user.email, 'SUPER_ADMIN_CREATED', 'New Super Admin account registered via secret link.');
+    await logAudit(user._id, user.email, 'DEAN_CREATED', 'New Dean account registered via secret link.');
 
     res.status(201).json({
       status: 'success',
-      message: 'Super admin registered successfully'
+      message: 'Dean registered successfully'
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
-
-

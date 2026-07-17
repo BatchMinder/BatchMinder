@@ -7,12 +7,12 @@ export const scopeToUserDepartments = (req) => {
 
   let role = req.user.role;
   if (!role && req.user.email) {
-    if (req.user.email.includes('super_admin')) role = 'super_admin';
+    if (req.user.email.includes('dean')) role = 'dean';
     else if (req.user.email.includes('admin')) role = 'academic_admin';
     else if (req.user.email.includes('advisor')) role = 'advisor';
   }
 
-  if (role === 'super_admin') {
+  if (role === 'dean') {
     return {};
   }
 
@@ -39,7 +39,7 @@ export const scopeToUserDepartments = (req) => {
 
 export const scopeBatchToUserDepartments = (req) => {
   if (!req.user) return { _id: null };
-  if (req.user.role === 'super_admin') return {};
+  if (req.user.role === 'dean') return {};
   const ids = req.user.departmentIds || [];
   if (ids.length === 0) return { _id: null };
   return { departmentId: { $in: ids.map(id => new mongoose.Types.ObjectId(id.toString())) } };
@@ -49,7 +49,7 @@ export const scopeBatchToUserDepartments = (req) => {
 export const scopeQueryToRole = (user) => {
   if (!user) return { _id: null };
 
-  if (user.role === 'super_admin') {
+  if (user.role === 'dean') {
     return {};
   }
 

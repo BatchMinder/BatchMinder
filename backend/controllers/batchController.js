@@ -128,9 +128,9 @@ const normalizeBatch = async (b) => {
 
 export const getAllBatches = async (req, res) => {
   try {
-    // Super admin sees all batches; scoped roles see only their department's batches
+    // Dean sees all batches; scoped roles see only their department's batches
     let filter = {};
-    if (req.user.role !== 'super_admin') {
+    if (req.user.role !== 'dean') {
       const scope = scopeToUserDepartments(req);
       if (scope._id === null) {
         return res.status(200).json({ status: 'success', results: 0, data: [] });

@@ -20,20 +20,20 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 
 router.use(protect);
 
-router.post('/upload', restrictTo('super_admin', 'academic_admin'), upload.single('file'), bulkUploadStudents);
-router.post('/sync-lms', restrictTo('super_admin', 'academic_admin'), syncLmsRecords);
-router.post('/promote-semester', restrictTo('super_admin', 'academic_admin'), promoteSemester);
+router.post('/upload', restrictTo('dean', 'academic_admin'), upload.single('file'), bulkUploadStudents);
+router.post('/sync-lms', restrictTo('dean', 'academic_admin'), syncLmsRecords);
+router.post('/promote-semester', restrictTo('dean', 'academic_admin'), promoteSemester);
 
 router.route('/')
-  .get(restrictTo('super_admin', 'academic_admin', 'admin', 'advisor'), getAllStudents)
-  .post(restrictTo('super_admin', 'academic_admin'), createStudent);
+  .get(restrictTo('dean', 'academic_admin', 'admin', 'advisor'), getAllStudents)
+  .post(restrictTo('dean', 'academic_admin'), createStudent);
 
 router.route('/:id')
-  .get(restrictTo('super_admin', 'academic_admin', 'admin', 'advisor'), getStudentById)
-  .patch(restrictTo('super_admin', 'academic_admin'), updateStudent)
-  .delete(restrictTo('super_admin', 'academic_admin'), deleteStudent);
+  .get(restrictTo('dean', 'academic_admin', 'admin', 'advisor'), getStudentById)
+  .patch(restrictTo('dean', 'academic_admin'), updateStudent)
+  .delete(restrictTo('dean', 'academic_admin'), deleteStudent);
 
-router.get('/:id/degree-progress', restrictTo('super_admin', 'academic_admin', 'admin', 'advisor'), getStudentDegreeProgress);
-router.post('/:id/predict-risk', restrictTo('super_admin', 'academic_admin', 'admin', 'advisor'), predictStudentRisk);
+router.get('/:id/degree-progress', restrictTo('dean', 'academic_admin', 'admin', 'advisor'), getStudentDegreeProgress);
+router.post('/:id/predict-risk', restrictTo('dean', 'academic_admin', 'admin', 'advisor'), predictStudentRisk);
 
 export default router;

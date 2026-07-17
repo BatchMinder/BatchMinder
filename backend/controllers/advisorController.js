@@ -173,7 +173,7 @@ export const getStudentEligibleCourses = async (req, res, next) => {
     // Security check: Verify advisor is assigned to student's batch
     const assignedBatches = req.user.assignedBatchIds || [];
     const hasAccess = assignedBatches.some(id => id.toString() === student.batchId.toString());
-    if (!hasAccess && req.user.role !== 'super_admin') {
+    if (!hasAccess && req.user.role !== 'dean') {
       return res.status(403).json({
         status: 'error',
         message: 'Access denied: You are not assigned to this student\'s batch.'

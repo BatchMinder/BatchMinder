@@ -12,9 +12,9 @@ const router = express.Router();
 
 router.use(protect);
 
-router.get('/stats', restrictTo('super_admin', 'academic_admin', 'admin', 'advisor'), getDashboardStats);
-router.get('/cgpa-distribution', restrictTo('super_admin', 'academic_admin', 'admin', 'advisor'), getCgpaDistribution);
-router.get('/students-by-batch', restrictTo('super_admin', 'academic_admin', 'admin', 'advisor'), getStudentsByBatch);
-router.get('/at-risk-trend', restrictTo('super_admin', 'academic_admin', 'admin', 'advisor'), getAtRiskTrend);
+router.get('/stats', restrictTo('dean', 'academic_admin', 'admin', 'advisor'), getDashboardStats);
+router.get('/cgpa-distribution', restrictTo('dean', 'academic_admin', 'admin', 'advisor'), getCgpaDistribution);
+router.get('/students-by-batch', restrictTo('dean', 'academic_admin', 'admin', 'advisor'), getStudentsByBatch);
+router.get('/at-risk-trend', restrictTo('dean', 'academic_admin', 'admin', 'advisor'), getAtRiskTrend);
 
 export default router;

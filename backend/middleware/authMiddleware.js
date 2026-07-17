@@ -1,6 +1,8 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/user.js';
 import Department from '../models/department.js';
+import Session from '../models/session.js';
+import { hashToken } from '../utils/tokenHash.js';
 
 const parseExpiresIn = (str) => {
   const match = str.match(/^(\d+)([smhd])$/);
@@ -16,8 +18,19 @@ const parseExpiresIn = (str) => {
   }
 };
 
+// FR-1.4: inactivity-based session timeout. This is independent of the
+// refresh token's absolute 7-day expiry — a session idle longer than this
+// window is terminated even if the 7-day cookie is still technically valid.
+const INACTIVITY_TIMEOUT_MS =
+  parseInt(process.env.SESSION_INACTIVITY_TIMEOUT_MINUTES || '30', 10) * 60 * 1000;
+
+const clearAuthCookies = (res) => {
+  res.clearCookie('accessToken', { path: '/' });
+  res.clearCookie('refreshToken', { path: '/' });
+};
+
 const populateFallbackDepartments = async (user) => {
-  if (user && user.role !== 'super_admin' && (!user.departmentIds || user.departmentIds.length === 0)) {
+  if (user && user.role !== 'dean' && (!user.departmentIds || user.departmentIds.length === 0)) {
     if (user.dept && user.dept !== 'All Departments') {
       const dept = await Department.findOne({ name: { $regex: new RegExp('^' + user.dept + '$', 'i') } });
       if (dept) {
@@ -44,6 +57,8 @@ export const protect = async (req, res, next) => {
         const currentUser = await User.findById(decoded.id);
         if (currentUser) {
           await populateFallbackDepartments(currentUser);
+          currentUser.lastActivityAt = new Date();
+          User.updateOne({ _id: currentUser._id }, { lastActivityAt: currentUser.lastActivityAt }).catch(() => {});
           req.user = currentUser;
           return next();
         }
@@ -67,6 +82,28 @@ export const protect = async (req, res, next) => {
         return res.status(401).json({ message: 'The user belonging to this token no longer exists.' });
       }
 
+      // Session must exist server-side and not be revoked. A cryptographically
+      // valid JWT alone is no longer enough — this is what lets logout / password
+      // reset actually force a session out, instead of it staying valid until
+      // its 7-day cookie naturally expires.
+      const session = await Session.findOne({
+        userId: currentUser._id,
+        tokenHash: hashToken(refreshToken),
+      });
+      if (!session || session.revoked) {
+        clearAuthCookies(res);
+        return res.status(401).json({ message: 'Session has been revoked. Please log in again.' });
+      }
+
+      // FR-1.4: reject the silent refresh if the user has been idle longer than
+      // the configured inactivity window, even though the 7-day cookie itself
+      // hasn't expired yet.
+      const lastActivity = currentUser.lastActivityAt ? new Date(currentUser.lastActivityAt).getTime() : 0;
+      if (Date.now() - lastActivity > INACTIVITY_TIMEOUT_MS) {
+        clearAuthCookies(res);
+        return res.status(401).json({ message: 'Session expired due to inactivity. Please log in again.' });
+      }
+
       await populateFallbackDepartments(currentUser);
 
       // Silent refresh: generate a new access token
@@ -82,6 +119,9 @@ export const protect = async (req, res, next) => {
         path: '/',
         expires: new Date(Date.now() + accessDuration),
       });
+
+      currentUser.lastActivityAt = new Date();
+      User.updateOne({ _id: currentUser._id }, { lastActivityAt: currentUser.lastActivityAt }).catch(() => {});
 
       req.user = currentUser;
       return next();

@@ -552,7 +552,7 @@ export default function NotificationsPage({ setActiveNav }) {
                       <option value="Advisors">Batch Advisors</option>
                       <option value="HODs">HODs / Chairpersons</option>
                       <option value="Admins">Administrators</option>
-                      <option value="Super Admin">Deans Only</option>
+                      <option value="Dean">Deans Only</option>
                     </select>
                     <ChevronDown size={12} color="#94A3B8" style={{ position: 'absolute', right: '9px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
                   </div>

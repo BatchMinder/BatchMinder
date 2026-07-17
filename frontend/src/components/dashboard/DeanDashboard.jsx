@@ -36,7 +36,7 @@ import {
   X
 } from 'lucide-react';
 
-export default function SuperAdminDashboard({ onLogout }) {
+export default function DeanDashboard({ onLogout }) {
   const { user } = useAuth();
   const [currentDate, setCurrentDate] = useState('');
   const [activeNav, setActiveNav] = useState(() => {
