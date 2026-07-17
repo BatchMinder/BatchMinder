@@ -9,6 +9,7 @@ import {
 import { protect } from '../middleware/authMiddleware.js';
 import { restrictTo } from '../middleware/roleMiddleware.js';
 
+
 const router = express.Router();
 
 router.use(protect);

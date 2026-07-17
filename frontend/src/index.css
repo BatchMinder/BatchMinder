@@ -34,3 +34,55 @@ html {
   -ms-overflow-style: none !important;  /* IE and Edge */
   scrollbar-width: none !important;  /* Firefox */
 }
+
+/* Thin custom scrollbar */
+.thin-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1; /* slate-300 */
+  border-radius: 3px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8; /* slate-400 */
+}
+
+.thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+/* ── Mobile-Responsive Modal Fix ── */
+@media (max-width: 640px) {
+  /* All fixed-overlay modal backdrops: add safe padding */
+  div[style*="position: fixed"][style*="inset: 0"] {
+    padding: 16px !important;
+    box-sizing: border-box !important;
+  }
+
+  /* All direct children of modal overlays (the modal boxes themselves) */
+  div[style*="position: fixed"][style*="inset: 0"] > div,
+  div[style*="position: fixed"][style*="inset: 0"] > form {
+    max-width: calc(100vw - 32px) !important;
+    max-height: calc(100vh - 32px) !important;
+    overflow-y: auto !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+    box-sizing: border-box !important;
+  }
+
+  /* MUI Dialog paper override for mobile */
+  .MuiDialog-paper {
+    margin: 16px !important;
+    max-width: calc(100vw - 32px) !important;
+    max-height: calc(100vh - 32px) !important;
+    width: 100% !important;
+  }
+}

@@ -12,7 +12,7 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Please provide an email'],
     lowercase: true,
     trim: true,
-    match: [/^[\w-\.]+@stmu\.edu\.pk$/, 'Must match STMU domain / official format']
+    match: [/^[a-zA-Z0-9._%+-]+@(?:stmu\.edu\.pk|gmail\.com)$/, 'Must match STMU domain or Gmail format']
   },
   password: {
     type: String,
@@ -71,7 +71,15 @@ const userSchema = new mongoose.Schema({
   assignedBatchIds: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Batch'
-  }]
+  }],
+  passwordResetToken: {
+    type: String,
+    default: null
+  },
+  passwordResetExpires: {
+    type: Date,
+    default: null
+  }
 });
 
 // Composite unique index for email + role combination

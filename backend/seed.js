@@ -144,109 +144,7 @@ async function seed() {
     }
 
     await Student.insertMany(students);
-    const statusCounts = { good: 0, warning: 0, critical: 0 };
-    for (const s of students) {
-      const c = s.cgpa < 2.0 ? 'critical' : s.cgpa <= 2.1 ? 'warning' : 'good';
-      statusCounts[c]++;
-    }
-    console.log(`  ${students.length} students (good=${statusCounts.good}, warning=${statusCounts.warning}, critical=${statusCounts.critical})`);
 
-    // ── Curricula ──
-    const courseTemplates = [
-      // CS courses
-      { code: 'CS101', title: 'Programming Fundamentals', creditHours: 4, semester: 1, deptIdx: 0 },
-      { code: 'CS102', title: 'Object Oriented Programming', creditHours: 4, semester: 2, deptIdx: 0 },
-      { code: 'CS201', title: 'Data Structures', creditHours: 3, semester: 3, deptIdx: 0 },
-      { code: 'CS202', title: 'Database Systems', creditHours: 3, semester: 4, deptIdx: 0 },
-      { code: 'CS301', title: 'Operating Systems', creditHours: 3, semester: 5, deptIdx: 0 },
-      { code: 'CS302', title: 'Computer Networks', creditHours: 3, semester: 6, deptIdx: 0 },
-      { code: 'CS401', title: 'Artificial Intelligence', creditHours: 3, semester: 7, deptIdx: 0 },
-      { code: 'CS402', title: 'Final Year Project', creditHours: 3, semester: 8, deptIdx: 0 },
-      // SE courses
-      { code: 'SE101', title: 'Intro to Software Engineering', creditHours: 3, semester: 1, deptIdx: 1 },
-      { code: 'SE102', title: 'Requirements Engineering', creditHours: 3, semester: 2, deptIdx: 1 },
-      { code: 'SE201', title: 'Software Design & Architecture', creditHours: 3, semester: 3, deptIdx: 1 },
-      { code: 'SE202', title: 'Software Quality Assurance', creditHours: 3, semester: 4, deptIdx: 1 },
-      { code: 'SE301', title: 'Software Project Management', creditHours: 3, semester: 5, deptIdx: 1 },
-      { code: 'SE302', title: 'Human Computer Interaction', creditHours: 3, semester: 6, deptIdx: 1 },
-      // EE courses
-      { code: 'EE101', title: 'Circuit Analysis', creditHours: 3, semester: 1, deptIdx: 2 },
-      { code: 'EE102', title: 'Digital Logic Design', creditHours: 3, semester: 2, deptIdx: 2 },
-      { code: 'EE201', title: 'Electronic Devices & Circuits', creditHours: 3, semester: 3, deptIdx: 2 },
-      { code: 'EE202', title: 'Signals & Systems', creditHours: 3, semester: 4, deptIdx: 2 },
-    ];
-
-    const curriculums = [];
-    const curriculumBatches = [
-      { batchId: bscs22, deptId: cs, version: '1.0', courses: courseTemplates.filter(c => c.deptIdx === 0) },
-      { batchId: bscs23, deptId: cs, version: '1.0', courses: courseTemplates.filter(c => c.deptIdx === 0) },
-      { batchId: bscs24, deptId: cs, version: '2.0', courses: courseTemplates.filter(c => c.deptIdx === 0) },
-      { batchId: bsse22, deptId: se, version: '1.0', courses: courseTemplates.filter(c => c.deptIdx === 1) },
-      { batchId: bsse23, deptId: se, version: '1.0', courses: courseTemplates.filter(c => c.deptIdx === 1) },
-      { batchId: bsee22, deptId: ee, version: '1.0', courses: courseTemplates.filter(c => c.deptIdx === 2) },
-    ];
-
-    for (const cb of curriculumBatches) {
-      const curr = await Curriculum.create({
-        departmentId: cb.deptId,
-        batchId: cb.batchId,
-        version: cb.version,
-        status: 'active',
-        courses: cb.courses.map(c => ({
-          code: c.code,
-          title: c.title,
-          creditHours: c.creditHours,
-          semester: c.semester,
-          prerequisiteCourseIds: [],
-        })),
-      });
-      curriculums.push(curr);
-
-      await Batch.updateOne({ _id: cb.batchId }, { curriculumVersionId: curr._id });
-    }
-    console.log(`  ${curriculums.length} curricula`);
-
-    // ── Student Course History & Enrollment Seeding ──
-    const seededStudents = await Student.find({});
-    for (const student of seededStudents) {
-      const studentCurriculum = curriculums.find(
-        curr => curr.departmentId.toString() === student.departmentId.toString() &&
-          curr.batchId.toString() === student.batchId.toString()
-      );
-      if (studentCurriculum) {
-        const studentCourses = [];
-        studentCurriculum.courses.forEach(currCourse => {
-          if (currCourse.semester < student.currentSemester) {
-            // Completed courses in past semesters
-            studentCourses.push({
-              courseCode: currCourse.code,
-              courseTitle: currCourse.title,
-              creditHours: currCourse.creditHours,
-              semester: currCourse.semester,
-              grade: ['A', 'B+', 'B', 'C+', 'C'][Math.floor(Math.random() * 5)],
-              enrollmentStatus: 'completed',
-              attendance: Math.floor(Math.random() * 20) + 80
-            });
-          } else if (currCourse.semester === student.currentSemester) {
-            // Currently enrolled courses for the active semester
-            studentCourses.push({
-              courseCode: currCourse.code,
-              courseTitle: currCourse.title,
-              creditHours: currCourse.creditHours,
-              semester: currCourse.semester,
-              grade: 'IP',
-              enrollmentStatus: 'enrolled',
-              attendance: Math.floor(Math.random() * 15) + 85
-            });
-          }
-        });
-        student.courses = studentCourses;
-        await student.save();
-      }
-    }
-    console.log(`  Dynamically seeded course histories for ${seededStudents.length} students`);
-
-    // ── Migrations ──
     const migrationStudents = await Student.insertMany([
       {
         rollNumber: 'BSCS-22B-0092',
@@ -333,6 +231,182 @@ async function seed() {
         enrolledAt: new Date('2024-09-15')
       }
     ]);
+    const statusCounts = { good: 0, warning: 0, critical: 0 };
+    for (const s of students) {
+      const c = s.cgpa < 2.0 ? 'critical' : s.cgpa <= 2.1 ? 'warning' : 'good';
+      statusCounts[c]++;
+    }
+    console.log(`  ${students.length} students (good=${statusCounts.good}, warning=${statusCounts.warning}, critical=${statusCounts.critical})`);
+
+    // ── Curricula ──
+    const hecSemesters = {
+      1: [
+        { title: 'Quantitative Reasoning-I', creditHours: 3, category: 'GE' },
+        { title: 'Functional English', creditHours: 3, category: 'GE' },
+        { title: 'Applications of Information and Communication Technologies', creditHours: 3, category: 'GE' },
+        { title: 'Social Science', creditHours: 2, category: 'GE' },
+        { title: 'Programming Fundamentals', creditHours: 4, category: 'CS' },
+        { title: 'Calculus & Analytical Geometry (IDS I)', creditHours: 3, category: 'IDS' },
+      ],
+      2: [
+        { title: 'Quantitative Reasoning-II', creditHours: 3, category: 'GE' },
+        { title: 'Arts and Humanities', creditHours: 2, category: 'GE' },
+        { title: 'Pakistan Studies', creditHours: 2, category: 'GE' },
+        { title: 'Fehm-e-Quran – I', creditHours: 1, category: 'GE' },
+        { title: 'Object Oriented Programming', creditHours: 4, category: 'CS' },
+        { title: 'Digital Logic Design', creditHours: 4, category: 'CS' },
+        { title: 'Linear Algebra (IDS II)', creditHours: 3, category: 'IDS' },
+      ],
+      3: [
+        { title: 'Expository Writing', creditHours: 3, category: 'GE' },
+        { title: 'Natural Science', creditHours: 3, category: 'GE' },
+        { title: 'Fehm-e-Quran – II', creditHours: 1, category: 'GE' },
+        { title: 'Data Structures', creditHours: 4, category: 'CS' },
+        { title: 'Database Systems', creditHours: 4, category: 'CS' },
+        { title: 'Operating Systems', creditHours: 4, category: 'CS' },
+      ],
+      4: [
+        { title: 'Civics and Community Engagement', creditHours: 2, category: 'GE' },
+        { title: 'Ideology and Constitution of Pakistan', creditHours: 2, category: 'GE' },
+        { title: 'Entrepreneurship', creditHours: 2, category: 'GE' },
+        { title: 'Islamic Studies / Ethics', creditHours: 2, category: 'GE' },
+        { title: 'Software Engineering', creditHours: 3, category: 'CS' },
+        { title: 'Computer Organization & Architecture', creditHours: 3, category: 'CS' },
+        { title: 'Design & Analysis of Algorithms', creditHours: 3, category: 'CS' },
+      ],
+      5: [
+        { title: 'Computer Networks', creditHours: 3, category: 'CS' },
+        { title: 'Information Security', creditHours: 3, category: 'CS' },
+        { title: 'Artificial Intelligence', creditHours: 3, category: 'CS' },
+        { title: 'Theory of Automata', creditHours: 3, category: 'CS' },
+        { title: 'IDS - III', creditHours: 3, category: 'IDS' },
+        { title: 'IDS - IV', creditHours: 3, category: 'IDS' },
+      ],
+      6: [
+        { title: 'Cloud Computing', creditHours: 3, category: 'CS' },
+        { title: 'Elective-I', creditHours: 3, category: 'CS' },
+        { title: 'Elective-II', creditHours: 3, category: 'CS' },
+        { title: 'Elective-III', creditHours: 3, category: 'CS' },
+        { title: 'Elective-IV', creditHours: 3, category: 'CS' },
+      ],
+      7: [
+        { title: 'Elective-V', creditHours: 3, category: 'CS' },
+        { title: 'Elective-VI', creditHours: 3, category: 'CS' },
+        { title: 'Elective-VII', creditHours: 3, category: 'CS' },
+        { title: 'Elective-VIII', creditHours: 3, category: 'CS' },
+        { title: 'Professional Certification', creditHours: 3, category: 'CERT' },
+      ],
+      8: [
+        { title: 'Final Year Project', creditHours: 6, category: 'FYP' },
+        { title: 'Field Experience / Internship', creditHours: 3, category: 'INT' },
+      ],
+    };
+
+    const counters = {};
+    const hecCsCourses = [];
+    for (const [sem, list] of Object.entries(hecSemesters)) {
+      const semester = Number(sem);
+      for (const c of list) {
+        counters[c.category] = (counters[c.category] || 0) + 1;
+        const code = `${c.category}-${100 + counters[c.category]}`;
+        hecCsCourses.push({
+          code,
+          title: c.title,
+          creditHours: c.creditHours,
+          semester,
+          deptIdx: 0
+        });
+      }
+    }
+
+    const courseTemplates = [
+      // CS courses
+      ...hecCsCourses,
+      // SE courses
+      { code: 'SE101', title: 'Intro to Software Engineering', creditHours: 3, semester: 1, deptIdx: 1 },
+      { code: 'SE102', title: 'Requirements Engineering', creditHours: 3, semester: 2, deptIdx: 1 },
+      { code: 'SE201', title: 'Software Design & Architecture', creditHours: 3, semester: 3, deptIdx: 1 },
+      { code: 'SE202', title: 'Software Quality Assurance', creditHours: 3, semester: 4, deptIdx: 1 },
+      { code: 'SE301', title: 'Software Project Management', creditHours: 3, semester: 5, deptIdx: 1 },
+      { code: 'SE302', title: 'Human Computer Interaction', creditHours: 3, semester: 6, deptIdx: 1 },
+      // EE courses
+      { code: 'EE101', title: 'Circuit Analysis', creditHours: 3, semester: 1, deptIdx: 2 },
+      { code: 'EE102', title: 'Digital Logic Design', creditHours: 3, semester: 2, deptIdx: 2 },
+      { code: 'EE201', title: 'Electronic Devices & Circuits', creditHours: 3, semester: 3, deptIdx: 2 },
+      { code: 'EE202', title: 'Signals & Systems', creditHours: 3, semester: 4, deptIdx: 2 },
+    ];
+
+    const curriculums = [];
+    const curriculumBatches = [
+      { batchId: bscs22, deptId: cs, version: '1.0', courses: courseTemplates.filter(c => c.deptIdx === 0) },
+      { batchId: bscs23, deptId: cs, version: '1.0', courses: courseTemplates.filter(c => c.deptIdx === 0) },
+      { batchId: bscs24, deptId: cs, version: '2.0', courses: courseTemplates.filter(c => c.deptIdx === 0) },
+      { batchId: bsse22, deptId: se, version: '1.0', courses: courseTemplates.filter(c => c.deptIdx === 1) },
+      { batchId: bsse23, deptId: se, version: '1.0', courses: courseTemplates.filter(c => c.deptIdx === 1) },
+      { batchId: bsee22, deptId: ee, version: '1.0', courses: courseTemplates.filter(c => c.deptIdx === 2) },
+    ];
+
+    for (const cb of curriculumBatches) {
+      const curr = await Curriculum.create({
+        departmentId: cb.deptId,
+        batchId: cb.batchId,
+        version: cb.version,
+        status: 'active',
+        courses: cb.courses.map(c => ({
+          code: c.code,
+          title: c.title,
+          creditHours: c.creditHours,
+          semester: c.semester,
+          prerequisiteCourseIds: [],
+        })),
+      });
+      curriculums.push(curr);
+
+      await Batch.updateOne({ _id: cb.batchId }, { curriculumVersionId: curr._id });
+    }
+    console.log(`  ${curriculums.length} curricula`);
+
+    // ── Student Course History & Enrollment Seeding ──
+    const seededStudents = await Student.find({});
+    for (const student of seededStudents) {
+      const studentCurriculum = curriculums.find(
+        curr => curr.departmentId.toString() === student.departmentId.toString() &&
+          curr.batchId.toString() === student.batchId.toString()
+      );
+      if (studentCurriculum) {
+        const studentCourses = [];
+        studentCurriculum.courses.forEach(currCourse => {
+          if (currCourse.semester < student.currentSemester) {
+            // Completed courses in past semesters
+            studentCourses.push({
+              courseCode: currCourse.code,
+              courseTitle: currCourse.title,
+              creditHours: currCourse.creditHours,
+              semester: currCourse.semester,
+              grade: ['A', 'B+', 'B', 'C+', 'C'][Math.floor(Math.random() * 5)],
+              enrollmentStatus: 'completed',
+              attendance: Math.floor(Math.random() * 20) + 80
+            });
+          } else if (currCourse.semester === student.currentSemester) {
+            // Currently enrolled courses for the active semester
+            studentCourses.push({
+              courseCode: currCourse.code,
+              courseTitle: currCourse.title,
+              creditHours: currCourse.creditHours,
+              semester: currCourse.semester,
+              grade: 'IP',
+              enrollmentStatus: 'enrolled',
+              attendance: Math.floor(Math.random() * 15) + 85
+            });
+          }
+        });
+        student.courses = studentCourses;
+        await student.save();
+      }
+    }
+    console.log(`  Dynamically seeded course histories for ${seededStudents.length} students`);
+
+    // ── Migrations ──
 
     const academicAdmin = users.find(u => u.role === 'academic_admin');
 
@@ -345,11 +419,11 @@ async function seed() {
         toProgram: 'BS Computer Science (STMU)',
         status: 'approved',
         transferredCourses: [
-          { courseName: 'Object Oriented Programming', mappedCourseName: 'Object Oriented Programming', credits: 3, equivalencyStatus: 'accepted' },
-          { courseName: 'Discrete Mathematics', mappedCourseName: 'Discrete Mathematics', credits: 3, equivalencyStatus: 'accepted' },
-          { courseName: 'Calculus I', mappedCourseName: 'Calculus & Analytical Geometry', credits: 3, equivalencyStatus: 'accepted' },
+          { courseName: 'Object Oriented Programming', mappedCourseName: 'Object Oriented Programming', credits: 4, equivalencyStatus: 'accepted' },
+          { courseName: 'Discrete Mathematics', mappedCourseName: 'IDS - III', credits: 3, equivalencyStatus: 'accepted' },
+          { courseName: 'Calculus I', mappedCourseName: 'Calculus & Analytical Geometry (IDS I)', credits: 3, equivalencyStatus: 'accepted' },
           { courseName: 'English Composition', mappedCourseName: 'Functional English', credits: 3, equivalencyStatus: 'accepted' },
-          { courseName: 'Digital Logic Design', mappedCourseName: 'Digital Logic Design', credits: 3, equivalencyStatus: 'pending' },
+          { courseName: 'Digital Logic Design', mappedCourseName: 'Digital Logic Design', credits: 4, equivalencyStatus: 'pending' },
           { courseName: 'Pakistan Studies', mappedCourseName: 'Pakistan Studies', credits: 2, equivalencyStatus: 'rejected' },
         ],
         curriculumComparison: {
@@ -364,11 +438,11 @@ async function seed() {
           expectedCompletion: 'Spring 2028'
         },
         missingCourses: [
-          { courseCode: 'CS-201', courseTitle: 'Data Structures', creditHours: 3 },
-          { courseCode: 'CS-202', courseTitle: 'Algorithms', creditHours: 3 },
-          { courseCode: 'CS-301', courseTitle: 'Computer Organization', creditHours: 3 },
-          { courseCode: 'CS-302', courseTitle: 'Database Systems', creditHours: 3 },
-          { courseCode: 'CS-401', courseTitle: 'Operating Systems', creditHours: 3 }
+          { courseCode: 'CS-104', courseTitle: 'Data Structures', creditHours: 4 },
+          { courseCode: 'CS-109', courseTitle: 'Design & Analysis of Algorithms', creditHours: 3 },
+          { courseCode: 'CS-108', courseTitle: 'Computer Organization & Architecture', creditHours: 3 },
+          { courseCode: 'CS-105', courseTitle: 'Database Systems', creditHours: 4 },
+          { courseCode: 'CS-106', courseTitle: 'Operating Systems', creditHours: 4 }
         ],
         decidedBy: academicAdmin._id,
         decidedAt: new Date('2026-05-21'),
@@ -383,8 +457,8 @@ async function seed() {
         status: 'approved',
         transferredCourses: [
           { courseName: 'Programming Fundamentals', mappedCourseName: 'Programming Fundamentals', credits: 4, equivalencyStatus: 'accepted' },
-          { courseName: 'Introduction to ICT', mappedCourseName: 'Introduction to ICT', credits: 3, equivalencyStatus: 'accepted' },
-          { courseName: 'Calculus II', mappedCourseName: 'Calculus II', credits: 3, equivalencyStatus: 'accepted' }
+          { courseName: 'Introduction to ICT', mappedCourseName: 'Applications of Information and Communication Technologies', credits: 3, equivalencyStatus: 'accepted' },
+          { courseName: 'Calculus II', mappedCourseName: 'Linear Algebra (IDS II)', credits: 3, equivalencyStatus: 'accepted' }
         ],
         curriculumComparison: {
           fromRequiredCredits: 130,
@@ -398,8 +472,7 @@ async function seed() {
           expectedCompletion: 'Fall 2028'
         },
         missingCourses: [
-          { courseCode: 'SE-201', courseTitle: 'Software Requirement Eng', creditHours: 3 },
-          { courseCode: 'SE-202', courseTitle: 'Software Design', creditHours: 3 }
+          { courseCode: 'CS-107', courseTitle: 'Software Engineering', creditHours: 3 }
         ],
         decidedBy: academicAdmin._id,
         decidedAt: new Date('2026-05-19'),
@@ -413,8 +486,8 @@ async function seed() {
         toProgram: 'BS Computer Science (STMU)',
         status: 'approved',
         transferredCourses: [
-          { courseName: 'Differential Equations', mappedCourseName: 'Differential Equations', credits: 3, equivalencyStatus: 'accepted' },
-          { courseName: 'Linear Algebra', mappedCourseName: 'Linear Algebra', credits: 3, equivalencyStatus: 'accepted' }
+          { courseName: 'Differential Equations', mappedCourseName: 'IDS - III', credits: 3, equivalencyStatus: 'accepted' },
+          { courseName: 'Linear Algebra', mappedCourseName: 'Linear Algebra (IDS II)', credits: 3, equivalencyStatus: 'accepted' }
         ],
         curriculumComparison: {
           fromRequiredCredits: 130,
@@ -428,7 +501,7 @@ async function seed() {
           expectedCompletion: 'Spring 2029'
         },
         missingCourses: [
-          { courseCode: 'CS-101', courseTitle: 'Intro to CS', creditHours: 3 }
+          { courseCode: 'CS-101', courseTitle: 'Programming Fundamentals', creditHours: 4 }
         ],
         decidedBy: academicAdmin._id,
         decidedAt: new Date('2026-05-18'),
@@ -442,7 +515,7 @@ async function seed() {
         toProgram: 'BS Computer Science (STMU)',
         status: 'pending',
         transferredCourses: [
-          { courseName: 'Introduction to AI', mappedCourseName: 'Introduction to AI', credits: 3, equivalencyStatus: 'pending' },
+          { courseName: 'Introduction to AI', mappedCourseName: 'Artificial Intelligence', credits: 3, equivalencyStatus: 'pending' },
           { courseName: 'Programming Fundamentals', mappedCourseName: 'Programming Fundamentals', credits: 4, equivalencyStatus: 'pending' }
         ],
         curriculumComparison: {
@@ -457,7 +530,7 @@ async function seed() {
           expectedCompletion: 'Fall 2029'
         },
         missingCourses: [
-          { courseCode: 'CS-102', courseTitle: 'Object Oriented Programming', creditHours: 3 }
+          { courseCode: 'CS-102', courseTitle: 'Object Oriented Programming', creditHours: 4 }
         ]
       },
       {
@@ -469,7 +542,7 @@ async function seed() {
         status: 'pending',
         transferredCourses: [
           { courseName: 'Information Security', mappedCourseName: 'Information Security', credits: 3, equivalencyStatus: 'pending' },
-          { courseName: 'Discrete Structures', mappedCourseName: 'Discrete Structures', credits: 3, equivalencyStatus: 'pending' }
+          { courseName: 'Discrete Structures', mappedCourseName: 'IDS - III', credits: 3, equivalencyStatus: 'pending' }
         ],
         curriculumComparison: {
           fromRequiredCredits: 130,
@@ -483,7 +556,7 @@ async function seed() {
           expectedCompletion: 'Fall 2029'
         },
         missingCourses: [
-          { courseCode: 'CS-103', courseTitle: 'Data Structures', creditHours: 3 }
+          { courseCode: 'CS-104', courseTitle: 'Data Structures', creditHours: 4 }
         ]
       },
       {
@@ -508,7 +581,7 @@ async function seed() {
           expectedCompletion: 'Spring 2030'
         },
         missingCourses: [
-          { courseCode: 'SE-101', courseTitle: 'Introduction to SE', creditHours: 3 }
+          { courseCode: 'CS-107', courseTitle: 'Software Engineering', creditHours: 3 }
         ],
         decidedBy: academicAdmin._id,
         decidedAt: new Date('2026-05-14'),
@@ -522,7 +595,7 @@ async function seed() {
         toProgram: 'BS Computer Science (STMU)',
         status: 'approved',
         transferredCourses: [
-          { courseName: 'Linear Algebra', mappedCourseName: 'Linear Algebra', credits: 3, equivalencyStatus: 'accepted' }
+          { courseName: 'Linear Algebra', mappedCourseName: 'Linear Algebra (IDS II)', credits: 3, equivalencyStatus: 'accepted' }
         ],
         curriculumComparison: {
           fromRequiredCredits: 130,
@@ -536,7 +609,7 @@ async function seed() {
           expectedCompletion: 'Fall 2029'
         },
         missingCourses: [
-          { courseCode: 'CS-104', courseTitle: 'Digital Logic Design', creditHours: 3 }
+          { courseCode: 'CS-103', courseTitle: 'Digital Logic Design', creditHours: 4 }
         ],
         decidedBy: academicAdmin._id,
         decidedAt: new Date('2026-05-13'),
@@ -556,9 +629,9 @@ async function seed() {
           advisorId: csAdvisor._id,
           departmentId: cs,
           batchId: csStudents[0].batchId,
-          courseCode: 'CS201',
+          courseCode: 'CS-104',
           courseTitle: 'Data Structures',
-          creditHours: 3,
+          creditHours: 4,
           requestType: 'add',
           justification: 'Want to catch up with degree roadmap early.',
           status: 'advisor_approved',
@@ -573,9 +646,9 @@ async function seed() {
           advisorId: csAdvisor._id,
           departmentId: cs,
           batchId: csStudents[1].batchId,
-          courseCode: 'CS202',
+          courseCode: 'CS-105',
           courseTitle: 'Database Systems',
-          creditHours: 3,
+          creditHours: 4,
           requestType: 'add',
           justification: 'Required for internship prerequisite.',
           status: 'pending',

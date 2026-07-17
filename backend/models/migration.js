@@ -21,6 +21,14 @@ const transferredCourseSchema = new mongoose.Schema({
     enum: ['pending', 'accepted', 'rejected'],
     default: 'pending',
   },
+  grade: {
+    type: String,
+    trim: true,
+  },
+  semester: {
+    type: Number,
+    default: 1,
+  }
 });
 
 const migrationSchema = new mongoose.Schema({
@@ -55,6 +63,16 @@ const migrationSchema = new mongoose.Schema({
     default: 'pending',
   },
   transferredCourses: [transferredCourseSchema],
+  transcriptUrl: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  transcriptOriginalName: {
+    type: String,
+    default: '',
+    trim: true,
+  },
   curriculumComparison: {
     fromRequiredCredits: { type: Number, default: 0 },
     toRequiredCredits: { type: Number, default: 0 },

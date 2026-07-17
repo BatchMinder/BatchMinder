@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import Login from './components/auth/Login';
 import SuperAdminSetup from './components/auth/SuperAdminSetup';
+import ResetPassword from './components/auth/ResetPassword';
 import SuperAdminDashboard from './components/dashboard/SuperAdminDashboard';
 import CurriculumGrid from './components/curriculum/CurriculumGrid';
 import EquivalencyForm from './components/curriculum/EquivalencyForm';
@@ -23,7 +24,6 @@ import MigrationRecords from './pages/admin/MigrationRecords';
 import CurriculumSetup from './pages/admin/CurriculumSetup';
 import Batches from './pages/admin/Batches';
 import NotificationsPage from './components/dashboard/NotificationsPage';
-import AuditLogsPage from './components/dashboard/AuditLogsPage';
 import ProfileSettingsPage from './components/dashboard/ProfileSettingsPage';
 import AdvisorDashboard from './components/dashboard/AdvisorDashboard';
 import AdvisorStudents from './components/dashboard/AdvisorStudents';
@@ -36,10 +36,8 @@ import Footer from './components/Footer';
 
 // 💻 YOUR TEAMMATE'S MODULE 4 BATCH ADVISOR PAGE IMPORT
 import AdvisorQueue from './pages/advisor/AdvisorQueue';
-import AdvisorTimetable from './pages/advisor/AdvisorTimetable';
 import AdvisorReporting from './pages/advisor/AdvisorReporting';
 import AdvisorMyBatch from './pages/advisor/AdvisorMyBatch';
-import AttendanceDashboard from './pages/advisor/AttendanceDashboard';
 import AdvisorRiskDashboard from './pages/advisor/AdvisorRiskDashboard';
 
 import {
@@ -100,7 +98,7 @@ function App() {
     const path = window.location.pathname;
     if (path.startsWith('/dashboard/')) {
       const subPage = path.substring('/dashboard/'.length);
-      const validPages = ['dashboard', 'myBatch', 'students', 'at_risk_monitoring', 'workflowQueue', 'attendance', 'reporting', 'settings', 'notifications'];
+      const validPages = ['dashboard', 'myBatch', 'students', 'at_risk_monitoring', 'workflowQueue', 'attendance', 'reporting', 'settings', 'notifications', 'degree_plan'];
       if (validPages.includes(subPage)) {
         return subPage;
       }
@@ -173,6 +171,7 @@ function App() {
   useEffect(() => {
     const handleUrlChange = () => {
       const path = window.location.pathname;
+      setCurrentPath(path);
       if (!path.startsWith('/dashboard/')) {
         if (path === '/dashboard' || path === '/dashboard/') {
           if (user?.role === 'academic_admin') setAdminActiveNav('dashboard');
@@ -188,7 +187,7 @@ function App() {
         if (validPages.includes(subPage)) setAdminActiveNav(subPage);
       }
       if (user?.role === 'advisor') {
-        const validPages = ['dashboard', 'myBatch', 'students', 'at_risk_monitoring', 'workflowQueue', 'attendance', 'reporting', 'settings', 'notifications'];
+        const validPages = ['dashboard', 'myBatch', 'students', 'at_risk_monitoring', 'workflowQueue', 'attendance', 'reporting', 'settings', 'notifications', 'degree_plan'];
         if (validPages.includes(subPage)) setAdvisorActiveNav(subPage);
       }
       if (user?.role === 'admin') {
@@ -427,15 +426,11 @@ function App() {
         timetable: <TimetableGenerator setActiveNav={(nav) => { setAdminActiveNav(nav); if (nav === 'schedule_override' || nav === 'override') setOverrideInitialTab('timetable'); }} />,
         datesheet: <DatesheetGenerator setActiveNav={(nav) => { setAdminActiveNav(nav); if (nav === 'schedule_override' || nav === 'override') setOverrideInitialTab('datesheet'); }} />,
         override: <ScheduleOverride initialTab={overrideInitialTab} />,
-        audit_logs: <AuditLogsPage setActiveNav={setAdminActiveNav} />,
-        settings: <ProfileSettingsPage />,
-
-        // 🗓️ Switched paths to load their individual separate view screens!
         timetable_generator: <TimetableGenerator setActiveNav={(nav) => { setAdminActiveNav(nav); if (nav === 'schedule_override') setOverrideInitialTab('timetable'); }} />,
         datesheet_generator: <DatesheetGenerator setActiveNav={(nav) => { setAdminActiveNav(nav); if (nav === 'schedule_override') setOverrideInitialTab('datesheet'); }} />,
         schedule_override: <ScheduleOverride initialTab={overrideInitialTab} />,
+        settings: <ProfileSettingsPage />,
         notifications: <NotificationsPage setActiveNav={setAdminActiveNav} />,
-        attendance: <AttendanceDashboard user={user} />,
         reports: <AdvisorReporting />,
         special_permission: <HODQueue />,
       };
@@ -449,10 +444,10 @@ function App() {
         students: <AdvisorStudents selectedBatch={selectedAdvisorBatch} />,
         at_risk_monitoring: <AdvisorRiskDashboard />,
         workflowQueue: <AdvisorQueue />,
-        attendance: <AttendanceDashboard user={user} />,
         reporting: <AdvisorReporting />,
         settings: <ProfileSettingsPage />,
         notifications: <NotificationsPage setActiveNav={setAdvisorActiveNav} />,
+        degree_plan: <CurriculumBoard />,
       };
       return (
         <AdminLayout
@@ -583,6 +578,8 @@ function App() {
     <div className="min-h-screen flex flex-col justify-between font-sans bg-slate-50 overflow-x-hidden">
       {currentPath === '/super-admin-setup' ? (
         <SuperAdminSetup setCurrentPath={setCurrentPath} />
+      ) : currentPath.startsWith('/reset-password') ? (
+        <ResetPassword />
       ) : (
         <Login />
       )}

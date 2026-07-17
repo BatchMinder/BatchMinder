@@ -6,7 +6,12 @@ import { logAudit } from '../utils/logger.js';
 
 export const getAllCurriculums = async (req, res) => {
   try {
-    const scope = scopeToUserDepartments(req);
+    let scope = scopeToUserDepartments(req);
+    // Advisors need to see the global course catalog to check prerequisites for any course
+    if (req.user && req.user.role === 'advisor') {
+      scope = {}; 
+    }
+    
     if (scope._id === null) {
       return res.status(200).json({ status: 'success', data: { curriculums: [] } });
     }
@@ -175,3 +180,25 @@ export const createOrUpdateCurriculumMap = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+
+export const getHECCurriculum = async (req, res) => {
+  try {
+    let hecDept = await Department.findOne({ code: 'HEC' });
+    let hecBatch = await Batch.findOne({ code: 'HEC-2025' });
+
+    if (!hecDept || !hecBatch) {
+      return res.status(404).json({ message: 'HEC curriculum not found' });
+    }
+
+    const curriculum = await Curriculum.findOne({
+      departmentId: hecDept._id,
+      batchId: hecBatch._id
+    });
+
+    res.status(200).json({ status: 'success', data: { curriculum } });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+

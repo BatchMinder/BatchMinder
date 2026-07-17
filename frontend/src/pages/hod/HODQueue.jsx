@@ -347,7 +347,7 @@ export default function HODQueue() {
         {/* Right Column: Request Detail Inline Panel */}
         {selectedRequest && (
           !isMobile ? (
-            <div className="sticky top-6 no-scrollbar" style={{ minWidth: 0, maxHeight: 'calc(100vh - 40px)', overflowY: 'auto' }}>
+            <div className="sticky top-6 thin-scrollbar" style={{ minWidth: 0, maxHeight: 'calc(100vh - 140px)', overflowY: 'auto' }}>
               <RequestDetail
                 request={selectedRequest}
                 userRole="hod"

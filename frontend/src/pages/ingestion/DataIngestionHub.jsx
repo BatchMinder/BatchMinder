@@ -89,9 +89,12 @@ export default function DataIngestionHub({ onUploadSuccess }) {
 
   // Metadata Dropdown Selection States
   const [departments, setDepartments] = useState([]);
+  
+
   const [batches, setBatches] = useState([]);
   const [selectedDept, setSelectedDept] = useState('');
   const [selectedBatch, setSelectedBatch] = useState('');
+  const [selectedSemester, setSelectedSemester] = useState(1);
 
   // Derived state: Filter batches by the selected department
   const filteredBatches = React.useMemo(() => {
@@ -171,6 +174,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
       formData.append('file', selectedFile);
       formData.append('department', selectedDept);
       formData.append('batch', selectedBatch);
+      formData.append('semester', selectedSemester);
 
       // Simulate progress progression
       setTimeout(() => setUploadProgress(85), 600);
@@ -360,6 +364,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
           >
             🔌 API Integrations
           </button>
+
         </div>
       </div>
 
@@ -378,10 +383,10 @@ export default function DataIngestionHub({ onUploadSuccess }) {
               </div>
  
               {/* Metadata Selectors (Required before upload) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 my-2">
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.5px' }}>
-                    Department (Required before upload)
+                    Department
                   </label>
                   <select
                     value={selectedDept}
@@ -392,14 +397,14 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                     }}
                   >
                     {departments.map(d => (
-                      <option key={d._id} value={d.name}>{d.name}</option>
+                      <option key={d._id} value={d.name}>{d.code || d.name}</option>
                     ))}
                   </select>
                 </div>
  
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.5px' }}>
-                    Batch (Required)
+                    Batch
                   </label>
                   <select
                     value={selectedBatch}
@@ -416,6 +421,24 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                     ) : (
                       <option value="" disabled>No batches available</option>
                     )}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.5px' }}>
+                    Semester
+                  </label>
+                  <select
+                    value={selectedSemester}
+                    onChange={e => setSelectedSemester(Number(e.target.value))}
+                    style={{
+                      width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid #CBD5E1',
+                      fontSize: '13px', color: '#1E293B', backgroundColor: '#FFFFFF', outline: 'none', cursor: 'pointer', fontFamily: 'inherit'
+                    }}
+                  >
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => (
+                      <option key={sem} value={sem}>Semester {sem}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -640,7 +663,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                 }}>
                   <CheckCircle size={16} color="#10B981" style={{ flexShrink: 0 }} />
                   <span>
-                    Import complete: {uploadSuccess ? (uploadStats?.upserted || 0) : 0} students imported, {validationErrors.length} errors
+                    Import complete: {uploadSuccess ? ((uploadStats?.upserted || 0) + (uploadStats?.modified || 0)) : 0} students imported/updated, {validationErrors.length} errors
                   </span>
                 </div>
               )}
@@ -904,6 +927,8 @@ export default function DataIngestionHub({ onUploadSuccess }) {
 
         </div>
       )}
+
+
 
     </div>
   );

@@ -27,6 +27,11 @@ const courseSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Curriculum.courses', // logical ref — validated in controller
   }],
+  courseType: {
+    type: String,
+    enum: ['CORE', 'ELECTIVE', 'LAB', 'GENERAL'],
+    default: 'CORE',
+  },
 });
 
 const curriculumSchema = new mongoose.Schema({
@@ -54,6 +59,10 @@ const curriculumSchema = new mongoose.Schema({
     required: [true, 'Please specify curriculum version'],
     trim: true,
     default: '1.0',
+  },
+  totalRequiredCredits: {
+    type: Number,
+    default: 130,
   },
   status: {
     type: String,

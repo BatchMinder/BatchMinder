@@ -112,7 +112,7 @@ export default function DegreeProgressBar({
         </h4>
         
         {categories.map((cat, idx) => {
-          const catPct = Math.min(100, Math.round((cat.completed / cat.total) * 100));
+          const catPct = cat.total > 0 ? Math.min(100, Math.round((cat.completed / cat.total) * 100)) : 0;
           return (
             <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>

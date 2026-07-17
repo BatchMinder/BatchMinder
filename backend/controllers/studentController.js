@@ -18,12 +18,13 @@ export const getAllStudents = async (req, res) => {
       }
     }
 
-    const { batchId, status, cgpaStatus, search, batch, department, page = 1, limit = 50 } = req.query;
+    const { batchId, status, cgpaStatus, search, batch, department, semester, page = 1, limit = 50 } = req.query;
     const filter = { ...scope };
 
     if (batchId) filter.batchId = batchId;
     if (status) filter.status = status;
     if (cgpaStatus) filter.cgpaStatus = cgpaStatus;
+    if (semester) filter.currentSemester = Number(semester);
 
     if (batch) {
       const batchDoc = await Batch.findOne({ code: { $regex: new RegExp(batch, 'i') } });
@@ -357,6 +358,43 @@ export const bulkUploadStudents = async (req, res, next) => {
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
+    const targetSemester = parseInt(req.body.semester) || 1;
+    const selectedDeptName = req.body.department || 'Computer Science';
+    const selectedBatchCode = req.body.batch || '2022';
+
+
+
+    // Find dept and batch
+    let selectedDept = await Department.findOne({ name: { $regex: new RegExp(`^${selectedDeptName}$`, 'i') } });
+    if (!selectedDept) {
+      selectedDept = await Department.findOne({ code: 'CS' }) || await Department.create({ name: selectedDeptName, code: 'CS', color: '#6366F1' });
+    }
+    let selectedBatchDoc = await Batch.findOne({ code: { $regex: new RegExp(selectedBatchCode, 'i') } });
+    if (!selectedBatchDoc && selectedDept) {
+      selectedBatchDoc = await Batch.create({
+        code: selectedBatchCode,
+        dept: selectedDept.name,
+        departmentId: selectedDept._id,
+        startYear: parseInt(selectedBatchCode) || 22,
+        advisor: 'Unassigned',
+      });
+    }
+
+    // Find active HEC curriculum
+    let curriculum = null;
+    if (selectedDeptName.toLowerCase().includes('computer science') || selectedDeptName.toLowerCase() === 'cs') {
+      curriculum = await Curriculum.findOne({ version: 'HEC-2025-BSCS' });
+    }
+
+    if (!curriculum) {
+      if (selectedBatchDoc) {
+        curriculum = await Curriculum.findOne({ batchId: selectedBatchDoc._id });
+      }
+      if (!curriculum && selectedDept) {
+        curriculum = await Curriculum.findOne({ departmentId: selectedDept._id });
+      }
+    }
+
     let rawStudentsData = [];
     const isExcel = req.file.originalname.endsWith('.xlsx') || req.file.originalname.endsWith('.xls') || (req.file.mimetype && (req.file.mimetype.includes('spreadsheet') || req.file.mimetype.includes('excel')));
 
@@ -417,35 +455,66 @@ export const bulkUploadStudents = async (req, res, next) => {
     const validStudentsData = [];
     const previewStudents = [];
 
+    const gradesMap = [
+      { name: 'A', gp: 4.0 },
+      { name: 'B+', gp: 3.5 },
+      { name: 'B', gp: 3.0 },
+      { name: 'C+', gp: 2.5 },
+      { name: 'C', gp: 2.0 }
+    ];
+
     for (let idx = 0; idx < rawStudentsData.length; idx++) {
       const row = rawStudentsData[idx];
       const rowNum = idx + 2; // Index 0 is row #2 in the CSV sheet
       const data = normalizeKeys(row);
 
       let rowHasError = false;
-      if (!data.rollNumber || !String(data.rollNumber).trim()) {
-        errors.push(`Row ${rowNum}: rollNumber - Roll number is required`);
+      const rollStr = String(data.rollNumber || '').trim();
+      if (!rollStr) {
+        errors.push(`Row ${rowNum}: rollNumber - Registration number is required`);
         rowHasError = true;
+      } else {
+        const regNoRegex = /^[A-Za-z]{2}\d{2}-[A-Za-z]{3}-\d{3,4}$/;
+        if (!regNoRegex.test(rollStr)) {
+          errors.push(`Row ${rowNum}: rollNumber - Invalid format (e.g., FA23-BSE-001)`);
+          rowHasError = true;
+        }
       }
       if (!data.name || !String(data.name).trim()) {
         errors.push(`Row ${rowNum}: name - Name is required`);
         rowHasError = true;
       }
-      if (!data.batch || !String(data.batch).trim()) {
-        errors.push(`Row ${rowNum}: batch - Batch code is required`);
-        rowHasError = true;
-      }
-
-      if (data.cgpa !== undefined && data.cgpa !== null) {
-        const cgpaStr = String(data.cgpa).trim();
-        if (cgpaStr.length > 0) {
-          const cgpaVal = parseFloat(cgpaStr);
-          if (isNaN(cgpaVal) || cgpaVal < 0.0 || cgpaVal > 4.0) {
-            errors.push(`Row ${rowNum}: cgpa - CGPA must be between 0 and 4.0`);
-            rowHasError = true;
-          }
+      if (data.cgpa !== undefined && data.cgpa !== null && String(data.cgpa).trim() !== '') {
+        const parsedCgpa = Number(data.cgpa);
+        if (isNaN(parsedCgpa) || parsedCgpa < 0 || parsedCgpa > 4.0) {
+          errors.push(`Row ${rowNum}: cgpa - Invalid CGPA. Must be between 0.0 and 4.0`);
+          rowHasError = true;
         }
       }
+
+      // Calculate CGPA dynamically based on selected semester
+      let calculatedCgpa = 0.0;
+      let totalPoints = 0;
+      let totalCredits = 0;
+
+      if (curriculum && curriculum.courses) {
+        curriculum.courses.forEach(currCourse => {
+          if (currCourse.semester < targetSemester) {
+            // Stable simulated grade points based on roll number
+            const randomHash = (data.rollNumber || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+            const gradeIdx = (randomHash + currCourse.code.charCodeAt(2)) % gradesMap.length;
+            const chosen = gradesMap[gradeIdx];
+            totalPoints += (chosen.gp * currCourse.creditHours);
+            totalCredits += currCourse.creditHours;
+          }
+        });
+      }
+
+      if (totalCredits > 0) {
+        calculatedCgpa = Math.round((totalPoints / totalCredits) * 100) / 100;
+      }
+
+      data.calculatedCgpa = calculatedCgpa;
 
       // Check for duplicate roll number within the uploaded file itself
       if (!rowHasError && data.rollNumber) {
@@ -456,15 +525,18 @@ export const bulkUploadStudents = async (req, res, next) => {
         }
       }
 
+      // Check if student with this roll number already exists in the database
+      if (!rowHasError && data.rollNumber) {
+        const exists = await Student.findOne({ rollNumber: data.rollNumber });
+        if (exists) {
+          errors.push(`Row ${rowNum}: rollNumber - Student with roll number '${data.rollNumber}' already exists in the database`);
+          rowHasError = true;
+        }
+      }
+
       if (!rowHasError) {
         validCount++;
         validStudentsData.push(data);
-        if (data.rollNumber) {
-          const exists = await Student.findOne({ rollNumber: data.rollNumber });
-          if (exists) {
-            duplicateCount++;
-          }
-        }
       }
 
       // Generate preview row data
@@ -472,23 +544,32 @@ export const bulkUploadStudents = async (req, res, next) => {
         id: String(rowNum - 1),
         roll: data.rollNumber || '',
         name: data.name || '',
-        dept: data.department || 'Computer Science',
-        batch: data.batch || '2022',
-        sem: data.semester || '1',
-        cgpa: data.cgpa || '0.00',
-        status: rowHasError ? 'Invalid' : (parseFloat(data.cgpa) < 2.0 ? 'At Risk' : 'Valid')
+        dept: data.department || selectedDeptName,
+        batch: data.batch || selectedBatchCode,
+        sem: String(targetSemester),
+        cgpa: targetSemester === 1 ? 'N/A' : calculatedCgpa.toFixed(2),
+        status: rowHasError ? 'Invalid' : (calculatedCgpa < 2.0 && targetSemester > 1 ? 'At Risk' : 'Valid')
+      });
+    }
+
+    // STRICT VALIDATION ENGINE: Block entire upload if any row has an error
+    if (errors.length > 0) {
+      return res.status(400).json({
+        message: 'Validation Engine Blocked Upload: Invalid data found.',
+        errors: errors,
+        validCount: 0
       });
     }
 
     // Save only valid student records to the database
     for (const data of validStudentsData) {
-      let deptName = req.body.department || data.department || 'Computer Science';
+      let deptName = req.body.department || data.department || selectedDeptName;
       let dept = await Department.findOne({ name: { $regex: new RegExp(`^${deptName}$`, 'i') } });
       if (!dept) {
         dept = await Department.findOne({ code: 'CS' }) || await Department.create({ name: deptName, code: 'CS', color: '#6366F1' });
       }
 
-      let batchCode = req.body.batch || data.batch || '2022';
+      let batchCode = req.body.batch || data.batch || selectedBatchCode;
       let batch = await Batch.findOne({ code: { $regex: new RegExp(batchCode, 'i') } });
       if (!batch) {
         batch = await Batch.create({
@@ -500,24 +581,61 @@ export const bulkUploadStudents = async (req, res, next) => {
         });
       }
 
-      const cgpaVal = parseFloat(data.cgpa) || 0.0;
+      // Populate dynamic course history based on the selected semester
+      const studentCourses = [];
+      if (curriculum && curriculum.courses) {
+        curriculum.courses.forEach(currCourse => {
+          if (currCourse.semester < targetSemester) {
+            const randomHash = (data.rollNumber || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+            const gradeIdx = (randomHash + currCourse.code.charCodeAt(2)) % gradesMap.length;
+            const chosen = gradesMap[gradeIdx];
+
+            studentCourses.push({
+              courseCode: currCourse.code,
+              courseTitle: currCourse.title,
+              creditHours: currCourse.creditHours,
+              semester: currCourse.semester,
+              grade: chosen.name,
+              enrollmentStatus: 'completed',
+              status: 'completed',
+              attendance: Math.floor(Math.random() * 10) + 90
+            });
+          } else if (currCourse.semester === targetSemester) {
+            studentCourses.push({
+              courseCode: currCourse.code,
+              courseTitle: currCourse.title,
+              creditHours: currCourse.creditHours,
+              semester: currCourse.semester,
+              grade: 'IP',
+              enrollmentStatus: 'enrolled',
+              status: 'enrolled',
+              attendance: 100
+            });
+          }
+        });
+      }
+
       let student = await Student.findOne({ rollNumber: data.rollNumber });
       if (student) {
         student.name = data.name;
-        student.email = data.email;
+        if (data.email) student.email = data.email;
         student.departmentId = dept._id;
         student.batchId = batch._id;
-        student.cgpa = cgpaVal;
+        student.currentSemester = targetSemester;
+        student.cgpa = data.calculatedCgpa;
+        student.courses = studentCourses;
         student.status = 'active';
         await student.save();
       } else {
         student = await Student.create({
           rollNumber: data.rollNumber,
           name: data.name,
-          email: data.email,
+          email: data.email || `${data.name.toLowerCase().replace(/\s+/g, '.')}@stmu.edu.pk`,
           departmentId: dept._id,
           batchId: batch._id,
-          cgpa: cgpaVal,
+          currentSemester: targetSemester,
+          cgpa: data.calculatedCgpa,
+          courses: studentCourses,
           status: 'active'
         });
       }
@@ -529,7 +647,7 @@ export const bulkUploadStudents = async (req, res, next) => {
         targetType: 'Student',
         targetId: data.rollNumber,
         departmentId: dept._id.toString(),
-        metadata: { description: `Bulk uploaded student ${data.name} for Department: ${dept.name}` }
+        metadata: { description: `Bulk uploaded student ${data.name} for Department: ${dept.name} in Semester: ${targetSemester}` }
       });
     }
 

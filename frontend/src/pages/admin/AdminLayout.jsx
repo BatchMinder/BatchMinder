@@ -248,7 +248,6 @@ export default function AdminLayout({
     { id: 'timetable_generator', label: 'Timetable Generator', icon: Calendar },
     { id: 'datesheet_generator', label: 'Datesheet Generator', icon: BookOpen },
     { id: 'schedule_override', label: 'Schedule Override', icon: Clock },
-    { id: 'audit_logs', label: 'System Audit Logs', icon: BarChart2 },
   ];
 
   const activeNavItem = [
@@ -534,8 +533,7 @@ export default function AdminLayout({
                 title="System"
                 items={[
                   { id: 'notifications', label: 'Notifications', icon: Bell },
-                  { id: 'settings', label: 'System Settings', icon: Settings },
-                  { id: 'audit_logs', label: 'Audit Logs', icon: FileText }
+                  { id: 'settings', label: 'System Settings', icon: Settings }
                 ]}
                 activeNav={activeNav} handleNavigate={handleNavigate} expandedFolders={expandedFolders} toggleFolder={toggleFolder}
               />
