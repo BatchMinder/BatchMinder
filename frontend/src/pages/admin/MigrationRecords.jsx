@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { FileSpreadsheet, CheckCircle, Clock, AlertCircle, FileText, ArrowRightLeft, Eye, Check, X, Building2, User, Search, RefreshCw, Plus, BookOpen, Layers, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { FileSpreadsheet, CheckCircle, Clock, AlertCircle, FileText, ArrowRightLeft, Eye, Check, X, Building2, User, Search, RefreshCw, Plus, BookOpen, Layers, Trash2, Upload, Download, ChevronDown, ChevronUp, Calculator, GraduationCap } from 'lucide-react';
 import { format } from 'date-fns';
 import { CircularProgress } from '@mui/material';
+import Select from 'react-select';
 import MigrationAudit from '../migration/MigrationAudit';
 
 export default function MigrationRecords() {
@@ -19,9 +20,10 @@ export default function MigrationRecords() {
 
   // New Request Modal State
   const [showNewModal, setShowNewModal] = useState(false);
-  const [newReq, setNewReq] = useState({ rollNumber: '', sourceInstitution: '', departmentId: '' });
+  const [newReq, setNewReq] = useState({ studentName: '', studentEmail: '', studentPhone: '', sourceInstitution: '', departmentId: '', batchId: '', fromSemester: '' });
   const [departmentsList, setDepartmentsList] = useState([]);
   const [studentsList, setStudentsList] = useState([]);
+  const [batchesList, setBatchesList] = useState([]);
   const [isSubmittingNew, setIsSubmittingNew] = useState(false);
   const [newReqError, setNewReqError] = useState('');
   const [activeTab, setActiveTab] = useState('requests');
@@ -37,6 +39,18 @@ export default function MigrationRecords() {
 
   // Curriculum State for comparison
   const [curriculum, setCurriculum] = useState(null);
+  const [hecCurriculum, setHecCurriculum] = useState(null);
+
+  // Transcript upload state
+  const [transcriptFile, setTranscriptFile] = useState(null);
+  const [isUploadingTranscript, setIsUploadingTranscript] = useState(false);
+  const transcriptInputRef = useRef(null);
+
+  // HEC panel + remarks state
+  const [showHecPanel, setShowHecPanel] = useState(false);
+  const [decisionRemarks, setDecisionRemarks] = useState('');
+  const [isParsingTranscript, setIsParsingTranscript] = useState(false);
+  const [parseError, setParseError] = useState('');
 
   const fetchMigrations = async () => {
     try {
@@ -45,8 +59,12 @@ export default function MigrationRecords() {
       const data = await res.json();
       if (data.status === 'success') {
         setMigrations(data.data.migrations);
-        if (data.data.migrations.length > 0 && !selected) {
-          setSelected(data.data.migrations[0]);
+        if (data.data.migrations.length > 0) {
+          setSelected(prevSelected => {
+            if (!prevSelected) return data.data.migrations[0];
+            const updated = data.data.migrations.find(m => m._id === prevSelected._id);
+            return updated || prevSelected;
+          });
         }
       } else {
         setError(data.message || 'Failed to fetch migrations');
@@ -60,7 +78,22 @@ export default function MigrationRecords() {
 
   useEffect(() => {
     fetchMigrations();
+    fetchHecCurriculum();
   }, []);
+
+  const fetchHecCurriculum = async () => {
+    try {
+      const res = await fetch('/api/curriculums/hec');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status === 'success') {
+          setHecCurriculum(data.data.curriculum);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch HEC curriculum', e);
+    }
+  };
 
   useEffect(() => {
     setCurrentPage(1);
@@ -72,7 +105,7 @@ export default function MigrationRecords() {
     setShowCoursesModal(true);
   };
 
-  const saveTransferredCourses = async () => {
+  const saveTransferredCourses = async (silent = false) => {
     if (!selected) return;
     setIsUpdatingCourses(true);
     try {
@@ -83,9 +116,10 @@ export default function MigrationRecords() {
       });
       const data = await res.json();
       if (data.status === 'success') {
-        setShowCoursesModal(false);
         fetchMigrations();
-        alert('Transferred courses saved successfully!');
+        if (silent !== true) {
+          alert('Transferred courses saved successfully!');
+        }
       } else {
         alert('Error: ' + data.message);
       }
@@ -121,17 +155,22 @@ export default function MigrationRecords() {
   const openNewRequestModal = async () => {
     setShowNewModal(true);
     try {
-      const [deptRes, stuRes] = await Promise.all([
+      const [deptRes, stuRes, batchRes] = await Promise.all([
         fetch('/api/departments'),
-        fetch('/api/students')
+        fetch('/api/students'),
+        fetch('/api/batches')
       ]);
       const deptData = await deptRes.json();
       const stuData = await stuRes.json();
+      const batchData = await batchRes.json();
       if (deptData.status === 'success') {
         setDepartmentsList(deptData.data || []);
       }
       if (stuData.status === 'success') {
         setStudentsList(stuData.data.students || []);
+      }
+      if (batchData.status === 'success') {
+        setBatchesList(batchData.data || []);
       }
     } catch (err) {
       console.error('Error fetching lists:', err);
@@ -140,14 +179,8 @@ export default function MigrationRecords() {
 
   const submitNewRequest = async () => {
     setNewReqError('');
-    if (!newReq.rollNumber || !newReq.departmentId || !newReq.sourceInstitution) {
-      setNewReqError('Please fill in all fields');
-      return;
-    }
-    
-    const student = studentsList.find(s => s.rollNumber.toLowerCase() === newReq.rollNumber.toLowerCase());
-    if (!student) {
-      setNewReqError('Student with this roll number not found');
+    if (!newReq.studentName || !newReq.departmentId || !newReq.batchId || !newReq.sourceInstitution) {
+      setNewReqError('Please fill in all required fields (Name, Target Department, Target Batch, Source Institution)');
       return;
     }
 
@@ -157,16 +190,27 @@ export default function MigrationRecords() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          studentId: student._id,
+          studentName: newReq.studentName,
+          studentEmail: newReq.studentEmail,
+          studentPhone: newReq.studentPhone,
           departmentId: newReq.departmentId,
+          batchId: newReq.batchId,
           sourceInstitution: newReq.sourceInstitution,
+          fromProgram: newReq.fromSemester ? `Semester ${newReq.fromSemester}` : '',
+          currentSemester: newReq.fromSemester || 1,
           transferredCourses: []
         })
       });
       const data = await res.json();
       if (data.status === 'success') {
+        // Upload transcript if a file was selected
+        const createdId = data.data?.migration?._id;
+        if (createdId && transcriptFile) {
+          await uploadTranscriptFile(createdId, transcriptFile);
+        }
         setShowNewModal(false);
-        setNewReq({ rollNumber: '', sourceInstitution: '', departmentId: '' });
+        setNewReq({ studentName: '', studentEmail: '', studentPhone: '', sourceInstitution: '', departmentId: '', batchId: '', fromSemester: '' });
+        setTranscriptFile(null);
         fetchMigrations();
       } else {
         setNewReqError(data.message || 'Failed to create request');
@@ -178,17 +222,43 @@ export default function MigrationRecords() {
     }
   };
 
-  const handleDecision = async (status) => {
+  const uploadTranscriptFile = async (migrationId, file) => {
+    setIsUploadingTranscript(true);
+    try {
+      const formData = new FormData();
+      formData.append('transcript', file);
+      const res = await fetch(`/api/migrations/${migrationId}/transcript`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        return data.data.transcriptUrl;
+      }
+    } catch (err) {
+      console.error('Transcript upload failed:', err);
+    } finally {
+      setIsUploadingTranscript(false);
+    }
+    return null;
+  };
+
+  const handleDecision = async (status, remarksOverride) => {
     if (!selected) return;
     setActioning(true);
     setActionError('');
     
+    const courseDecisions = status === 'approved'
+      ? (tempCourses.length > 0 ? tempCourses : selected.transferredCourses).map(c => ({
+          courseName: c.courseName,
+          equivalencyStatus: c.equivalencyStatus === 'accepted' ? 'accepted' : (c.equivalencyStatus === 'rejected' ? 'rejected' : 'accepted')
+        }))
+      : selected.transferredCourses.map(c => ({ courseName: c.courseName, equivalencyStatus: 'rejected' }));
+
     const decisionPayload = {
-      courseDecisions: selected.transferredCourses.map(c => ({
-        courseName: c.courseName,
-        equivalencyStatus: status === 'approved' ? 'accepted' : 'rejected'
-      })),
-      remarks: `Automatically ${status} all courses via quick action.`
+      status: status,
+      courseDecisions,
+      remarks: remarksOverride || decisionRemarks || `Migration ${status} by admin.`
     };
 
     try {
@@ -338,13 +408,13 @@ export default function MigrationRecords() {
       </div>
 
       {activeTab === 'requests' ? (
-        <div className="grid grid-cols-1 xl:grid-cols-[1.5fr_1fr] gap-5">
+        <div className="flex flex-col xl:grid xl:grid-cols-[1.5fr_1fr] gap-5">
         
         {/* LEFT COLUMN */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="contents xl:flex xl:flex-col" style={{ gap: '20px' }}>
           
           {/* Main List Table */}
-          <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0', overflow: 'hidden' }}>
+          <div className="order-1 xl:order-none" style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0', overflow: 'hidden' }}>
             <div className="flex flex-col xl:flex-row justify-between xl:items-center gap-4 mb-5">
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0F172A' }}>Migrated Students List</h3>
               <div className="flex flex-col sm:flex-row gap-3">
@@ -471,7 +541,7 @@ export default function MigrationRecords() {
           </div>
 
           {/* Curriculum Comparison & Course Equivalency (Bottom Left area matching screenshot) */}
-          <div className="grid grid-cols-1 xl:grid-cols-[1fr_1.5fr] gap-5">
+          <div className="order-3 xl:order-none grid grid-cols-1 xl:grid-cols-[1fr_1.5fr] gap-5">
             
             {/* Curriculum Comparison */}
             <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0' }}>
@@ -567,10 +637,10 @@ export default function MigrationRecords() {
         </div>
 
         {/* RIGHT COLUMN */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="contents xl:flex xl:flex-col" style={{ gap: '20px' }}>
           
           {/* Selected Student Details */}
-          <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0' }}>
+          <div className="order-2 xl:order-none" style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
               <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Selected Student Details</h3>
               <button onClick={() => setShowProfileModal(true)} style={{ fontSize: '12px', color: '#2563EB', border: 'none', background: 'none', fontWeight: 600, cursor: 'pointer' }}>View Full Profile</button>
@@ -626,7 +696,7 @@ export default function MigrationRecords() {
           </div>
 
           {/* Migration Summary */}
-          <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0' }}>
+          <div className="order-4 xl:order-none" style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0' }}>
             <h3 style={{ margin: '0 0 20px', fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Migration Summary</h3>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '12px', marginBottom: '24px' }}>
@@ -721,37 +791,129 @@ export default function MigrationRecords() {
               )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Student Roll Number</label>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Student Name <span style={{ color: '#EF4444' }}>*</span></label>
                   <input 
                     type="text" 
-                    placeholder="e.g. F22-BCS-001"
-                    value={newReq.rollNumber}
-                    onChange={(e) => setNewReq({...newReq, rollNumber: e.target.value})}
+                    placeholder="e.g. Muhammad Faisal Raza"
+                    value={newReq.studentName}
+                    onChange={(e) => setNewReq({...newReq, studentName: e.target.value})}
                     style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none' }}
                   />
                 </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Email <span style={{ color: '#94A3B8', fontWeight: 400 }}>(Optional)</span></label>
+                    <input 
+                      type="email" 
+                      placeholder="e.g. name@example.com"
+                      value={newReq.studentEmail}
+                      onChange={(e) => setNewReq({...newReq, studentEmail: e.target.value})}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Phone <span style={{ color: '#94A3B8', fontWeight: 400 }}>(Optional)</span></label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. 0300-1234567"
+                      value={newReq.studentPhone}
+                      onChange={(e) => setNewReq({...newReq, studentPhone: e.target.value})}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none' }}
+                    />
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Target Department <span style={{ color: '#EF4444' }}>*</span></label>
+                    <select 
+                      value={newReq.departmentId}
+                      onChange={(e) => setNewReq({...newReq, departmentId: e.target.value})}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', backgroundColor: '#fff' }}
+                    >
+                      <option value="">Select Department</option>
+                      {departmentsList.map(d => (
+                        <option key={d._id} value={d._id}>{d.name} ({d.code})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Target Batch <span style={{ color: '#EF4444' }}>*</span></label>
+                    <select 
+                      value={newReq.batchId}
+                      onChange={(e) => setNewReq({...newReq, batchId: e.target.value})}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', backgroundColor: '#fff' }}
+                    >
+                      <option value="">Select Batch</option>
+                      {batchesList.filter(b => b.departmentId === newReq.departmentId || b.departmentId?._id === newReq.departmentId).map(b => (
+                        <option key={b._id} value={b._id}>{b.code}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Source Institution</label>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Source Institution <span style={{ color: '#EF4444' }}>*</span></label>
                   <input 
                     type="text" 
-                    placeholder="e.g. ABC University"
+                    placeholder="e.g. NUST UNIVERSITY"
                     value={newReq.sourceInstitution}
                     onChange={(e) => setNewReq({...newReq, sourceInstitution: e.target.value})}
                     style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none' }}
                   />
                 </div>
+
+                {/* Semester */}
+
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Target Department</label>
-                  <select 
-                    value={newReq.departmentId}
-                    onChange={(e) => setNewReq({...newReq, departmentId: e.target.value})}
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Semester at Source Institution</label>
+                  <select
+                    value={newReq.fromSemester}
+                    onChange={(e) => setNewReq({...newReq, fromSemester: e.target.value})}
                     style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', backgroundColor: '#fff' }}
                   >
-                    <option value="">Select a Department</option>
-                    {departmentsList.map(d => (
-                      <option key={d._id} value={d._id}>{d.name} ({d.code})</option>
+                    <option value="">Select semester completed</option>
+                    {[1,2,3,4,5,6,7,8].map(s => (
+                      <option key={s} value={s}>Semester {s}</option>
                     ))}
                   </select>
+                </div>
+                {/* Transcript Upload */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>
+                    HEC-Verified Transcript <span style={{ color: '#94A3B8', fontWeight: 400 }}>(PDF or Image)</span>
+                  </label>
+                  <input
+                    ref={transcriptInputRef}
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={(e) => setTranscriptFile(e.target.files[0] || null)}
+                    style={{ display: 'none' }}
+                  />
+                  <div
+                    onClick={() => transcriptInputRef.current?.click()}
+                    style={{
+                      border: `2px dashed ${transcriptFile ? '#2563EB' : '#CBD5E1'}`,
+                      borderRadius: '10px',
+                      padding: '16px',
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                      backgroundColor: transcriptFile ? '#EFF6FF' : '#F8FAFC',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {transcriptFile ? (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#2563EB', fontSize: '13px', fontWeight: 600 }}>
+                        <FileText size={16} />
+                        {transcriptFile.name}
+                        <span style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 400 }}>({(transcriptFile.size / 1024).toFixed(1)} KB)</span>
+                      </div>
+                    ) : (
+                      <div style={{ color: '#94A3B8', fontSize: '13px' }}>
+                        <Upload size={20} style={{ marginBottom: '4px', display: 'block', margin: '0 auto 4px' }} />
+                        Click to upload transcript (PDF/Image, max 15MB)
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -784,21 +946,69 @@ export default function MigrationRecords() {
                 <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>Transferred Courses & Equivalency Mapping</h3>
                 <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#64748B' }}>{selected.studentId?.name} ({selected.studentId?.rollNumber}) • {selected.sourceInstitution}</p>
               </div>
-              <button onClick={() => setShowCoursesModal(false)} style={{ background: '#E2E8F0', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748B' }}>
-                <X size={16} />
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {selected.transcriptUrl && selected.status === 'pending' && (
+                  <button
+                    onClick={async () => {
+                      setIsParsingTranscript(true);
+                      setParseError('');
+                      try {
+                        const res = await fetch(`/api/migrations/${selected._id}/parse-transcript`);
+                        const data = await res.json();
+                        if (data.status === 'success' && data.data.courses.length > 0) {
+                          setTempCourses(prev => {
+                            const existingNames = new Set(prev.map(c => c.courseName));
+                            const newOnes = data.data.courses.filter(c => !existingNames.has(c.courseName));
+                            return [...prev, ...newOnes];
+                          });
+                        } else {
+                          setParseError(data.message || 'No courses could be extracted from the transcript.');
+                        }
+                      } catch (e) {
+                        setParseError('Parse failed: ' + e.message);
+                      } finally {
+                        setIsParsingTranscript(false);
+                      }
+                    }}
+                    disabled={isParsingTranscript}
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', border: 'none', backgroundColor: '#10B981', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: isParsingTranscript ? 'not-allowed' : 'pointer', opacity: isParsingTranscript ? 0.7 : 1 }}
+                  >
+                    <FileText size={14} />
+                    {isParsingTranscript ? 'Parsing...' : 'Import from Transcript'}
+                  </button>
+                )}
+                <button onClick={() => setShowCoursesModal(false)} style={{ background: '#E2E8F0', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748B' }}>
+                  <X size={16} />
+                </button>
+              </div>
             </div>
             
-            <div style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div style={{ border: '1px solid #E2E8F0', borderRadius: '16px', overflow: 'hidden' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
+            <div style={{ flex: 1, overflow: 'auto', padding: '24px', paddingBottom: '160px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+              {/* Parse error */}
+              {parseError && (
+                <div style={{ padding: '10px 14px', backgroundColor: '#FEF2F2', color: '#DC2626', borderRadius: '8px', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <AlertCircle size={14} /> {parseError}
+                </div>
+              )}
+
+              {/* Transcript import hint */}
+              {selected.transcriptUrl && tempCourses.length === 0 && !parseError && selected.status === 'pending' && (
+                <div style={{ padding: '12px 16px', backgroundColor: '#ECFDF5', border: '1px solid #6EE7B7', borderRadius: '10px', fontSize: '13px', color: '#065F46', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <FileText size={16} color="#059669" />
+                  <span>A transcript is attached. Click <strong>Import from Transcript</strong> above to auto-fill courses from the uploaded PDF.</span>
+                </div>
+              )}
+
+              <div style={{ border: '1px solid #E2E8F0', borderRadius: '16px', flexShrink: 0 }}>
+                <table style={{ width: '100%', minWidth: '700px', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
                   <thead>
                     <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#64748B', fontWeight: 700 }}>
-                      <th style={{ padding: '12px 16px' }}>SOURCE COURSE NAME</th>
-                      <th style={{ padding: '12px 16px' }}>TARGET EQUIVALENT COURSE</th>
-                      <th style={{ padding: '12px 16px', textAlign: 'center' }}>CREDITS</th>
-                      <th style={{ padding: '12px 16px' }}>STATUS</th>
-                      {selected.status === 'pending' && <th style={{ padding: '12px 16px', textAlign: 'right' }}>ACTION</th>}
+                      <th style={{ padding: '12px 16px', width: '35%' }}>SOURCE COURSE NAME</th>
+                      <th style={{ padding: '12px 16px', width: '40%', minWidth: '240px' }}>TARGET EQUIVALENT COURSE</th>
+                      <th style={{ padding: '12px 16px', textAlign: 'center', width: '10%' }}>CREDITS</th>
+                      <th style={{ padding: '12px 16px', width: '10%' }}>STATUS</th>
+                      {selected.status === 'pending' && <th style={{ padding: '12px 16px', textAlign: 'right', width: '5%' }}>ACTION</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -807,20 +1017,66 @@ export default function MigrationRecords() {
                         <td style={{ padding: '12px 16px', fontWeight: 600, color: '#0F172A' }}>{c.courseName}</td>
                         <td style={{ padding: '12px 16px', color: '#475569' }}>
                           {selected.status === 'pending' ? (
-                            <select
-                              value={c.mappedCourseName}
-                              onChange={e => {
-                                const updated = [...tempCourses];
-                                updated[idx].mappedCourseName = e.target.value;
-                                setTempCourses(updated);
-                              }}
-                              style={{ padding: '6px 8px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none', backgroundColor: '#fff', width: '100%', fontFamily: 'inherit' }}
-                            >
-                              <option value="">Select target course...</option>
-                              {curriculum?.courses?.map(course => (
-                                <option key={course.code} value={course.title}>{course.code} - {course.title}</option>
-                              ))}
-                            </select>
+                            (() => {
+                              const deptCodes = new Set(curriculum?.courses?.map(course => course.code) || []);
+                              const uniqueHec = (hecCurriculum?.courses || []).filter(course => !deptCodes.has(course.code));
+                              
+                              const options = [];
+                              if (uniqueHec.length > 0) {
+                                options.push({
+                                  label: "HEC Standard Curriculum (2025)",
+                                  options: uniqueHec.map(c => ({ value: c.code, label: `${c.code} - ${c.title} (${c.creditHours} CH)`, credits: c.creditHours }))
+                                });
+                              }
+                              if (curriculum?.courses?.length > 0) {
+                                options.push({
+                                  label: "Department Curriculum",
+                                  options: curriculum.courses.map(c => ({ value: c.code, label: `${c.code} - ${c.title} (${c.creditHours} CH)`, credits: c.creditHours }))
+                                });
+                              }
+
+                              const allOpts = options.flatMap(g => g.options);
+                              const selectedOption = allOpts.find(o => o.value === c.mappedCourseName) || null;
+
+                              return (
+                                <Select 
+                                  options={options}
+                                  value={selectedOption}
+                                  onChange={(selectedOpt) => {
+                                    const selectedCode = selectedOpt ? selectedOpt.value : '';
+                                    const updated = [...tempCourses];
+                                    updated[idx].mappedCourseName = selectedCode;
+                                    if (selectedOpt) {
+                                      updated[idx].credits = selectedOpt.credits;
+                                    }
+                                    setTempCourses(updated);
+                                  }}
+                                  isClearable
+                                  placeholder="Select target course..."
+                                  closeMenuOnScroll={true}
+                                  menuPlacement="auto"
+                                  maxMenuHeight={220}
+                                  styles={{ 
+                                    control: (base, state) => ({
+                                      ...base,
+                                      borderRadius: '8px',
+                                      borderColor: state.isFocused ? '#3B82F6' : '#CBD5E1',
+                                      boxShadow: state.isFocused ? '0 0 0 1px #3B82F6' : '0 1px 2px 0 rgba(0,0,0,0.05)',
+                                      fontSize: '13px',
+                                      minHeight: '36px',
+                                      minWidth: '220px',
+                                      cursor: 'pointer'
+                                    }),
+                                    menu: base => ({ 
+                                      ...base, 
+                                      fontSize: '13px', 
+                                      zIndex: 9999 
+                                    }),
+                                    option: (base, state) => ({ ...base, cursor: 'pointer' })
+                                  }}
+                                />
+                              );
+                            })()
                           ) : (
                             c.mappedCourseName || <span style={{ color: '#94A3B8', fontStyle: 'italic' }}>Unmapped</span>
                           )}
@@ -875,63 +1131,59 @@ export default function MigrationRecords() {
                 </table>
               </div>
 
-              {selected.status === 'pending' && (
-                <div style={{ backgroundColor: '#F8FAFC', borderRadius: '16px', padding: '16px', border: '1px solid #E2E8F0' }}>
-                  <h4 style={{ margin: '0 0 12px', fontSize: '13px', fontWeight: 700, color: '#0F172A', textTransform: 'uppercase' }}>Add Transferred Course & Map Equivalency</h4>
-                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                    <input 
-                      type="text" 
-                      placeholder="Source Course (e.g. CS-101 Programming Fund.)"
-                      value={newCourse.courseName}
-                      onChange={e => setNewCourse({ ...newCourse, courseName: e.target.value })}
-                      style={{ flex: 2, minWidth: '200px', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none' }}
-                    />
-                    <select 
-                      value={newCourse.mappedCourseName}
-                      onChange={e => setNewCourse({ ...newCourse, mappedCourseName: e.target.value })}
-                      style={{ flex: 2, minWidth: '200px', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none', backgroundColor: '#fff' }}
-                    >
-                      <option value="">Map Target Course (Prerequisite)</option>
-                      {curriculum?.courses?.map(c => (
-                        <option key={c.code} value={c.title}>{c.code} - {c.title}</option>
-                      ))}
-                    </select>
-                    <select 
-                      value={newCourse.credits}
-                      onChange={e => setNewCourse({ ...newCourse, credits: Number(e.target.value) })}
-                      style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none', backgroundColor: '#fff' }}
-                    >
-                      {[1,2,3,4].map(c => <option key={c} value={c}>{c} Credits</option>)}
-                    </select>
-                    <button 
-                      type="button"
-                      onClick={() => {
-                        if (!newCourse.courseName) {
-                          alert('Please fill in Source Course Name');
-                          return;
-                        }
-                        setTempCourses([...tempCourses, newCourse]);
-                        setNewCourse({ courseName: '', mappedCourseName: '', credits: 3, equivalencyStatus: 'pending' });
-                      }}
-                      style={{ padding: '10px 20px', backgroundColor: '#2563EB', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
-                    >
-                      Add Course
-                    </button>
+              {/* HEC Curriculum Reference Panel */}
+              <div style={{ border: '1px solid #E2E8F0', borderRadius: '16px', overflow: 'hidden', flexShrink: 0 }}>
+                <button
+                  onClick={() => setShowHecPanel(!showHecPanel)}
+                  style={{ width: '100%', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F0FDF4', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 700, color: '#065F46' }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <GraduationCap size={16} />
+                    HEC Standard Curriculum Reference (2025) — {hecCurriculum?.courses?.length || 0} courses
+                  </span>
+                  {showHecPanel ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+                {showHecPanel && hecCurriculum?.courses && (
+                  <div style={{ maxHeight: '280px', overflow: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                    <table style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse', fontSize: '12px' }}>
+                      <thead style={{ position: 'sticky', top: 0 }}>
+                        <tr style={{ backgroundColor: '#ECFDF5', color: '#065F46', fontWeight: 700 }}>
+                          <th style={{ padding: '8px 12px', textAlign: 'left' }}>CODE</th>
+                          <th style={{ padding: '8px 12px', textAlign: 'left' }}>COURSE TITLE</th>
+                          <th style={{ padding: '8px 12px', textAlign: 'center' }}>SEM</th>
+                          <th style={{ padding: '8px 12px', textAlign: 'center' }}>CH</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {hecCurriculum.courses.map((c, i) => (
+                          <tr key={i}
+                            style={{ borderBottom: '1px solid #F0FDF4', backgroundColor: i % 2 === 0 ? '#fff' : '#F9FAFB' }}
+                          >
+                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', color: '#0F172A', fontWeight: 600 }}>{c.code}</td>
+                            <td style={{ padding: '8px 12px', color: '#374151' }}>{c.title}</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'center', color: '#64748B' }}>{c.semester}</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, color: '#2563EB' }}>{c.creditHours}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
+
+              {/* Remarks removed */}
             </div>
 
-            <div style={{ padding: '16px 24px', borderTop: '1px solid #E2E8F0', backgroundColor: '#F8FAFC', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+            <div style={{ padding: '16px 24px', borderTop: '1px solid #E2E8F0', backgroundColor: '#F8FAFC', display: 'flex', justifyContent: 'flex-end', gap: '12px', flexWrap: 'wrap' }}>
               <button 
-                onClick={() => setShowCoursesModal(false)}
+                onClick={() => { setShowCoursesModal(false); setShowHecPanel(false); }}
                 style={{ padding: '10px 20px', borderRadius: '12px', border: '1px solid #E2E8F0', backgroundColor: '#fff', color: '#64748B', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
               >
                 Close
               </button>
               {selected.status === 'pending' && (
                 <button 
-                  onClick={saveTransferredCourses}
+                  onClick={() => saveTransferredCourses(false)}
                   disabled={isUpdatingCourses}
                   style={{ padding: '10px 20px', borderRadius: '12px', border: 'none', backgroundColor: '#2563EB', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: isUpdatingCourses ? 'not-allowed' : 'pointer', opacity: isUpdatingCourses ? 0.7 : 1 }}
                 >
@@ -943,49 +1195,152 @@ export default function MigrationRecords() {
         </div>
       )}
       {/* 4. Student Full Profile Modal */}
-      {showProfileModal && selected && selected.studentId && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)' }}>
-          <div style={{ backgroundColor: '#fff', borderRadius: 24, padding: 24, maxWidth: 480, width: '90%', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#1B3A6B', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <User size={18} /> Student Full Profile
-              </h3>
-              <button onClick={() => setShowProfileModal(false)} style={{ padding: 4, border: 'none', backgroundColor: 'transparent', cursor: 'pointer', color: '#94A3B8' }}><X size={20} /></button>
-            </div>
-            <div style={{ backgroundColor: '#F8FAFC', padding: 16, borderRadius: 12, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 48, height: 48, borderRadius: '50%', backgroundColor: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 18, color: '#2563EB' }}>
-                {selected.studentId.name?.split(' ').map(n => n[0]).join('') || 'U'}
+      {showProfileModal && selected && selected.studentId && (() => {
+        const stu = selected.studentId;
+        const allCourses = stu.courses || [];
+        const gradePoints = { 'A': 4.0, 'A-': 3.7, 'B+': 3.3, 'B': 3.0, 'B-': 2.7, 'C+': 2.3, 'C': 2.0, 'C-': 1.7, 'D': 1.0, 'F': 0.0, 'IP': null };
+
+        // Group by semester
+        const bySemester = {};
+        allCourses.forEach(c => {
+          const sem = c.semester || 1;
+          if (!bySemester[sem]) bySemester[sem] = [];
+          bySemester[sem].push(c);
+        });
+
+        const computeSGPA = (courses) => {
+          const graded = courses.filter(c => gradePoints[c.grade] !== null && gradePoints[c.grade] !== undefined);
+          if (!graded.length) return null;
+          const totalPoints = graded.reduce((s, c) => s + gradePoints[c.grade] * (c.creditHours || 0), 0);
+          const totalCH = graded.reduce((s, c) => s + (c.creditHours || 0), 0);
+          return totalCH > 0 ? (totalPoints / totalCH).toFixed(2) : null;
+        };
+
+        const cgpa = typeof stu.cgpa === 'number' ? stu.cgpa.toFixed(2) : '—';
+        const cgpaColor = parseFloat(cgpa) >= 3.0 ? '#10B981' : parseFloat(cgpa) >= 2.0 ? '#F59E0B' : '#EF4444';
+        const completedCredits = allCourses.filter(c => c.enrollmentStatus === 'completed' || c.status === 'completed').reduce((s, c) => s + (c.creditHours || 0), 0);
+
+        return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', padding: '20px' }}>
+            <div style={{ backgroundColor: '#fff', borderRadius: 24, maxWidth: 860, width: '100%', maxHeight: '90vh', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', display: 'flex', flexDirection: 'column' }}>
+              
+              {/* Header */}
+              <div style={{ padding: '20px 24px', borderBottom: '1px solid #E2E8F0', backgroundColor: '#F8FAFC', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: '250px' }}>
+                  <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'linear-gradient(135deg, #6366F1, #2563EB)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 20, color: '#fff' }}>
+                    {stu.name?.split(' ').map(n => n[0]).join('').slice(0,2) || 'U'}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: 18, color: '#0F172A' }}>{stu.name}</div>
+                    <div style={{ fontSize: 13, color: '#64748B', fontFamily: 'monospace' }}>{stu.rollNumber} • {selected.departmentId?.name || 'N/A'} • Batch {stu.batchId?.code || 'N/A'}</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  {selected.transcriptUrl && (
+                    <a href={`http://localhost:5000${selected.transcriptUrl}`} target="_blank" rel="noreferrer"
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, backgroundColor: '#EFF6FF', color: '#2563EB', fontSize: 12, fontWeight: 700, textDecoration: 'none', border: '1px solid #BFDBFE' }}>
+                      <Download size={14} /> View Transcript
+                    </a>
+                  )}
+                  <button onClick={() => setShowProfileModal(false)} style={{ padding: 8, border: 'none', backgroundColor: '#E2E8F0', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B' }}><X size={16} /></button>
+                </div>
               </div>
-              <div>
-                <div style={{ fontWeight: 700, color: '#0F172A' }}>{selected.studentId.name}</div>
-                <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#64748B' }}>{selected.studentId.rollNumber}</div>
+
+              {/* Stats Row */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 0, borderBottom: '1px solid #E2E8F0' }}>
+                {[
+                  { label: 'CGPA', value: cgpa, color: cgpaColor },
+                  { label: 'Semester', value: `Sem ${stu.currentSemester || '—'}` },
+                  { label: 'Completed Credits', value: completedCredits },
+                  { label: 'Total Courses', value: allCourses.length },
+                ].map((stat, i) => (
+                  <div key={i} style={{ padding: '16px 10px', textAlign: 'center', borderRight: '1px solid #E2E8F0', borderBottom: '1px solid #E2E8F0' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#94A3B8', marginBottom: 4 }}>{stat.label}</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: stat.color || '#0F172A' }}>{stat.value}</div>
+                  </div>
+                ))}
               </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-              <div style={{ padding: 12, border: '1px solid #E2E8F0', borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Department</div>
-                <div style={{ fontWeight: 600, color: '#0F172A', marginTop: 4 }}>{selected.departmentId?.name || 'Computer Science'}</div>
+
+              {/* Source Institution & Transcript Badge */}
+              <div style={{ padding: '12px 24px', backgroundColor: '#FFF7ED', borderBottom: '1px solid #FED7AA', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Building2 size={14} color="#F97316" />
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#92400E' }}>Migrating from: {selected.sourceInstitution}</span>
+                {selected.transcriptOriginalName && (
+                  <span style={{ marginLeft: 'auto', fontSize: 11, color: '#9A3412', backgroundColor: '#FEE2E2', padding: '2px 8px', borderRadius: 6 }}>
+                    <FileText size={10} style={{ display: 'inline', marginRight: 4 }} />{selected.transcriptOriginalName}
+                  </span>
+                )}
               </div>
-              <div style={{ padding: 12, border: '1px solid #E2E8F0', borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Batch</div>
-                <div style={{ fontWeight: 600, color: '#0F172A', marginTop: 4 }}>{selected.studentId.batchId?.code || 'N/A'}</div>
+
+              {/* Transcript by Semester */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+                {Object.keys(bySemester).sort((a, b) => Number(a) - Number(b)).map(sem => {
+                  const semCourses = bySemester[sem];
+                  const sgpa = computeSGPA(semCourses);
+                  const sgpaColor = sgpa ? (parseFloat(sgpa) >= 3.0 ? '#10B981' : parseFloat(sgpa) >= 2.0 ? '#F59E0B' : '#EF4444') : '#94A3B8';
+                  return (
+                    <div key={sem} style={{ border: '1px solid #E2E8F0', borderRadius: 12, overflowX: 'auto', WebkitOverflowScrolling: 'touch', flexShrink: 0 }}>
+                      <div style={{ padding: '10px 16px', backgroundColor: '#F8FAFC', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#0F172A', textTransform: 'uppercase' }}>Semester {sem}</span>
+                        {sgpa && (
+                          <span style={{ fontSize: 12, fontWeight: 700, color: sgpaColor, backgroundColor: sgpaColor + '15', padding: '2px 10px', borderRadius: 20 }}>
+                            SGPA: {sgpa}
+                          </span>
+                        )}
+                      </div>
+                      <table style={{ width: '100%', minWidth: '550px', borderCollapse: 'collapse', fontSize: 12 }}>
+                        <thead>
+                          <tr style={{ backgroundColor: '#F1F5F9', color: '#64748B', fontWeight: 700 }}>
+                            <th style={{ padding: '8px 12px', textAlign: 'left' }}>CODE</th>
+                            <th style={{ padding: '8px 12px', textAlign: 'left' }}>TITLE</th>
+                            <th style={{ padding: '8px 12px', textAlign: 'center' }}>CH</th>
+                            <th style={{ padding: '8px 12px', textAlign: 'center' }}>GRADE</th>
+                            <th style={{ padding: '8px 12px', textAlign: 'center' }}>STATUS</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {semCourses.map((c, idx) => {
+                            const gradeColor = c.grade === 'F' ? '#EF4444' : (c.grade === 'IP' || c.grade === 'A' ? '#2563EB' : '#374151');
+                            const statusColor = c.enrollmentStatus === 'completed' ? '#10B981' : c.enrollmentStatus === 'failed' ? '#EF4444' : '#F59E0B';
+                            return (
+                              <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                                <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 600, color: '#0F172A' }}>{c.courseCode}</td>
+                                <td style={{ padding: '8px 12px', color: '#374151' }}>{c.courseTitle}</td>
+                                <td style={{ padding: '8px 12px', textAlign: 'center', color: '#64748B' }}>{c.creditHours}</td>
+                                <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 700, color: gradeColor }}>{c.grade || '—'}</td>
+                                <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                                  <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: statusColor, backgroundColor: statusColor + '15', padding: '2px 8px', borderRadius: 10 }}>
+                                    {c.enrollmentStatus || c.status || 'Enrolled'}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })}
+                {allCourses.length === 0 && (
+                  <div style={{ textAlign: 'center', padding: '40px', color: '#94A3B8', fontSize: 13 }}>
+                    No course records available for this student.
+                  </div>
+                )}
               </div>
-              <div style={{ padding: 12, border: '1px solid #E2E8F0', borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Semester</div>
-                <div style={{ fontWeight: 600, color: '#0F172A', marginTop: 4 }}>Semester {selected.studentId.currentSemester}</div>
+
+              {/* Footer */}
+              <div style={{ padding: '16px 24px', borderTop: '1px solid #E2E8F0', backgroundColor: '#F8FAFC', display: 'flex', justifyContent: 'flex-end' }}>
+                <button onClick={() => setShowProfileModal(false)}
+                  style={{ padding: '10px 24px', borderRadius: 10, border: 'none', backgroundColor: '#2563EB', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                  Close
+                </button>
               </div>
-              <div style={{ padding: 12, border: '1px solid #E2E8F0', borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Contact Phone</div>
-                <div style={{ fontWeight: 600, color: '#0F172A', marginTop: 4 }}>{selected.studentId.phone || 'N/A'}</div>
-              </div>
-            </div>
-            <div style={{ padding: 12, border: '1px solid #E2E8F0', borderRadius: 8, marginBottom: 16 }}>
-              <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Source University / Institution</div>
-              <div style={{ fontWeight: 600, color: '#0F172A', marginTop: 4 }}>{selected.sourceInstitution}</div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
+
+
 
     </div>
   );

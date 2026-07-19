@@ -20,6 +20,8 @@ export default function StudentRecords({ setActiveNav }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [deptFilter, setDeptFilter] = useState('');
+  const [batchFilter, setBatchFilter] = useState('');
+  const [semesterFilter, setSemesterFilter] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [selected, setSelected] = useState(null);
@@ -116,6 +118,9 @@ export default function StudentRecords({ setActiveNav }) {
       const params = new URLSearchParams({ page, limit });
       if (search) params.append('search', search);
       if (statusFilter) params.append('status', statusFilter);
+      if (deptFilter) params.append('department', deptFilter);
+      if (batchFilter) params.append('batch', batchFilter);
+      if (semesterFilter) params.append('semester', semesterFilter);
 
       const res = await fetch(`/api/students?${params}`);
       const data = await res.json();
@@ -134,7 +139,7 @@ export default function StudentRecords({ setActiveNav }) {
 
   useEffect(() => {
     fetchStudents();
-  }, [page, search, statusFilter]);
+  }, [page, search, statusFilter, deptFilter, batchFilter, semesterFilter]);
 
   useEffect(() => {
     if (selected) {
@@ -214,6 +219,8 @@ export default function StudentRecords({ setActiveNav }) {
     setSearch('');
     setStatusFilter('');
     setDeptFilter('');
+    setBatchFilter('');
+    setSemesterFilter('');
     setPage(1);
   };
 
@@ -264,9 +271,16 @@ export default function StudentRecords({ setActiveNav }) {
       const matchesStatus = !statusFilter || s.status === statusFilter;
       const deptName = s.departmentId?.name || '';
       const matchesDept = !deptFilter || deptName.toLowerCase().includes(deptFilter.toLowerCase());
-      return matchesSearch && matchesStatus && matchesDept;
+      
+      const batchCode = s.batchId?.code || '';
+      const matchesBatch = !batchFilter || batchCode.toLowerCase().includes(batchFilter.toLowerCase());
+      
+      const sem = s.currentSemester || 1;
+      const matchesSemester = !semesterFilter || sem === Number(semesterFilter);
+      
+      return matchesSearch && matchesStatus && matchesDept && matchesBatch && matchesSemester;
     });
-  }, [students, search, statusFilter, deptFilter]);
+  }, [students, search, statusFilter, deptFilter, batchFilter, semesterFilter]);
 
   const getCgpaColor = (cgpa) => {
     if (cgpa >= 3.0) return '#10B981'; // Green (Good Standing)
@@ -440,7 +454,31 @@ export default function StudentRecords({ setActiveNav }) {
               >
                 <option value="">All Departments</option>
                 {departments.map(d => (
-                  <option key={d._id} value={d.name}>{d.name}</option>
+                  <option key={d._id} value={d.name}>{d.code || d.name}</option>
+                ))}
+              </select>
+
+              {/* Batch Dropdown */}
+              <select
+                value={batchFilter}
+                onChange={e => { setBatchFilter(e.target.value); setPage(1); }}
+                style={{ padding: '7px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', backgroundColor: '#FFFFFF', color: '#475569', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}
+              >
+                <option value="">All Batches</option>
+                {batches.map(b => (
+                  <option key={b._id} value={b.code}>{b.code}</option>
+                ))}
+              </select>
+
+              {/* Semester Dropdown */}
+              <select
+                value={semesterFilter}
+                onChange={e => { setSemesterFilter(e.target.value); setPage(1); }}
+                style={{ padding: '7px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', backgroundColor: '#FFFFFF', color: '#475569', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}
+              >
+                <option value="">All Semesters</option>
+                {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => (
+                  <option key={sem} value={sem}>Semester {sem}</option>
                 ))}
               </select>
 
@@ -523,14 +561,18 @@ export default function StudentRecords({ setActiveNav }) {
 
                       {/* CGPA Progress Bar + Value */}
                       <td style={{ padding: '12px 20px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <div style={{ flex: 1, height: '5px', backgroundColor: '#E2E8F0', borderRadius: '3px', overflow: 'hidden' }}>
-                            <div style={{ width: `${(s.cgpa / 4.0) * 100}%`, height: '100%', backgroundColor: getCgpaColor(s.cgpa), borderRadius: '3px' }} />
+                        {s.currentSemester === 1 ? (
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: '#94A3B8' }}>N/A</span>
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ flex: 1, height: '5px', backgroundColor: '#E2E8F0', borderRadius: '3px', overflow: 'hidden' }}>
+                              <div style={{ width: `${(s.cgpa / 4.0) * 100}%`, height: '100%', backgroundColor: getCgpaColor(s.cgpa), borderRadius: '3px' }} />
+                            </div>
+                            <span style={{ fontSize: '12px', fontWeight: 700, color: '#334155', minWidth: '28px' }}>
+                              {s.cgpa.toFixed(2)}
+                            </span>
                           </div>
-                          <span style={{ fontSize: '12px', fontWeight: 700, color: '#334155', minWidth: '28px' }}>
-                            {s.cgpa.toFixed(2)}
-                          </span>
-                        </div>
+                        )}
                       </td>
 
                       {/* View / Edit / Delete Actions */}
@@ -823,7 +865,7 @@ export default function StudentRecords({ setActiveNav }) {
                   <div style={{ padding: 12, border: '1px solid #E2E8F0', borderRadius: 8 }}>
                     <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>CGPA</div>
                     <div style={{ fontWeight: 700, color: '#0F172A', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <Award size={14} color="#F59E0B" /> {selected.cgpa.toFixed(2)}
+                      <Award size={14} color="#F59E0B" /> {selected.currentSemester === 1 ? 'N/A' : selected.cgpa.toFixed(2)}
                     </div>
                   </div>
                   <div style={{ padding: 12, border: '1px solid #E2E8F0', borderRadius: 8 }}>

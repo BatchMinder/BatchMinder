@@ -19,6 +19,7 @@ export default function Dashboard({ departments, selectedDept, setActiveNav }) {
   const [stats, setStats] = useState(null);
   const [cgpaDist, setCgpaDist] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [uploadPage, setUploadPage] = useState(1);
 
   const fetchData = async () => {
     setLoading(true);
@@ -170,7 +171,7 @@ export default function Dashboard({ departments, selectedDept, setActiveNav }) {
             <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Recent Uploads</h3>
             <button onClick={handleUploadClick} style={{ fontSize: '13px', color: '#2563EB', border: 'none', background: 'none', fontWeight: 600, cursor: 'pointer' }}>View All</button>
           </div>
-          <div style={{ overflowX: 'auto' }}>
+          <div style={{ overflowX: 'auto', flex: 1 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid #E2E8F0', color: '#64748B', fontWeight: 600, textAlign: 'left' }}>
@@ -182,26 +183,69 @@ export default function Dashboard({ departments, selectedDept, setActiveNav }) {
                 </tr>
               </thead>
               <tbody>
-                {recentUploads.length === 0 ? (
-                  <tr><td colSpan="5" style={{ padding: '20px', textAlign: 'center', color: '#94A3B8' }}>No recent uploads</td></tr>
-                ) : (
-                  recentUploads.map(u => (
-                    <tr key={u.id} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                      <td style={{ padding: '12px 8px', color: '#0F172A', fontWeight: 500 }}>{u.fileName}</td>
-                      <td style={{ padding: '12px 8px', color: '#64748B' }}>{u.uploadedBy}</td>
-                      <td style={{ padding: '12px 8px', color: '#64748B' }}>{u.records}</td>
-                      <td style={{ padding: '12px 8px' }}>
-                        <span style={{ padding: '4px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 600, backgroundColor: u.status === 'complete' ? '#D1FAE5' : (u.status === 'failed' ? '#FEE2E2' : '#FEF3C7'), color: u.status === 'complete' ? '#059669' : (u.status === 'failed' ? '#DC2626' : '#D97706') }}>
-                          {u.status.charAt(0).toUpperCase() + u.status.slice(1)}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px 8px', color: '#64748B', textAlign: 'right' }}>{format(new Date(u.date), 'MMM d, h:mm a')}</td>
-                    </tr>
-                  ))
-                )}
+                {(() => {
+                  const itemsPerPage = 5;
+                  const paginatedUploads = recentUploads.slice((uploadPage - 1) * itemsPerPage, uploadPage * itemsPerPage);
+                  return paginatedUploads.length === 0 ? (
+                    <tr><td colSpan="5" style={{ padding: '20px', textAlign: 'center', color: '#94A3B8' }}>No recent uploads</td></tr>
+                  ) : (
+                    paginatedUploads.map(u => (
+                      <tr key={u.id} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                        <td style={{ padding: '12px 8px', color: '#0F172A', fontWeight: 500 }}>{u.fileName}</td>
+                        <td style={{ padding: '12px 8px', color: '#64748B' }}>{u.uploadedBy}</td>
+                        <td style={{ padding: '12px 8px', color: '#64748B' }}>{u.records}</td>
+                        <td style={{ padding: '12px 8px' }}>
+                          <span style={{ padding: '4px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 600, backgroundColor: u.status === 'complete' ? '#D1FAE5' : (u.status === 'failed' ? '#FEE2E2' : '#FEF3C7'), color: u.status === 'complete' ? '#059669' : (u.status === 'failed' ? '#DC2626' : '#D97706') }}>
+                            {u.status.charAt(0).toUpperCase() + u.status.slice(1)}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px 8px', color: '#64748B', textAlign: 'right' }}>{format(new Date(u.date), 'MMM d, h:mm a')}</td>
+                      </tr>
+                    ))
+                  );
+                })()}
               </tbody>
             </table>
           </div>
+          {(() => {
+            const itemsPerPage = 5;
+            const totalUploadPages = Math.ceil(recentUploads.length / itemsPerPage);
+            return totalUploadPages > 1 ? (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', paddingTop: '12px', borderTop: '1px solid #F1F5F9' }}>
+                <button
+                  disabled={uploadPage === 1}
+                  onClick={() => setUploadPage(p => Math.max(1, p - 1))}
+                  style={{
+                    padding: '6px 12px', fontSize: '12px', fontWeight: 600,
+                    borderRadius: '6px', border: '1px solid #E2E8F0',
+                    backgroundColor: uploadPage === 1 ? '#F8FAFC' : '#fff',
+                    color: uploadPage === 1 ? '#94A3B8' : '#334155',
+                    cursor: uploadPage === 1 ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  Previous
+                </button>
+                <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 500 }}>
+                  Page {uploadPage} of {totalUploadPages}
+                </span>
+                <button
+                  disabled={uploadPage === totalUploadPages}
+                  onClick={() => setUploadPage(p => Math.min(totalUploadPages, p + 1))}
+                  style={{
+                    padding: '6px 12px', fontSize: '12px', fontWeight: 600,
+                    borderRadius: '6px', border: '1px solid #E2E8F0',
+                    backgroundColor: uploadPage === totalUploadPages ? '#F8FAFC' : '#fff',
+                    color: uploadPage === totalUploadPages ? '#94A3B8' : '#334155',
+                    cursor: uploadPage === totalUploadPages ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  Next
+                </button>
+              </div>
+            ) : null;
+          })()}
         </div>
 
         {/* System Alerts */}

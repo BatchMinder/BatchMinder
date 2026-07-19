@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Official Academic Transcript — NUST</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 11pt;
+      color: #111;
+      background: #f5f5f5;
+    }
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 20px auto;
+      background: #fff;
+      padding: 18mm 18mm 16mm;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+      position: relative;
+    }
+
+    /* Watermark */
+    .watermark {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-35deg);
+      font-size: 72pt;
+      font-weight: 900;
+      color: rgba(0,80,170,0.06);
+      white-space: nowrap;
+      pointer-events: none;
+      z-index: 0;
+      letter-spacing: 4px;
+    }
+
+    .content { position: relative; z-index: 1; }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      border-bottom: 3px solid #003399;
+      padding-bottom: 12px;
+      margin-bottom: 14px;
+    }
+    .logo-box {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #003399, #0055cc);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 22pt;
+      font-weight: 900;
+      letter-spacing: -1px;
+      flex-shrink: 0;
+    }
+    .univ-name {
+      flex: 1;
+    }
+    .univ-name h1 {
+      font-size: 15pt;
+      font-weight: 900;
+      color: #003399;
+      letter-spacing: 0.5px;
+    }
+    .univ-name p {
+      font-size: 9pt;
+      color: #555;
+      margin-top: 2px;
+    }
+    .doc-title {
+      text-align: right;
+      font-size: 9pt;
+      color: #666;
+      line-height: 1.6;
+    }
+    .doc-title strong {
+      font-size: 11pt;
+      color: #003399;
+      display: block;
+    }
+
+    /* HEC Verification Badge */
+    .hec-badge {
+      background: #e8f4e8;
+      border: 1.5px solid #2e7d32;
+      border-radius: 6px;
+      padding: 6px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      font-size: 9pt;
+    }
+    .hec-badge .check { font-size: 16pt; color: #2e7d32; }
+    .hec-badge div { line-height: 1.5; }
+    .hec-badge strong { color: #1b5e20; font-size: 10pt; }
+    .hec-badge span { color: #388e3c; }
+
+    /* Student Info Table */
+    .info-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 16px;
+      font-size: 10pt;
+    }
+    .info-table td {
+      padding: 4px 8px;
+      border: 0.8px solid #ccc;
+    }
+    .info-table td:first-child {
+      background: #e8eef8;
+      font-weight: 700;
+      width: 36%;
+      color: #003399;
+    }
+    .info-table td:nth-child(3) {
+      background: #e8eef8;
+      font-weight: 700;
+      width: 20%;
+      color: #003399;
+    }
+
+    /* Semester block */
+    .semester-block { margin-bottom: 18px; }
+    .semester-title {
+      background: #003399;
+      color: #fff;
+      padding: 5px 10px;
+      font-size: 10pt;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .semester-title .sgpa-badge {
+      background: #ffd600;
+      color: #003399;
+      font-size: 9pt;
+      font-weight: 900;
+      padding: 2px 10px;
+      border-radius: 10px;
+    }
+    .course-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9.5pt;
+    }
+    .course-table th {
+      background: #dce6f7;
+      color: #003399;
+      font-weight: 700;
+      padding: 4px 8px;
+      border: 0.8px solid #bbb;
+      text-align: left;
+    }
+    .course-table td {
+      padding: 4px 8px;
+      border: 0.8px solid #ddd;
+    }
+    .course-table tr:nth-child(even) td { background: #f7f9ff; }
+    .grade-A  { color: #1a7a1a; font-weight: 700; }
+    .grade-B  { color: #0055aa; font-weight: 700; }
+    .grade-C  { color: #b8860b; font-weight: 700; }
+    .grade-F  { color: #cc0000; font-weight: 700; }
+
+    /* Summary table */
+    .summary-block {
+      margin-top: 20px;
+      border: 1.5px solid #003399;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .summary-title {
+      background: #003399;
+      color: #fff;
+      padding: 5px 10px;
+      font-weight: 700;
+      font-size: 10pt;
+    }
+    .summary-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10pt;
+    }
+    .summary-table th {
+      background: #dce6f7;
+      padding: 5px 10px;
+      border: 0.8px solid #bbb;
+      font-weight: 700;
+      color: #003399;
+    }
+    .summary-table td {
+      padding: 5px 10px;
+      border: 0.8px solid #ddd;
+      text-align: center;
+    }
+    .summary-table .highlight { background: #e8f4e8; font-weight: 700; color: #1b5e20; }
+
+    /* Signature block */
+    .sig-block {
+      margin-top: 30px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 9.5pt;
+    }
+    .sig-item { text-align: center; width: 30%; }
+    .sig-item .line { border-top: 1px solid #333; margin: 30px 0 4px; }
+    .sig-item .name { font-weight: 700; color: #003399; }
+    .sig-item .role { color: #555; }
+
+    .footer-bar {
+      margin-top: 20px;
+      border-top: 2px solid #003399;
+      padding-top: 8px;
+      font-size: 8pt;
+      color: #666;
+      display: flex;
+      justify-content: space-between;
+    }
+    .footer-bar strong { color: #003399; }
+
+    @media print {
+      body { background: #fff; }
+      .page { margin: 0; box-shadow: none; padding: 15mm; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+  <div class="watermark">NUST</div>
+  <div class="content">
+
+    <!-- HEADER -->
+    <div class="header">
+      <div class="logo-box">N</div>
+      <div class="univ-name">
+        <h1>National University of Sciences and Technology</h1>
+        <p>H-12, Islamabad, Pakistan &nbsp;|&nbsp; www.nust.edu.pk &nbsp;|&nbsp; UAN: +92-51-9085-1 (NUST)</p>
+        <p>School of Electrical Engineering and Computer Science (SEECS)</p>
+      </div>
+      <div class="doc-title">
+        <strong>OFFICIAL TRANSCRIPT</strong>
+        <span>Transcript No: NUST/SEECS/2024/0841</span><br/>
+        <span>Issue Date: July 15, 2024</span><br/>
+        <span>Purpose: Transfer / Migration</span>
+      </div>
+    </div>
+
+    <!-- HEC BADGE -->
+    <div class="hec-badge">
+      <span class="check">✔</span>
+      <div>
+        <strong>HEC Recognized &amp; Verified Institution</strong><br/>
+        <span>NUST is registered with the Higher Education Commission of Pakistan (HEC). Reg. No: HEC-PK-000049. This transcript is HEC-verified and valid for credit transfer proceedings.</span>
+      </div>
+    </div>
+
+    <!-- STUDENT INFO -->
+    <table class="info-table">
+      <tr>
+        <td>Student Name</td>
+        <td><strong>Muhammad Faisal Raza</strong></td>
+        <td>Registration No.</td>
+        <td><strong>393857</strong></td>
+      </tr>
+      <tr>
+        <td>Father's Name</td>
+        <td>Muhammad Raza Qureshi</td>
+        <td>CNIC</td>
+        <td>35202-1234567-3</td>
+      </tr>
+      <tr>
+        <td>Program</td>
+        <td><strong>BS Computer Science (4 Years)</strong></td>
+        <td>Session</td>
+        <td>Fall 2022 – Spring 2024</td>
+      </tr>
+      <tr>
+        <td>Department</td>
+        <td>Department of Computing, SEECS</td>
+        <td>Semesters Completed</td>
+        <td><strong>4 of 8</strong></td>
+      </tr>
+      <tr>
+        <td>Enrollment Status</td>
+        <td>Withdrawing for Transfer</td>
+        <td>Overall CGPA</td>
+        <td><strong style="color:#1a7a1a">3.46 / 4.00</strong></td>
+      </tr>
+    </table>
+
+    <!-- SEMESTER 1 -->
+    <div class="semester-block">
+      <div class="semester-title">
+        Semester 1 &nbsp;|&nbsp; Fall 2022
+        <span class="sgpa-badge">SGPA: 3.25</span>
+      </div>
+      <table class="course-table">
+        <thead>
+          <tr>
+            <th>Course Code</th>
+            <th>Course Title</th>
+            <th>Credit Hours</th>
+            <th>Grade</th>
+            <th>Grade Points</th>
+            <th>Remarks</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>CS-101</td><td>Programming Fundamentals</td><td>4</td><td class="grade-A">A</td><td>4.0</td><td>Pass</td></tr>
+          <tr><td>MT-101</td><td>Calculus &amp; Analytical Geometry</td><td>3</td><td class="grade-B">B+</td><td>3.3</td><td>Pass</td></tr>
+          <tr><td>PH-101</td><td>Applied Physics</td><td>3</td><td class="grade-B">B</td><td>3.0</td><td>Pass</td></tr>
+          <tr><td>HU-101</td><td>English Composition &amp; Comprehension</td><td>2</td><td class="grade-A">A-</td><td>3.7</td><td>Pass</td></tr>
+          <tr><td>IS-101</td><td>Islamic Studies / Ethics</td><td>2</td><td class="grade-B">B+</td><td>3.3</td><td>Pass</td></tr>
+        </tbody>
+      </table>
+      <div style="font-size:9pt;padding:4px 8px;background:#f5f5f5;border:0.8px solid #ddd;text-align:right;">
+        Credits Attempted: 14 &nbsp;|&nbsp; Credits Earned: 14 &nbsp;|&nbsp; Semester GPA: <strong>3.25</strong>
+      </div>
+    </div>
+
+    <!-- SEMESTER 2 -->
+    <div class="semester-block">
+      <div class="semester-title">
+        Semester 2 &nbsp;|&nbsp; Spring 2023
+        <span class="sgpa-badge">SGPA: 3.43</span>
+      </div>
+      <table class="course-table">
+        <thead>
+          <tr>
+            <th>Course Code</th>
+            <th>Course Title</th>
+            <th>Credit Hours</th>
+            <th>Grade</th>
+            <th>Grade Points</th>
+            <th>Remarks</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>CS-102</td><td>Object Oriented Programming</td><td>4</td><td class="grade-A">A</td><td>4.0</td><td>Pass</td></tr>
+          <tr><td>CS-103</td><td>Digital Logic Design</td><td>4</td><td class="grade-B">B+</td><td>3.3</td><td>Pass</td></tr>
+          <tr><td>MT-102</td><td>Linear Algebra</td><td>3</td><td class="grade-B">B+</td><td>3.3</td><td>Pass</td></tr>
+          <tr><td>MT-103</td><td>Discrete Structures</td><td>3</td><td class="grade-A">A-</td><td>3.7</td><td>Pass</td></tr>
+          <tr><td>HU-102</td><td>Pakistan Studies</td><td>2</td><td class="grade-A">A</td><td>4.0</td><td>Pass</td></tr>
+        </tbody>
+      </table>
+      <div style="font-size:9pt;padding:4px 8px;background:#f5f5f5;border:0.8px solid #ddd;text-align:right;">
+        Credits Attempted: 16 &nbsp;|&nbsp; Credits Earned: 16 &nbsp;|&nbsp; Semester GPA: <strong>3.43</strong>
+      </div>
+    </div>
+
+    <!-- SEMESTER 3 -->
+    <div class="semester-block">
+      <div class="semester-title">
+        Semester 3 &nbsp;|&nbsp; Fall 2023
+        <span class="sgpa-badge">SGPA: 3.56</span>
+      </div>
+      <table class="course-table">
+        <thead>
+          <tr>
+            <th>Course Code</th>
+            <th>Course Title</th>
+            <th>Credit Hours</th>
+            <th>Grade</th>
+            <th>Grade Points</th>
+            <th>Remarks</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>CS-104</td><td>Data Structures &amp; Algorithms</td><td>4</td><td class="grade-A">A</td><td>4.0</td><td>Pass</td></tr>
+          <tr><td>CS-105</td><td>Computer Organization &amp; Architecture</td><td>3</td><td class="grade-B">B+</td><td>3.3</td><td>Pass</td></tr>
+          <tr><td>MT-201</td><td>Probability &amp; Statistics</td><td>3</td><td class="grade-A">A-</td><td>3.7</td><td>Pass</td></tr>
+          <tr><td>EE-201</td><td>Signals &amp; Systems</td><td>3</td><td class="grade-B">B+</td><td>3.3</td><td>Pass</td></tr>
+          <tr><td>HU-201</td><td>Technical &amp; Business Writing</td><td>2</td><td class="grade-A">A</td><td>4.0</td><td>Pass</td></tr>
+        </tbody>
+      </table>
+      <div style="font-size:9pt;padding:4px 8px;background:#f5f5f5;border:0.8px solid #ddd;text-align:right;">
+        Credits Attempted: 15 &nbsp;|&nbsp; Credits Earned: 15 &nbsp;|&nbsp; Semester GPA: <strong>3.56</strong>
+      </div>
+    </div>
+
+    <!-- SEMESTER 4 -->
+    <div class="semester-block">
+      <div class="semester-title">
+        Semester 4 &nbsp;|&nbsp; Spring 2024
+        <span class="sgpa-badge">SGPA: 3.60</span>
+      </div>
+      <table class="course-table">
+        <thead>
+          <tr>
+            <th>Course Code</th>
+            <th>Course Title</th>
+            <th>Credit Hours</th>
+            <th>Grade</th>
+            <th>Grade Points</th>
+            <th>Remarks</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>CS-201</td><td>Database Systems</td><td>4</td><td class="grade-A">A</td><td>4.0</td><td>Pass</td></tr>
+          <tr><td>CS-202</td><td>Operating Systems</td><td>4</td><td class="grade-A">A-</td><td>3.7</td><td>Pass</td></tr>
+          <tr><td>CS-203</td><td>Software Engineering</td><td>3</td><td class="grade-B">B+</td><td>3.3</td><td>Pass</td></tr>
+          <tr><td>CS-204</td><td>Computer Networks</td><td>3</td><td class="grade-B">B+</td><td>3.3</td><td>Pass</td></tr>
+          <tr><td>HU-202</td><td>Professional Ethics</td><td>2</td><td class="grade-A">A</td><td>4.0</td><td>Pass</td></tr>
+        </tbody>
+      </table>
+      <div style="font-size:9pt;padding:4px 8px;background:#f5f5f5;border:0.8px solid #ddd;text-align:right;">
+        Credits Attempted: 16 &nbsp;|&nbsp; Credits Earned: 16 &nbsp;|&nbsp; Semester GPA: <strong>3.60</strong>
+      </div>
+    </div>
+
+    <!-- SUMMARY -->
+    <div class="summary-block">
+      <div class="summary-title">Cumulative Academic Summary</div>
+      <table class="summary-table">
+        <thead>
+          <tr>
+            <th>Semester</th>
+            <th>Credits Attempted</th>
+            <th>Credits Earned</th>
+            <th>SGPA</th>
+            <th>Cumulative Credits</th>
+            <th>CGPA</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>1 – Fall 2022</td><td>14</td><td>14</td><td>3.25</td><td>14</td><td>3.25</td></tr>
+          <tr><td>2 – Spring 2023</td><td>16</td><td>16</td><td>3.43</td><td>30</td><td>3.34</td></tr>
+          <tr><td>3 – Fall 2023</td><td>15</td><td>15</td><td>3.56</td><td>45</td><td>3.41</td></tr>
+          <tr><td>4 – Spring 2024</td><td>16</td><td>16</td><td>3.60</td><td>61</td><td>3.46</td></tr>
+          <tr class="highlight"><td><strong>Overall Total</strong></td><td><strong>61</strong></td><td><strong>61</strong></td><td>—</td><td><strong>61</strong></td><td><strong>3.46 / 4.00</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- GRADING SCALE -->
+    <div style="margin-top:14px;font-size:8.5pt;color:#555;border:0.8px solid #ddd;padding:8px 12px;border-radius:4px;background:#fafafa;">
+      <strong style="color:#003399;">Grading Scale:</strong> &nbsp;
+      A = 4.0 &nbsp;|&nbsp; A- = 3.7 &nbsp;|&nbsp; B+ = 3.3 &nbsp;|&nbsp; B = 3.0 &nbsp;|&nbsp; B- = 2.7 &nbsp;|&nbsp;
+      C+ = 2.3 &nbsp;|&nbsp; C = 2.0 &nbsp;|&nbsp; C- = 1.7 &nbsp;|&nbsp; D = 1.0 &nbsp;|&nbsp; F = 0.0
+      &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp; Minimum CGPA to pass: <strong>2.0</strong> &nbsp;|&nbsp; Maximum CGPA: <strong>4.0</strong>
+    </div>
+
+    <!-- SIGNATURES -->
+    <div class="sig-block">
+      <div class="sig-item">
+        <div class="line"></div>
+        <div class="name">Dr. Arif Khan</div>
+        <div class="role">Head of Department (CS)<br/>SEECS, NUST</div>
+      </div>
+      <div class="sig-item">
+        <div class="line"></div>
+        <div class="name">Ms. Sara Waseem</div>
+        <div class="role">Deputy Registrar (Academics)<br/>NUST, Islamabad</div>
+      </div>
+      <div class="sig-item">
+        <div class="line"></div>
+        <div class="name">Controller of Examinations</div>
+        <div class="role">Examination Department<br/>NUST, Islamabad</div>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footer-bar">
+      <div><strong>NUST — National University of Sciences &amp; Technology</strong> &nbsp;|&nbsp; H-12, Islamabad, Pakistan &nbsp;|&nbsp; Established 1991</div>
+      <div>HEC Recognized &nbsp;|&nbsp; Transcript Ref: <strong>NUST/SEECS/2024/0841</strong> &nbsp;|&nbsp; Verified ✔</div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

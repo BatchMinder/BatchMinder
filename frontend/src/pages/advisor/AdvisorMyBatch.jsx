@@ -268,7 +268,7 @@ export default function AdvisorMyBatch({ selectedBatch }) {
                 </span>
 
                 {/* CGPA + Status */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
                   <span style={{ fontSize: '14px', fontWeight: 800, color: '#0F172A' }}>
                     {s.cgpa != null ? Number(s.cgpa).toFixed(2) : '—'}
                   </span>
@@ -280,16 +280,16 @@ export default function AdvisorMyBatch({ selectedBatch }) {
                   <button
                     onClick={() => openDetail(s._id)}
                     style={{
-                      padding: '6px 14px', borderRadius: '8px',
-                      backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE',
-                      fontSize: '11px', fontWeight: 700, color: '#2563EB',
-                      cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px',
-                      fontFamily: 'inherit'
+                      padding: '8px 16px', borderRadius: '8px',
+                      backgroundColor: '#2563EB', border: 'none',
+                      fontSize: '12px', fontWeight: 600, color: '#ffffff',
+                      cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px',
+                      transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(37,99,235,0.15)'
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#DBEAFE'; }}
-                    onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#EFF6FF'; }}
+                    onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#1D4ED8'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#2563EB'; e.currentTarget.style.transform = 'translateY(0)'; }}
                   >
-                    <Eye size={12} /> View
+                    <Eye size={14} /> View
                   </button>
                 </div>
               </div>
@@ -403,7 +403,7 @@ export default function AdvisorMyBatch({ selectedBatch }) {
                       { label: 'Email', value: selectedStudent.email, icon: Mail },
                       { label: 'Semester', value: selectedStudent.currentSemester ? `Semester ${selectedStudent.currentSemester}` : '—', icon: BookOpen },
                       { label: 'Department', value: selectedStudent.departmentId?.name || selectedStudent.department || '—', icon: GraduationCap },
-                      { label: 'Credit Hours', value: selectedStudent.creditHours ?? '—', icon: Clock }
+                      { label: 'Credit Hours', value: selectedStudent.courses?.length ? selectedStudent.courses.reduce((sum, c) => sum + (Number(c.creditHours) || 0), 0) : '—', icon: Clock }
                     ].map(({ label, value, icon: Icon }) => (
                       <div key={label} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '10px 12px', backgroundColor: '#F8FAFC', borderRadius: '10px', border: '1px solid #F1F5F9' }}>
                         <Icon size={13} color="#94A3B8" style={{ marginTop: '2px', flexShrink: 0 }} />

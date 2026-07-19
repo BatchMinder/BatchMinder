@@ -16,11 +16,6 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
   const [loading, setLoading] = useState(true);
   const [selectedModal, setSelectedModal] = useState(null); // 'prereq', 'addStudent', 'meeting', 'notification', 'calendar'
   
-  // Interactive Modal Fields
-  const [prereqStudentId, setPrereqStudentId] = useState('');
-  const [prereqCourse, setPrereqCourse] = useState('Data Structures');
-  const [prereqResult, setPrereqResult] = useState(null);
-  
 
   
   const [meetingData, setMeetingData] = useState({
@@ -50,35 +45,42 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
     if (hasNoBatches) return;
     setLoading(true);
     try {
-      // 1. Fetch dynamic stats summary
-      const summaryUrl = selectedBatch && selectedBatch !== 'all'
+    const summaryUrl = selectedBatch && selectedBatch !== 'all'
         ? `/api/advisor/dashboard-summary?batchId=${selectedBatch}`
         : '/api/advisor/dashboard-summary';
-      const summaryRes = await fetch(summaryUrl);
-      const summaryText = await summaryRes.text();
+      const studentsUrl = selectedBatch && selectedBatch !== 'all'
+        ? `/api/advisor/students?limit=500&batchId=${selectedBatch}`
+        : '/api/advisor/students?limit=500';
+
+      // Fetch all three endpoints concurrently
+      const [summaryRes, studentsRes, requestsRes] = await Promise.all([
+        fetch(summaryUrl),
+        fetch(studentsUrl),
+        fetch('/api/advisor/requests')
+      ]);
+
+      // Read all response bodies concurrently
+      const [summaryText, studentsText, requestsText] = await Promise.all([
+        summaryRes.text(),
+        studentsRes.text(),
+        requestsRes.text()
+      ]);
+
       const summaryData = summaryText ? JSON.parse(summaryText) : {};
       if (summaryRes.ok && summaryData.status === 'success') {
         setStats(summaryData.data.stats || { total: 0, good: 0, warning: 0, critical: 0 });
       }
 
-      // 2. Fetch assigned students list
-      const studentsUrl = selectedBatch && selectedBatch !== 'all'
-        ? `/api/advisor/students?limit=500&batchId=${selectedBatch}`
-        : '/api/advisor/students?limit=500';
-      const studentsRes = await fetch(studentsUrl);
-      const studentsText = await studentsRes.text();
       const studentsData = studentsText ? JSON.parse(studentsText) : {};
       if (studentsRes.ok && studentsData.status === 'success') {
         setStudents(studentsData.data.students || []);
       }
 
-      // 3. Fetch workflow approval requests
-      const requestsRes = await fetch('/api/advisor/requests');
-      const requestsText = await requestsRes.text();
       const requestsData = requestsText ? JSON.parse(requestsText) : {};
       if (requestsRes.ok && requestsData.status === 'success') {
         setRequests(requestsData.data.requests || []);
       }
+
     } catch (err) {
       console.error('Failed to load advisor dashboard summaries:', err);
     } finally {
@@ -179,50 +181,6 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
     return parseFloat((vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2));
   });
   const semesterLabels = semesterKeys.map(k => `Semester ${k}`);
-
-  // Handle Prerequisite Evaluation
-  const evaluatePrereq = () => {
-    if (!prereqStudentId) {
-      triggerToast('Please select a student first.');
-      return;
-    }
-    const studentObj = students.find(s => s.id === prereqStudentId || s._id === prereqStudentId);
-    
-    // Simulate prerequisite evaluation rules
-    const coursesDone = ['Intro to Computing', 'Programming Fundamentals', 'Calculus-I'];
-    if (prereqCourse === 'OOP') {
-      const pass = coursesDone.includes('Programming Fundamentals');
-      setPrereqResult({
-        status: pass ? 'Passed' : 'Failed',
-        requirements: ['Programming Fundamentals'],
-        missing: pass ? [] : ['Programming Fundamentals'],
-        completed: coursesDone
-      });
-    } else if (prereqCourse === 'Data Structures') {
-      setPrereqResult({
-        status: 'Failed',
-        requirements: ['OOP'],
-        missing: ['OOP'],
-        completed: coursesDone
-      });
-    } else if (prereqCourse === 'Database Systems') {
-      setPrereqResult({
-        status: 'Passed',
-        requirements: ['Programming Fundamentals'],
-        missing: [],
-        completed: coursesDone
-      });
-    } else {
-      setPrereqResult({
-        status: 'Passed',
-        requirements: ['Calculus-I'],
-        missing: [],
-        completed: coursesDone
-      });
-    }
-  };
-
-
 
   // Submit mock meeting schedule
   const submitMeeting = (e) => {
@@ -559,8 +517,8 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
 
       </div>
 
-      {/* ── BOTTOM ROW: Pending Approvals, Performance Trend, AI Advisor Insights ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px_320px] gap-4 mb-4">
+      {/* ── BOTTOM ROW: Pending Approvals, Performance Trend ── */}
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-4 mb-4">
         
         {/* Widget 4: Pending Approvals Table */}
         <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -677,44 +635,6 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
           </div>
         </div>
 
-        {/* Widget 6: AI Advisor Insights */}
-        <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column' }}>
-          <h3 style={{ margin: '0 0 16px', fontSize: '15px', fontWeight: 700, color: '#0F172A', paddingBottom: '16px', borderBottom: '1px solid #F1F5F9' }}>
-            AI Advisor Insights
-          </h3>
-
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', justifyContent: 'center' }}>
-            {/* Insight 1 */}
-            <div style={{ display: 'flex', gap: '10px', padding: '10px 12px', backgroundColor: '#F0FDF4', borderRadius: '10px', border: '1px solid #DCFCE7' }}>
-              <Sparkles size={16} color="#16A34A" style={{ marginTop: '2px', flexShrink: 0 }} />
-              <p style={{ margin: 0, fontSize: '11.5px', color: '#166534', fontWeight: 600, lineHeight: 1.4 }}>
-                {stats.critical || rangeUnder2} students are at high academic risk. Immediate interventions recommended.
-              </p>
-            </div>
-            
-            {/* Insight 2 */}
-            <div style={{ display: 'flex', gap: '10px', padding: '10px 12px', backgroundColor: '#FFF9E6', borderRadius: '10px', border: '1px solid #FEF3C7' }}>
-              <Lightbulb size={16} color="#D97706" style={{ marginTop: '2px', flexShrink: 0 }} />
-              <p style={{ margin: 0, fontSize: '11.5px', color: '#92400E', fontWeight: 600, lineHeight: 1.4 }}>
-                {stats.warning || range20_24} students can benefit from course workload or difficulty adjustment.
-              </p>
-            </div>
-
-            {/* Insight 3 */}
-            <div style={{ display: 'flex', gap: '10px', padding: '10px 12px', backgroundColor: '#EFF6FF', borderRadius: '10px', border: '1px solid #DBEAFE' }}>
-              <Users size={16} color="#2563EB" style={{ marginTop: '2px', flexShrink: 0 }} />
-              <p style={{ margin: 0, fontSize: '11.5px', color: '#1E40AF', fontWeight: 600, lineHeight: 1.4 }}>
-                {onTrackCount > 3 ? 3 : onTrackCount} students are eligible for early graduation planning. Review required.
-              </p>
-            </div>
-          </div>
-
-          <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: '12px', marginTop: '12px' }}>
-            <button onClick={() => triggerToast('AI analytics pipeline processing.')} style={{ border: 'none', backgroundColor: 'transparent', color: '#2563EB', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-              View All Insights &rarr;
-            </button>
-          </div>
-        </div>
 
       </div>
 
@@ -725,9 +645,7 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
           {[
-
             { title: 'Advise Courses', icon: BookOpen, iconColor: '#16A34A', bg: '#F0FDF4', action: () => setActiveNav('workflowQueue') },
-            { title: 'Check Prerequisites', icon: ShieldCheck, iconColor: '#EA580C', bg: '#FFF7ED', action: () => setSelectedModal('prereq') },
             { title: 'Generate Report', icon: FileText, iconColor: '#2563EB', bg: '#EFF6FF', action: () => triggerToast('Generating academic report compilation...') },
             { title: 'Send Notification', icon: Send, iconColor: '#EC4899', bg: '#FDF2F8', action: () => setSelectedModal('notification') },
             { title: 'Schedule Meeting', icon: Clock, iconColor: '#0D9488', bg: '#F0FDFA', action: () => setSelectedModal('meeting') },
@@ -761,70 +679,7 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
 
       {/* ── INTERACTIVE MODALS ── */}
 
-      {/* Modal 1: Prerequisite Checker */}
-      {selectedModal === 'prereq' && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div style={{ backgroundColor: '#fff', borderRadius: 24, padding: 24, maxWidth: 440, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)', textAlign: 'left' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#1B3A6B' }}>Prerequisite Eligibility Checker</h3>
-              <button onClick={() => { setSelectedModal(null); setPrereqResult(null); }} style={{ border: 'none', backgroundColor: 'transparent', cursor: 'pointer', color: '#94A3B8' }}><X size={18} /></button>
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
-              <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>Select Student</label>
-              <select
-                value={prereqStudentId}
-                onChange={e => { setPrereqStudentId(e.target.value); setPrereqResult(null); }}
-                style={{ padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }}
-              >
-                <option value="">-- Choose Student --</option>
-                {students.map(s => (
-                  <option key={s._id || s.id} value={s._id || s.id}>{s.name} ({s.rollNumber})</option>
-                ))}
-              </select>
 
-              <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>Check Eligibility For</label>
-              <select
-                value={prereqCourse}
-                onChange={e => { setPrereqCourse(e.target.value); setPrereqResult(null); }}
-                style={{ padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }}
-              >
-                {['Data Structures', 'Database Systems', 'OOP', 'Algorithms'].map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </div>
-
-            {prereqResult && (
-              <div style={{
-                padding: '16px', borderRadius: '12px', marginBottom: '20px',
-                backgroundColor: prereqResult.status === 'Passed' ? '#F0FDF4' : '#FEF2F2',
-                border: `1px solid ${prereqResult.status === 'Passed' ? '#DCFCE7' : '#FEE2E2'}`
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  {prereqResult.status === 'Passed' ? <CheckCircle2 size={16} color="#16A34A" /> : <AlertCircle size={16} color="#EF4444" />}
-                  <span style={{ fontSize: '13px', fontWeight: 800, color: prereqResult.status === 'Passed' ? '#166534' : '#991B1B' }}>
-                    Eligibility Status: {prereqResult.status === 'Passed' ? 'ELIGIBLE' : 'INELIGIBLE'}
-                  </span>
-                </div>
-                <p style={{ margin: '0 0 6px', fontSize: '12px', color: '#475569' }}>
-                  <strong>Prerequisites:</strong> {prereqResult.requirements.join(', ')}
-                </p>
-                {prereqResult.missing.length > 0 && (
-                  <p style={{ margin: 0, fontSize: '12px', color: '#EF4444' }}>
-                    <strong>Missing Course:</strong> {prereqResult.missing.join(', ')}
-                  </p>
-                )}
-              </div>
-            )}
-
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <button onClick={() => { setSelectedModal(null); setPrereqResult(null); }} style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #E2E8F0', backgroundColor: '#fff', color: '#64748B', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
-              <button onClick={evaluatePrereq} style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', backgroundColor: '#0F172A', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>Validate Eligibility</button>
-            </div>
-          </div>
-        </div>
-      )}
 
 
 

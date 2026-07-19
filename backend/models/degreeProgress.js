@@ -25,6 +25,18 @@ const degreeProgressSchema = new mongoose.Schema({
   backlog: {
     type: [String],
     default: []
+  },
+  missingCoreCourses: {
+    type: [String],
+    default: []
+  },
+  missingPrerequisites: {
+    type: [String],
+    default: []
+  },
+  creditLoss: {
+    type: Number,
+    default: 0
   }
 }, {
   timestamps: true

@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import authRoutes from './routes/authRoutes.js';
 import studentRoutes from './routes/studentRoutes.js';
 import curriculumRoutes from './routes/curriculumRoutes.js';
@@ -19,12 +21,17 @@ import schedulingRoutes from './routes/schedulingRoutes.js';
 import attendanceRoutes from './routes/attendanceRoutes.js';
 import connectDB from './utils/db.js';
 
-dotenv.config();
+const dotenvResult = dotenv.config();
+console.log('[DEBUG] dotenv load result:', dotenvResult.error ? 'Error: ' + dotenvResult.error.message : 'Success');
+console.log('[DEBUG] process.env.RESEND_API_KEY loaded:', process.env.RESEND_API_KEY ? 'Yes (starts with ' + process.env.RESEND_API_KEY.substring(0, 7) + '...)' : 'No');
 
 
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
@@ -52,6 +59,9 @@ app.use('/api/advisor', advisorRoutes);
 app.use('/api/hod', hodRoutes);
 app.use('/api/scheduling', schedulingRoutes);
 app.use('/api/attendance', attendanceRoutes);
+
+// Serve uploaded transcripts as static files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to the BatchMinder API' });

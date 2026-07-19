@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import './degreeProgress.js';
+import { sendEmail } from '../utils/email.js';
 
 
 const courseEnrollmentSchema = new mongoose.Schema({
@@ -42,10 +43,9 @@ const courseEnrollmentSchema = new mongoose.Schema({
 });
 
 // Thresholds for cgpaStatus computation
-// critical: cgpa < 2.0
-// warning:  cgpa <= 2.1 (and >= 2.0)
-// good:     cgpa > 2.1
-function computeCgpaStatus(cgpa) {
+// A CGPA of 0.00 or being in Semester 1 means no courses completed yet (exempt from probation)
+function computeCgpaStatus(cgpa, currentSemester) {
+  if (currentSemester === 1 || cgpa === 0) return 'good';
   if (cgpa < 2.0) return 'critical';
   if (cgpa <= 2.1) return 'warning';
   return 'good';
@@ -106,6 +106,10 @@ const studentSchema = new mongoose.Schema({
     type: String,
     default: 'active',
   },
+  curriculumID: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Curriculum',
+  },
   courses: [courseEnrollmentSchema],
   enrolledAt: {
     type: Date,
@@ -119,20 +123,24 @@ const studentSchema = new mongoose.Schema({
 
 // Auto-compute cgpaStatus before every save
 studentSchema.pre('save', function (next) {
-  this.cgpaStatus = computeCgpaStatus(this.cgpa);
+  this.cgpaStatus = computeCgpaStatus(this.cgpa, this.currentSemester);
   next();
 });
 
 // Auto-compute cgpaStatus on findOneAndUpdate / updateOne
 studentSchema.pre('findOneAndUpdate', function (next) {
   const update = this.getUpdate();
-  if (update && (update.cgpa !== undefined || update.$set?.cgpa !== undefined)) {
-    const newCgpa = update.cgpa !== undefined ? update.cgpa : update.$set.cgpa;
-    const status = computeCgpaStatus(newCgpa);
-    if (update.$set) {
-      update.$set.cgpaStatus = status;
-    } else {
-      update.cgpaStatus = status;
+  if (update) {
+    const cgpa = update.cgpa !== undefined ? update.cgpa : update.$set?.cgpa;
+    const currentSemester = update.currentSemester !== undefined ? update.currentSemester : update.$set?.currentSemester;
+    
+    if (cgpa !== undefined) {
+      const status = computeCgpaStatus(cgpa, currentSemester);
+      if (update.$set) {
+        update.$set.cgpaStatus = status;
+      } else {
+        update.cgpaStatus = status;
+      }
     }
   }
   next();
@@ -219,7 +227,28 @@ async function triggerAdvisorNotification(doc) {
         deepLinkUrl: `/advisor/students?search=${encodeURIComponent(doc.rollNumber)}`
       });
 
-
+      // 2. Trigger External Email Service (FR-3.5)
+      const advisor = await mongoose.model('User').findById(batch.advisorId);
+      if (advisor && advisor.email) {
+        const color = type === 'CGPA_CRITICAL' ? '#EF4444' : '#F59E0B';
+        const html = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; padding: 20px; border: 1px solid #E2E8F0; border-radius: 12px;">
+            <h2 style="color: ${color}; margin-top: 0;">${type === 'CGPA_CRITICAL' ? 'Critical Academic Alert' : 'Academic Warning'}</h2>
+            <p style="color: #334155; font-size: 16px;">This is an automated alert regarding <strong>${doc.name}</strong> (${doc.rollNumber}).</p>
+            <div style="background-color: #F8FAFC; padding: 16px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin: 0; color: #475569;"><strong>Current CGPA:</strong> <span style="color: ${color}; font-weight: bold; font-size: 18px;">${cgpa.toFixed(2)}</span></p>
+            </div>
+            <p style="color: #64748B; font-size: 14px;">Please review the student's profile and schedule a counseling session if necessary.</p>
+            <a href="http://localhost:5173/advisor/students?search=${encodeURIComponent(doc.rollNumber)}" style="display: inline-block; background-color: #2563EB; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 10px;">View Student Profile</a>
+          </div>
+        `;
+        
+        await sendEmail({
+          to: advisor.email,
+          subject: type === 'CGPA_CRITICAL' ? `CRITICAL ALERT: CGPA Dropped for ${doc.name}` : `Warning: CGPA Alert for ${doc.name}`,
+          html
+        }).catch(err => console.error('Failed to send advisor email alert:', err));
+      }
     }
   }
 }

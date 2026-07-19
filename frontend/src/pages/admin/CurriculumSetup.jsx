@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { BookOpen, Building2, Layers, GitCompare, FileEdit, Trash2, Eye, Plus, ArrowRightLeft, Clock, X } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { format } from 'date-fns';
-import EquivalencyForm from '../../components/curriculum/EquivalencyForm';
 
 const COLORS = ['#2563EB', '#F59E0B', '#10B981', '#8B5CF6'];
 
@@ -21,7 +20,6 @@ export default function CurriculumSetup() {
   // Modal States
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAllCoursesModal, setShowAllCoursesModal] = useState(false);
-  const [showMappingModal, setShowMappingModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editCourses, setEditCourses] = useState([]);
   const [newCourse, setNewCourse] = useState({ code: '', title: '', creditHours: 3, semester: 1 });
@@ -68,13 +66,31 @@ export default function CurriculumSetup() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      // Create a dummy course as requested in the plan
+      let hecCourses = [];
+      try {
+        const hecRes = await fetch('/api/curriculums/hec');
+        if (hecRes.ok) {
+          const hecData = await hecRes.json();
+          if (hecData.status === 'success' && hecData.data && hecData.data.curriculum) {
+            hecCourses = hecData.data.curriculum.courses || [];
+          }
+        }
+      } catch (err) {
+        console.error('Could not fetch HEC curriculum:', err);
+      }
+
       const payload = {
         batchId: addForm.batchId,
         departmentId: addForm.departmentId,
         version: addForm.version,
-        courses: [{ code: "DUMMY101", title: "Placeholder Course", creditHours: 3, semester: 1 }]
+        courses: hecCourses.length > 0 ? hecCourses.map(c => ({
+          code: c.code || c.courseCode,
+          title: c.title || c.courseTitle,
+          creditHours: c.creditHours || c.credits || 3,
+          semester: c.semester || 1
+        })) : []
       };
+
       const res = await fetch('/api/curriculums', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -334,8 +350,8 @@ export default function CurriculumSetup() {
       );
       })()}
 
-      {/* 3. COURSES & MAPPING ROW */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr_1fr] gap-5">
+      {/* 3. COURSES ROW */}
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-5">
         
         {/* Course List */}
         <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
@@ -400,48 +416,7 @@ export default function CurriculumSetup() {
           </div>
         </div>
 
-        {/* Course Mapping Equivalency */}
-        <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column' }}>
-          <h3 style={{ margin: '0 0 16px', fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Course Mapping (Equivalency)</h3>
-          <p style={{ margin: '0 0 16px', fontSize: '13px', color: '#64748B' }}>Migrate & Map courses between versions</p>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-            <div style={{ flex: 1 }}>
-              <p style={{ margin: '0 0 4px', fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase' }}>From Version</p>
-              <select style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '13px', backgroundColor: '#F8FAFC' }}>
-                <option>v1.0</option>
-              </select>
-            </div>
-            <ArrowRightLeft size={16} color="#94A3B8" style={{ margin: '0 12px', marginTop: '16px' }} />
-            <div style={{ flex: 1 }}>
-              <p style={{ margin: '0 0 4px', fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase' }}>To Version</p>
-              <select style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '13px', backgroundColor: '#F8FAFC' }}>
-                <option>v{selectedCurriculum?.version || '2.0'}</option>
-              </select>
-            </div>
-          </div>
-          
-          {/* Mock stats for the mapping interface as it is a specialized tool not fully implemented in backend yet */}
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: '24px' }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '24px', fontWeight: 800, color: '#10B981' }}>0</div>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: '#64748B', textTransform: 'uppercase' }}>Mapped</div>
-            </div>
-            <div style={{ width: '1px', backgroundColor: '#E2E8F0' }}></div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '24px', fontWeight: 800, color: '#F59E0B' }}>0</div>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: '#64748B', textTransform: 'uppercase' }}>Partial</div>
-            </div>
-            <div style={{ width: '1px', backgroundColor: '#E2E8F0' }}></div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '24px', fontWeight: 800, color: '#EF4444' }}>0</div>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: '#64748B', textTransform: 'uppercase' }}>Unmapped</div>
-            </div>
-          </div>
-          
-          <button onClick={() => setShowMappingModal(true)} style={{ marginTop: 'auto', width: '100%', padding: '10px', backgroundColor: '#EFF6FF', color: '#2563EB', border: '1px solid #BFDBFE', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
-            Manage Course Mapping
-          </button>
-        </div>
+
 
         {/* Curriculum Statistics */}
         <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0' }}>
@@ -527,7 +502,7 @@ export default function CurriculumSetup() {
               
               <div style={{ backgroundColor: '#EFF6FF', borderRadius: '12px', padding: '16px', marginBottom: '24px', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                 <BookOpen size={20} color="#2563EB" style={{ flexShrink: 0 }} />
-                <p style={{ margin: 0, fontSize: '12px', color: '#1E3A8A', lineHeight: 1.5 }}>A placeholder template course will be automatically added. You can add or modify real courses via the "View Full Specs" tool later.</p>
+                <p style={{ margin: 0, fontSize: '12px', color: '#1E3A8A', lineHeight: 1.5 }}>The official HEC template courses will be automatically imported. You can add or modify courses via the "Edit" tool later.</p>
               </div>
 
               <div style={{ display: 'flex', gap: '12px' }}>
@@ -597,37 +572,6 @@ export default function CurriculumSetup() {
             <div style={{ padding: '16px 24px', borderTop: '1px solid #E2E8F0', backgroundColor: '#F8FAFC', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 600 }}>Total: {selectedCurriculum.courses?.length || 0} Courses</span>
                <button onClick={() => setShowAllCoursesModal(false)} style={{ padding: '10px 20px', borderRadius: '12px', border: '1px solid #E2E8F0', backgroundColor: '#fff', color: '#0F172A', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>Close</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 3. Manage Course Mapping Modal */}
-      {showMappingModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', padding: '20px' }}>
-          <div style={{ backgroundColor: '#fff', borderRadius: '24px', width: '100%', maxWidth: '600px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
-             <div style={{ padding: '24px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F8FAFC' }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>Course Equivalency Mapping</h3>
-                <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#64748B' }}>Map courses between active curriculum versions.</p>
-              </div>
-              <button onClick={() => setShowMappingModal(false)} style={{ background: '#E2E8F0', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748B' }}>
-                <X size={16} />
-              </button>
-            </div>
-            <div style={{ padding: '24px', maxHeight: '70vh', overflowY: 'auto' }}>
-               <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '12px', color: '#991B1B', fontSize: '13px' }}>
-                 <strong>Admin Notice:</strong> Using external equivalency form temporarily for internal curriculum mapping migrations.
-               </div>
-               
-               <EquivalencyForm 
-                  canEdit={true} 
-                  onSubmitEquivalency={(data) => {
-                    console.log('Submitted equivalency mapping:', data);
-                    alert('Equivalency mapped successfully! (Console Logged)');
-                    setShowMappingModal(false);
-                  }} 
-               />
             </div>
           </div>
         </div>

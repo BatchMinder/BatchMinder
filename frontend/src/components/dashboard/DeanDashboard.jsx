@@ -5,7 +5,6 @@ import DepartmentManagement from './DepartmentManagement';
 import BatchAllocation from './BatchAllocation';
 import RolesPermissions from './RolesPermissions';
 import NotificationsPage from './NotificationsPage';
-import AuditLogsPage from './AuditLogsPage';
 import Header from './Header';
 import {
   Layers,
@@ -43,7 +42,7 @@ export default function DeanDashboard({ onLogout }) {
     const path = window.location.pathname;
     if (path.startsWith('/dashboard/')) {
       const subPage = path.substring('/dashboard/'.length);
-      const validPages = ['users', 'departments', 'batches', 'roles', 'notifications', 'audits'];
+      const validPages = ['users', 'departments', 'batches', 'roles', 'notifications'];
       if (validPages.includes(subPage)) {
         return subPage;
       }
@@ -270,8 +269,7 @@ export default function DeanDashboard({ onLogout }) {
     ],
     system: [
       { id: 'roles', label: 'Roles & Permissions', icon: Shield },
-      { id: 'notifications', label: 'Notifications', icon: Bell },
-      { id: 'audits', label: 'Audit Logs', icon: BarChart2 }
+      { id: 'notifications', label: 'Notifications', icon: Bell }
     ]
   };
 
@@ -547,8 +545,6 @@ export default function DeanDashboard({ onLogout }) {
           <RolesPermissions setActiveNav={setActiveNav} />
         ) : activeNav === 'notifications' ? (
           <NotificationsPage setActiveNav={setActiveNav} />
-        ) : activeNav === 'audits' ? (
-          <AuditLogsPage setActiveNav={setActiveNav} />
         ) : (
           <div style={{ flex: 1, overflowY: 'auto', backgroundColor: '#F8FAFC', display: 'flex', flexDirection: 'column' }}>
             <Header

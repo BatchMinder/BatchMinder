@@ -9,13 +9,10 @@ import { CircularProgress } from '@mui/material';
 export default function AdvisorRiskDashboard() {
   const { user } = useAuth();
   const [students, setStudents] = useState([]);
-  const [predictions, setPredictions] = useState({}); // studentId -> prediction result
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStanding, setFilterStanding] = useState('all');
   const [selectedStudent, setSelectedStudent] = useState(null);
-  const [selectedPrediction, setSelectedPrediction] = useState(null);
-  const [predictingId, setPredictingId] = useState(null);
 
   const fetchStudents = async () => {
     setLoading(true);
@@ -36,50 +33,24 @@ export default function AdvisorRiskDashboard() {
     fetchStudents();
   }, []);
 
-  const handlePredictRisk = async (studentId) => {
-    setPredictingId(studentId);
-    try {
-      const res = await fetch(`/api/students/${studentId}/predict-risk`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const data = await res.json();
-      if (res.ok && data.status === 'success') {
-        const result = data.data;
-        setPredictions(prev => ({ ...prev, [studentId]: result }));
-        
-        // Find student details and set as currently selected prediction report
-        const student = students.find(s => s._id === studentId);
-        if (student) {
-          setSelectedStudent(student);
-          setSelectedPrediction(result);
-        }
-      } else {
-        alert(data.message || 'Risk prediction request failed.');
-      }
-    } catch (e) {
-      console.error('Error triggering AI prediction:', e);
-      alert('Network error analyzing academic risk.');
-    } finally {
-      setPredictingId(null);
-    }
+  const handleSelectStudent = (studentId) => {
+    const student = students.find(s => s._id === studentId);
+    if (student) setSelectedStudent(student);
   };
 
-  // Filter students based on search and standing standing
+  // Filter students based on search and standing
   const filteredStudents = students.filter(s => {
     const matchesSearch =
       s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.rollNumber.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const pred = predictions[s._id];
-    const standing = pred ? pred.riskLevel.toLowerCase() : (s.cgpaStatus || 'good').toLowerCase();
+    const standing = (s.cgpaStatus || 'good').toLowerCase();
 
     const matchesFilter =
       filterStanding === 'all' ||
-      (filterStanding === 'good' && standing === 'good standing' || standing === 'good') ||
+      (filterStanding === 'good' && standing === 'good') ||
       (filterStanding === 'warning' && standing === 'warning') ||
-      (filterStanding === 'critical' && standing === 'critical') ||
-      (filterStanding === 'unpredicted' && !pred);
+      (filterStanding === 'critical' && standing === 'critical');
 
     return matchesSearch && matchesFilter;
   });
@@ -109,15 +80,9 @@ export default function AdvisorRiskDashboard() {
 
   // Metrics summary
   const totalStudents = students.length;
-  const criticalCount = students.filter(s => {
-    const pred = predictions[s._id];
-    return pred ? pred.riskLevel === 'CRITICAL' : s.cgpaStatus === 'critical';
-  }).length;
-  const warningCount = students.filter(s => {
-    const pred = predictions[s._id];
-    return pred ? pred.riskLevel === 'WARNING' : s.cgpaStatus === 'warning';
-  }).length;
-  const predictedCount = Object.keys(predictions).length;
+  const criticalCount = students.filter(s => s.cgpaStatus === 'critical').length;
+  const warningCount = students.filter(s => s.cgpaStatus === 'warning').length;
+  const goodCount = students.filter(s => s.cgpaStatus === 'good' || !s.cgpaStatus).length;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '32px' }}>
@@ -126,13 +91,13 @@ export default function AdvisorRiskDashboard() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: '#94A3B8', letterSpacing: '0.5px' }}>
-            AI Assistant Center
+            System Monitoring
           </span>
           <h2 style={{ margin: '4px 0 0', fontSize: '24px', fontWeight: 800, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Brain size={24} color="#2563EB" /> AI Academic Risk Forecaster
+            <Activity size={24} color="#2563EB" /> Academic Risk Monitoring
           </h2>
           <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748B' }}>
-            Predict academically at-risk students, examine performance trends, and retrieve dynamic advising recommendations.
+            Monitor academically at-risk students based on systematic CGPA thresholds and advising guidelines.
           </p>
         </div>
         <button
@@ -152,9 +117,9 @@ export default function AdvisorRiskDashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Total Batch Size', value: totalStudents, bg: '#EFF6FF', color: '#2563EB', icon: Users },
-          { label: 'AI Predictions Run', value: predictedCount, bg: '#F5F3FF', color: '#7C3AED', icon: Activity },
-          { label: 'AI Critical Risk Standings', value: criticalCount, bg: '#FEF2F2', color: '#EF4444', icon: ShieldAlert },
-          { label: 'AI Warning Standings', value: warningCount, bg: '#FFFBEB', color: '#D97706', icon: AlertTriangle }
+          { label: 'Good Standing', value: goodCount, bg: '#F0FDF4', color: '#16A34A', icon: CheckCircle },
+          { label: 'Critical Standings', value: criticalCount, bg: '#FEF2F2', color: '#EF4444', icon: ShieldAlert },
+          { label: 'Warning Standings', value: warningCount, bg: '#FFFBEB', color: '#D97706', icon: AlertTriangle }
         ].map(({ label, value, bg, color, icon: Icon }) => (
           <div key={label} style={{
             backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px',
@@ -210,10 +175,9 @@ export default function AdvisorRiskDashboard() {
               }}
             >
               <option value="all">All Standings</option>
-              <option value="good">AI Good Standing</option>
-              <option value="warning">AI Warning</option>
-              <option value="critical">AI Critical Risk</option>
-              <option value="unpredicted">Not Predicted Yet</option>
+              <option value="good">Good Standing</option>
+              <option value="warning">Warning</option>
+              <option value="critical">Critical Risk</option>
             </select>
           </div>
 
@@ -226,7 +190,7 @@ export default function AdvisorRiskDashboard() {
                   <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>Name</th>
                   <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>Semester</th>
                   <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>CGPA</th>
-                  <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>AI Forecasting Status</th>
+                  <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>Standing</th>
                   <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
@@ -245,8 +209,7 @@ export default function AdvisorRiskDashboard() {
                   </tr>
                 ) : (
                   filteredStudents.map(s => {
-                    const pred = predictions[s._id];
-                    const standing = pred ? pred.riskLevel : (s.cgpaStatus || 'good').toUpperCase();
+                    const standing = (s.cgpaStatus || 'good').toUpperCase();
 
                     const config = {
                       'GOOD': { text: '#059669', bg: '#E6F4EA', label: 'Good Standing' },
@@ -254,8 +217,6 @@ export default function AdvisorRiskDashboard() {
                       'WARNING': { text: '#D97706', bg: '#FEF7E0', label: 'Warning' },
                       'CRITICAL': { text: '#DC2626', bg: '#FCE8E6', label: 'Critical' }
                     }[standing] || { text: '#475569', bg: '#F1F3F4', label: standing };
-
-                    const isPredicting = predictingId === s._id;
 
                     return (
                       <tr key={s._id} style={{ borderBottom: '1px solid #F1F5F9', backgroundColor: selectedStudent?._id === s._id ? '#EFF6FF' : 'transparent' }}>
@@ -278,29 +239,18 @@ export default function AdvisorRiskDashboard() {
                           }}>
                             {config.label}
                           </span>
-                          {pred && (
-                            <span style={{ display: 'block', fontSize: '9px', color: '#94A3B8', marginTop: '2px' }}>
-                              Score: {Math.round(pred.riskScore * 100)}%
-                            </span>
-                          )}
                         </td>
                         <td style={{ padding: '14px 24px', textAlign: 'right' }}>
                           <button
-                            onClick={() => handlePredictRisk(s._id)}
-                            disabled={isPredicting || predictingId !== null}
+                            onClick={() => handleSelectStudent(s._id)}
                             style={{
                               padding: '6px 12px', borderRadius: '8px', border: 'none',
                               backgroundColor: '#2563EB', color: '#FFFFFF', fontSize: '12px',
                               fontWeight: 700, cursor: 'pointer', display: 'inline-flex',
-                              alignItems: 'center', gap: '4px', opacity: (isPredicting || predictingId !== null) ? 0.6 : 1
+                              alignItems: 'center', gap: '4px'
                             }}
                           >
-                            {isPredicting ? (
-                              <CircularProgress size={12} color="inherit" />
-                            ) : (
-                              <Play size={12} fill="#FFF" />
-                            )}
-                            <span>Analyze</span>
+                            <span>View Profile</span>
                           </button>
                         </td>
                       </tr>
@@ -312,8 +262,8 @@ export default function AdvisorRiskDashboard() {
           </div>
         </div>
 
-        {/* Right Side: Prediction Report Panel */}
-        {selectedStudent && selectedPrediction && (
+        {/* Right Side: Status Report Panel */}
+        {selectedStudent && (
           <div style={{
             backgroundColor: '#FFFFFF', borderRadius: '16px', border: '1px solid #E2E8F0',
             boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column',
@@ -322,11 +272,11 @@ export default function AdvisorRiskDashboard() {
             {/* Report Header */}
             <div style={{ padding: '20px', borderBottom: '1px solid #F1F5F9', backgroundColor: '#F8FAFC', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <h3 style={{ margin: 0, fontSize: '14.5px', fontWeight: 800, color: '#0F172A' }}>AI Diagnostic Profile</h3>
+                <h3 style={{ margin: 0, fontSize: '14.5px', fontWeight: 800, color: '#0F172A' }}>System Risk Profile</h3>
                 <p style={{ margin: '2px 0 0', fontSize: '11.5px', color: '#64748B' }}>{selectedStudent.name} &bull; {selectedStudent.rollNumber}</p>
               </div>
               <button
-                onClick={() => { setSelectedStudent(null); setSelectedPrediction(null); }}
+                onClick={() => setSelectedStudent(null)}
                 style={{ border: 'none', backgroundColor: 'transparent', cursor: 'pointer', color: '#94A3B8', fontSize: '14px', fontWeight: 'bold' }}
               >
                 Close
@@ -336,91 +286,30 @@ export default function AdvisorRiskDashboard() {
             {/* Report Body */}
             <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
               
-              {/* Prediction Limitation Check (Alternative Flow 4.1 & 4.2) */}
-              {selectedPrediction.message === 'Insufficient data for prediction' || (selectedPrediction.historicalCGPA && selectedPrediction.historicalCGPA.length < 2) ? (
-                <div style={{ padding: '14px', borderRadius: '10px', backgroundColor: '#FFFBEB', border: '1px solid #FDE68A', display: 'flex', gap: '10px' }}>
-                  <AlertCircle size={18} color="#D97706" style={{ flexShrink: 0, marginTop: '2px' }} />
-                  <div>
-                    <h4 style={{ margin: 0, fontSize: '12px', fontWeight: 800, color: '#92400E' }}>Prediction Limitation Notice</h4>
-                    <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#B45309', lineHeight: 1.4 }}>
-                      Historical academic data points: <b>{selectedPrediction.historicalCGPA?.length || 1}</b>.<br />
-                      AI forecaster models require at least 2 historical semesters of academic progression data to run. Standing is currently advisory based on static standing.
-                    </p>
-                  </div>
+              {/* Score Indicator & Level Badge */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>Academic Standing</span>
+                  <h4 style={{
+                    margin: 0, fontSize: '24px', fontWeight: 800,
+                    color: (selectedStudent.cgpaStatus || 'good').toUpperCase() === 'CRITICAL' ? '#DC2626' : (selectedStudent.cgpaStatus || 'good').toUpperCase() === 'WARNING' ? '#D97706' : '#059669'
+                  }}>
+                    {(selectedStudent.cgpaStatus || 'Good').toUpperCase()}
+                  </h4>
                 </div>
-              ) : (
-                <>
-                  {/* Score Indicator & Level Badge */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>Academic Risk Score</span>
-                      <h4 style={{
-                        margin: 0, fontSize: '24px', fontWeight: 800,
-                        color: selectedPrediction.riskLevel === 'CRITICAL' ? '#DC2626' : selectedPrediction.riskLevel === 'WARNING' ? '#D97706' : '#059669'
-                      }}>
-                        {Math.round(selectedPrediction.riskScore * 100)}% Risk
-                      </h4>
-                      <span style={{
-                        alignSelf: 'flex-start', padding: '2px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: 800,
-                        color: selectedPrediction.riskLevel === 'CRITICAL' ? '#DC2626' : selectedPrediction.riskLevel === 'WARNING' ? '#D97706' : '#059669',
-                        backgroundColor: selectedPrediction.riskLevel === 'CRITICAL' ? '#FCE8E6' : selectedPrediction.riskLevel === 'WARNING' ? '#FEF7E0' : '#E6F4EA',
-                        marginTop: '4px'
-                      }}>
-                        {selectedPrediction.riskLevel}
-                      </span>
-                    </div>
-                    {/* Ring Visualization */}
-                    <div style={{ position: 'relative', width: '60px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <svg width="60" height="60" viewBox="0 0 36 36">
-                        <path
-                          className="text-slate-100"
-                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                          fill="none" stroke="#E2E8F0" strokeWidth="3"
-                        />
-                        <path
-                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                          fill="none"
-                          stroke={selectedPrediction.riskLevel === 'CRITICAL' ? '#DC2626' : selectedPrediction.riskLevel === 'WARNING' ? '#D97706' : '#059669'}
-                          strokeWidth="3.2"
-                          strokeDasharray={`${Math.round(selectedPrediction.riskScore * 100)}, 100`}
-                        />
-                      </svg>
-                      <Brain size={16} style={{ position: 'absolute' }} color="#94A3B8" />
-                    </div>
-                  </div>
+              </div>
 
-                  {/* Engine Details */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11.5px', color: '#64748B', backgroundColor: '#FAFAFA', borderRadius: '10px', padding: '12px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>AI Model Service</span>
-                      <span style={{
-                        fontWeight: 700,
-                        color: selectedPrediction.serviceStatus === 'ONLINE' ? '#059669' : '#D97706'
-                      }}>
-                        {selectedPrediction.serviceStatus === 'ONLINE' ? 'ONLINE (ML Cluster)' : 'LOCAL FALLBACK'}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Diagnostic Time</span>
-                      <span style={{ fontWeight: 600, color: '#475569' }}>
-                        {selectedPrediction.predictedAt ? new Date(selectedPrediction.predictedAt).toLocaleTimeString() : new Date().toLocaleTimeString()}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Advisor recommendations */}
-                  <div>
-                    <h4 style={{ margin: '0 0 8px', fontSize: '12px', fontWeight: 800, color: '#1E293B', textTransform: 'uppercase', letterSpacing: '0.3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Sparkles size={13} color="#2563EB" /> Advisor Advisory Guidance
-                    </h4>
-                    <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '12px', color: '#475569', display: 'flex', flexDirection: 'column', gap: '6px', lineHeight: 1.4 }}>
-                      {getAdvisorRecommendations(selectedPrediction.riskLevel).map((rec, idx) => (
-                        <li key={idx}>{rec}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </>
-              )}
+              {/* Advisor recommendations */}
+              <div>
+                <h4 style={{ margin: '0 0 8px', fontSize: '12px', fontWeight: 800, color: '#1E293B', textTransform: 'uppercase', letterSpacing: '0.3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  Advising Guidelines
+                </h4>
+                <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '12px', color: '#475569', display: 'flex', flexDirection: 'column', gap: '6px', lineHeight: 1.4 }}>
+                  {getAdvisorRecommendations((selectedStudent.cgpaStatus || 'good').toUpperCase()).map((rec, idx) => (
+                    <li key={idx}>{rec}</li>
+                  ))}
+                </ul>
+              </div>
 
             </div>
           </div>

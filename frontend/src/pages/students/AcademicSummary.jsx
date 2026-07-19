@@ -40,7 +40,7 @@ export default function AcademicSummary({ student }) {
     let cumulativePoints = 0;
     let cumulativeCredits = 0;
 
-    return sortedSemesters.map(sem => {
+    const result = sortedSemesters.map(sem => {
       const semCourses = semMap[sem];
       let semPoints = 0;
       let semCredits = 0;
@@ -74,6 +74,8 @@ export default function AcademicSummary({ student }) {
         credits: semCredits
       };
     });
+
+    return result.reverse();
   }, [courses]);
 
   const totalCredits = useMemo(() => {
@@ -157,9 +159,9 @@ export default function AcademicSummary({ student }) {
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {[
-              { label: 'Cumulative CGPA', value: (student.cgpa || 0.00).toFixed(2), desc: 'Out of 4.00 max scaling', color: '#2563EB' },
+              { label: 'Cumulative CGPA', value: student.currentSemester === 1 ? 'N/A' : (student.cgpa || 0.00).toFixed(2), desc: 'Out of 4.00 max scaling', color: '#2563EB' },
               { label: 'Completed Credit Hours', value: `${totalCredits} CH`, desc: 'Of 130 minimum required', color: '#10B981' },
-              { label: 'Academic Standing', value: student.cgpa >= 2.0 ? 'Good Standing' : 'On Probation', desc: 'Required limit >= 2.0', color: student.cgpa >= 2.0 ? '#10B981' : '#EF4444' }
+              { label: 'Academic Standing', value: student.currentSemester === 1 ? 'Good Standing' : (student.cgpa >= 2.0 ? 'Good Standing' : 'On Probation'), desc: 'Required limit >= 2.0', color: student.currentSemester === 1 || student.cgpa >= 2.0 ? '#10B981' : '#EF4444' }
             ].map((stat, i) => (
               <div key={i} style={{ padding: '12px 16px', border: '1px solid #F1F5F9', borderRadius: '12px', backgroundColor: '#F8FAFC' }}>
                 <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.3px' }}>{stat.label}</span>
