@@ -201,4 +201,12 @@ export const getHECCurriculum = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+export const getCurriculumHistory = async (req, res) => {
+  try {
+    // Temporary placeholder so the router doesn't crash the server
+    res.status(200).json({ status: 'success', data: { history: [] } });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
