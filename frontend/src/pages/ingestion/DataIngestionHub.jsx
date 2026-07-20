@@ -85,12 +85,13 @@ export default function DataIngestionHub({ onUploadSuccess }) {
 
   // Metadata Dropdown Selection States
   const [departments, setDepartments] = useState([]);
-  
+
 
   const [batches, setBatches] = useState([]);
   const [selectedDept, setSelectedDept] = useState('');
   const [selectedBatch, setSelectedBatch] = useState('');
   const [selectedSemester, setSelectedSemester] = useState(1);
+  const [selectedIntake, setSelectedIntake] = useState('Fall');
 
   // Derived state: Filter batches by the selected department
   const filteredBatches = React.useMemo(() => {
@@ -138,6 +139,53 @@ export default function DataIngestionHub({ onUploadSuccess }) {
       .catch(() => { });
   }, []);
 
+  // Form Field Validation on Blur (UI-5)
+  const validateField = (field, value) => {
+    let errorMsg = '';
+    if (field === 'apiUrl') {
+      if (!value) {
+        errorMsg = 'API Endpoint URL is required.';
+      } else if (!/^https?:\/\/.+/.test(value)) {
+        errorMsg = 'Please enter a valid HTTP/HTTPS URL (e.g. https://lms.university.edu/api).';
+      }
+    } else if (field === 'apiKey') {
+      if (!value) {
+        errorMsg = 'API Security Access Token is required.';
+      } else if (value.length < 16) {
+        errorMsg = 'Access key must be a secure token of at least 16 characters.';
+      }
+    }
+    setErrors(prev => ({ ...prev, [field]: errorMsg }));
+  };
+
+  const handleDownloadValidationReport = () => {
+    let rows = [];
+    if (validationErrors.length === 0) {
+      rows = [
+        ['Validation Report', 'Ingested file is valid. No errors found.'],
+        ['Downloaded At', new Date().toLocaleString()]
+      ];
+    } else {
+      rows = [
+        ['Validation Report', 'Student Data Ingestion Error Log'],
+        ['Downloaded At', new Date().toLocaleString()],
+        [],
+        ['ROW #', 'FIELD NAME', 'ERROR DESCRIPTION'],
+        ...validationErrors.map(err => [`Row ${err.row}`, err.field, err.error])
+      ];
+    }
+
+    const csvContent = rows.map(r => r.map(val => `"${String(val).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `validation_report_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    showSuccess('Validation report downloaded successfully!');
+  };
+
   // Real upload logic pointing directly to backend port 5000 with cookies included
   const handleFileUpload = async (e) => {
     const selectedFile = e.target.files[0];
@@ -157,6 +205,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
       formData.append('department', selectedDept);
       formData.append('batch', selectedBatch);
       formData.append('semester', selectedSemester);
+      formData.append('intakeSession', selectedIntake);
 
       // Simulate progress progression
       setTimeout(() => setUploadProgress(85), 600);
@@ -384,7 +433,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
               </div>
 
               {/* Metadata Selectors (Required before upload) */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 my-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-3">
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.5px' }}>
                     Department
@@ -440,6 +489,23 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                     {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => (
                       <option key={sem} value={sem}>Semester {sem}</option>
                     ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.5px' }}>
+                    Intake Term
+                  </label>
+                  <select
+                    value={selectedIntake}
+                    onChange={e => setSelectedIntake(e.target.value)}
+                    style={{
+                      width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid #CBD5E1',
+                      fontSize: '13px', color: '#1E293B', backgroundColor: '#FFFFFF', outline: 'none', cursor: 'pointer', fontFamily: 'inherit'
+                    }}
+                  >
+                    <option value="Fall">🍂 Fall Intake</option>
+                    <option value="Spring">🌸 Spring Intake</option>
                   </select>
                 </div>
               </div>
@@ -677,7 +743,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                   Validation Errors {validationErrors.length > 0 && `(${validationErrors.length})`}
                 </h3>
                 <button
-                  onClick={() => showSuccess('Validation report downloaded successfully!')}
+                  onClick={handleDownloadValidationReport}
                   style={{ display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid #E2E8F0', padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: 700, color: '#334155', backgroundColor: '#fff', cursor: 'pointer' }}
                 >
                   <Download size={12} /> Download Report

@@ -98,13 +98,16 @@ const StudentTable = ({ students = [], onEdit, onAdd, canEdit = false }) => {
                 .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                 .map((student) => {
                   const valCgpa = typeof student.cgpa === 'number' ? student.cgpa : null;
-                  const tagStyle = valCgpa == null
-                    ? 'bg-gray-100 text-gray-600 border-gray-200'
-                    : valCgpa < 2.0
-                      ? 'bg-red-50 text-red-700 border-red-200'
-                      : valCgpa <= 2.1
-                        ? 'bg-amber-50 text-amber-700 border-amber-200'
-                        : 'bg-green-50 text-green-700 border-green-200';
+                  const isSem1 = student.semester === 1 || Number(student.semester) === 1;
+                  const tagStyle = isSem1
+                    ? 'bg-green-50 text-green-700 border-green-200'
+                    : (valCgpa == null
+                      ? 'bg-gray-100 text-gray-600 border-gray-200'
+                      : valCgpa < 2.0
+                        ? 'bg-red-50 text-red-700 border-red-200'
+                        : valCgpa <= 2.1
+                          ? 'bg-amber-50 text-amber-700 border-amber-200'
+                          : 'bg-green-50 text-green-700 border-green-200');
 
                   return (
                     <TableRow
@@ -121,7 +124,7 @@ const StudentTable = ({ students = [], onEdit, onAdd, canEdit = false }) => {
                       <TableCell sx={{ fontSize: '14px', py: 1.5 }}>Semester {student.semester}</TableCell>
                       <TableCell sx={{ fontSize: '14px', py: 1.5 }}>
                         <span className={`px-2.5 py-0.5 rounded border text-xs font-bold ${tagStyle}`}>
-                          {valCgpa != null ? valCgpa.toFixed(2) : 'N/A'}
+                          {student.semester === 1 || Number(student.semester) === 1 ? 'N/A' : (valCgpa != null ? valCgpa.toFixed(2) : 'N/A')}
                         </span>
                       </TableCell>
                     </TableRow>

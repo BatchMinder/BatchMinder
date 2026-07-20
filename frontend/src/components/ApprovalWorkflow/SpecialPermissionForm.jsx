@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Search, Check, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, Search, Check, AlertCircle, ChevronDown, BookOpen } from 'lucide-react';
 import { CircularProgress } from '@mui/material';
 
 export default function SpecialPermissionForm({ onClose, onSuccess }) {
@@ -8,14 +8,85 @@ export default function SpecialPermissionForm({ onClose, onSuccess }) {
   const [searchingStudents, setSearchingStudents] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
 
+  const [batches, setBatches] = useState([]);
+  const [curriculumCourses, setCurriculumCourses] = useState([]);
+  const [selectedBatch, setSelectedBatch] = useState('');
+  const [selectedSemester, setSelectedSemester] = useState(1);
+
+  const [requestType, setRequestType] = useState('add');
   const [courseCode, setCourseCode] = useState('');
   const [courseTitle, setCourseTitle] = useState('');
   const [creditHours, setCreditHours] = useState(3);
   const [justification, setJustification] = useState('');
   const [remarks, setRemarks] = useState('');
 
+  const [showCourseDropdown, setShowCourseDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const [enrolledCourses, setEnrolledCourses] = useState([]);
+  const [loadingStudentCourses, setLoadingStudentCourses] = useState(false);
+
+  // Fetch Batches and HEC Curriculum on Mount
+  useEffect(() => {
+    fetch('/api/batches')
+      .then(r => r.json())
+      .then(d => {
+        if (d.status === 'success' && d.data) {
+          setBatches(d.data);
+          if (d.data.length > 0) setSelectedBatch(d.data[0].code || d.data[0]._id);
+        }
+      })
+      .catch(err => console.error('Error fetching batches:', err));
+
+    fetch('/api/curriculums/hec')
+      .then(r => r.json())
+      .then(d => {
+        const curr = d.data?.curriculum || d.data;
+        if (curr && curr.courses) {
+          setCurriculumCourses(curr.courses);
+        }
+      })
+      .catch(err => console.error('Error fetching curriculum courses:', err));
+  }, []);
+
+  // Fetch student's enrolled courses when student is selected
+  useEffect(() => {
+    if (!selectedStudent) {
+      setEnrolledCourses([]);
+      return;
+    }
+    const fetchCourses = async () => {
+      setLoadingStudentCourses(true);
+      try {
+        const res = await fetch(`/api/advisor/students/${selectedStudent._id}/eligible-courses`);
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+          setEnrolledCourses(data.data.enrolledCourses || []);
+        } else {
+          setEnrolledCourses(selectedStudent.courses || []);
+        }
+      } catch (err) {
+        setEnrolledCourses(selectedStudent.courses || []);
+      } finally {
+        setLoadingStudentCourses(false);
+      }
+    };
+    fetchCourses();
+  }, [selectedStudent]);
+
+  // Filter courses by request type and selected semester
+  const filteredCourses = useMemo(() => {
+    if (requestType === 'drop' || requestType === 'withdrawal') {
+      const active = (enrolledCourses || []).filter(c =>
+        c.status === 'enrolled' || c.enrollmentStatus === 'enrolled' || c.grade === 'IP' || c.semester === selectedStudent?.currentSemester
+      );
+      return active.length > 0 ? active : (enrolledCourses || []);
+    }
+    if (!curriculumCourses || curriculumCourses.length === 0) return [];
+    const semCourses = curriculumCourses.filter(c => c.semester === Number(selectedSemester));
+    return semCourses.length > 0 ? semCourses : curriculumCourses;
+  }, [curriculumCourses, selectedSemester, requestType, enrolledCourses, selectedStudent]);
 
   // Fetch students based on search query
   useEffect(() => {
@@ -42,6 +113,15 @@ export default function SpecialPermissionForm({ onClose, onSuccess }) {
     return () => clearTimeout(delayDebounce);
   }, [searchQuery]);
 
+  // Auto-sync batch & semester when student is selected
+  const handleSelectStudent = (s) => {
+    setSelectedStudent(s);
+    setSearchQuery('');
+    setStudents([]);
+    if (s.batchId?.code) setSelectedBatch(s.batchId.code);
+    if (s.currentSemester) setSelectedSemester(s.currentSemester);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -49,7 +129,7 @@ export default function SpecialPermissionForm({ onClose, onSuccess }) {
       setError('Please select a student first.');
       return;
     }
-    if (!courseCode.trim() || !courseTitle.trim() || !justification.trim()) {
+    if (!courseCode.trim() || !justification.trim()) {
       setError('Please fill in all required fields.');
       return;
     }
@@ -63,8 +143,9 @@ export default function SpecialPermissionForm({ onClose, onSuccess }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           studentId: selectedStudent._id,
+          requestType: requestType,
           courseCode: courseCode.trim().toUpperCase(),
-          courseTitle: courseTitle.trim(),
+          courseTitle: courseTitle.trim() || courseCode.trim().toUpperCase(),
           creditHours: Number(creditHours),
           justification: justification.trim(),
           remarks: remarks.trim(),
@@ -167,39 +248,79 @@ export default function SpecialPermissionForm({ onClose, onSuccess }) {
             </label>
 
             {selectedStudent ? (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '12px 16px',
-                  backgroundColor: '#ECFDF5',
-                  border: '1px solid #A7F3D0',
-                  borderRadius: '12px',
-                }}
-              >
-                <div>
-                  <p style={{ margin: 0, fontSize: '13.5px', fontWeight: 700, color: '#065F46' }}>
-                    {selectedStudent.name}
-                  </p>
-                  <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#047857' }}>
-                    {selectedStudent.rollNumber} &bull; CGPA: {selectedStudent.cgpa.toFixed(2)}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedStudent(null)}
+              <div className="flex flex-col gap-2">
+                <div
                   style={{
-                    backgroundColor: 'transparent',
-                    border: 'none',
-                    color: '#065F46',
-                    cursor: 'pointer',
-                    fontSize: '12px',
-                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 16px',
+                    backgroundColor: '#ECFDF5',
+                    border: '1px solid #A7F3D0',
+                    borderRadius: '12px',
                   }}
                 >
-                  Change
-                </button>
+                  <div>
+                    <p style={{ margin: 0, fontSize: '13.5px', fontWeight: 700, color: '#065F46' }}>
+                      {selectedStudent.name}
+                    </p>
+                    <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#047857' }}>
+                      {selectedStudent.rollNumber} &bull; CGPA: {selectedStudent.currentSemester === 1 ? 'N/A' : selectedStudent.cgpa.toFixed(2)} &bull; Sem: {selectedStudent.currentSemester}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedStudent(null)}
+                    style={{
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      color: '#065F46',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                    }}
+                  >
+                    Change
+                  </button>
+                </div>
+
+                {/* Live Credit Hour Meter & Fulfillment Indicator */}
+                {(() => {
+                  const activeEnrolled = (enrolledCourses || []).filter(c =>
+                    c.status === 'enrolled' || c.enrollmentStatus === 'enrolled' || c.grade === 'IP' || c.semester === selectedStudent.currentSemester
+                  );
+                  const currentEnrolled = activeEnrolled.reduce((sum, c) => sum + (c.creditHours || 3), 0);
+                  const maxLimit = selectedStudent.cgpa >= 3.5 ? 21 : (selectedStudent.cgpa < 2.0 && selectedStudent.currentSemester > 1) ? 12 : 18;
+                  const addedCH = requestType === 'add' ? (creditHours || 0) : -(creditHours || 0);
+                  const projectedCH = Math.max(0, currentEnrolled + (courseCode ? addedCH : 0));
+                  const isFulfilled = projectedCH === maxLimit;
+                  const isExceeded = projectedCH > maxLimit;
+
+                  return (
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-extrabold text-slate-700">Credit Hour Meter</span>
+                        <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${
+                          isExceeded ? 'bg-rose-100 text-rose-700 border border-rose-200' :
+                          isFulfilled ? 'bg-amber-100 text-amber-800 border border-amber-200' :
+                          'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                        }`}>
+                          {isExceeded ? '🛑 Exceeds Max Limit' : isFulfilled ? '⚠️ Limit Fulfilled (100%)' : '✅ Within Credit Limit'}
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full transition-all duration-300 ${isExceeded ? 'bg-rose-500' : isFulfilled ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                          style={{ width: `${Math.min(100, (projectedCH / maxLimit) * 100)}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between items-center text-[11px] text-slate-500 font-medium">
+                        <span>Enrolled: <b>{currentEnrolled} CH</b> {courseCode && <span>({addedCH > 0 ? `+${addedCH}` : addedCH} CH = <b>{projectedCH} CH</b>)</span>}</span>
+                        <span>Max Allowed: <b>{maxLimit} CH</b></span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             ) : (
               <>
@@ -249,11 +370,7 @@ export default function SpecialPermissionForm({ onClose, onSuccess }) {
                     {students.map((s) => (
                       <div
                         key={s._id}
-                        onClick={() => {
-                          setSelectedStudent(s);
-                          setSearchQuery('');
-                          setStudents([]);
-                        }}
+                        onClick={() => handleSelectStudent(s)}
                         style={{
                           padding: '10px 16px',
                           borderBottom: '1px solid #F1F5F9',
@@ -265,7 +382,7 @@ export default function SpecialPermissionForm({ onClose, onSuccess }) {
                       >
                         <p style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#1E293B' }}>{s.name}</p>
                         <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#64748B' }}>
-                          {s.rollNumber} &bull; CGPA: {s.cgpa.toFixed(2)} &bull; Semester: {s.currentSemester}
+                          {s.rollNumber} &bull; CGPA: {s.currentSemester === 1 ? 'N/A' : s.cgpa.toFixed(2)} &bull; Semester: {s.currentSemester}
                         </p>
                       </div>
                     ))}
@@ -296,7 +413,174 @@ export default function SpecialPermissionForm({ onClose, onSuccess }) {
             )}
           </div>
 
-          {/* Course Details Grid */}
+          {/* Batch & Semester Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: '#475569', letterSpacing: '0.5px' }}>
+                Batch <span style={{ color: '#EF4444' }}>*</span>
+              </label>
+              <select
+                value={selectedBatch}
+                onChange={(e) => setSelectedBatch(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: '12px',
+                  border: '1px solid #CBD5E1',
+                  fontSize: '13px',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                  fontFamily: 'inherit',
+                  backgroundColor: '#FFFFFF',
+                  cursor: 'pointer'
+                }}
+              >
+                {batches.length > 0 ? (
+                  batches.map(b => (
+                    <option key={b._id} value={b.code}>{b.code}</option>
+                  ))
+                ) : (
+                  <option value="BSCS-2024">BSCS-2024</option>
+                )}
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: '#475569', letterSpacing: '0.5px' }}>
+                Target Semester <span style={{ color: '#EF4444' }}>*</span>
+              </label>
+              <select
+                value={selectedSemester}
+                onChange={(e) => setSelectedSemester(Number(e.target.value))}
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: '12px',
+                  border: '1px solid #CBD5E1',
+                  fontSize: '13px',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                  fontFamily: 'inherit',
+                  backgroundColor: '#FFFFFF',
+                  cursor: 'pointer'
+                }}
+              >
+                {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => (
+                  <option key={sem} value={sem}>Semester {sem}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Request Type Selector */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: '#475569', letterSpacing: '0.5px' }}>
+              Request Type <span style={{ color: '#EF4444' }}>*</span>
+            </label>
+            <select
+              value={requestType}
+              onChange={(e) => setRequestType(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                borderRadius: '12px',
+                border: '1px solid #CBD5E1',
+                fontSize: '13px',
+                outline: 'none',
+                boxSizing: 'border-box',
+                fontFamily: 'inherit',
+                backgroundColor: '#FFFFFF',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="add">Course Registration (Add)</option>
+              <option value="drop">Course Drop</option>
+              <option value="withdrawal">Course Withdrawal</option>
+            </select>
+          </div>
+
+          {/* HEC Course Dropdown Selector */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', position: 'relative' }}>
+            <label style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: '#475569', letterSpacing: '0.5px' }}>
+              Choose HEC Subject / Course <span style={{ color: '#EF4444' }}>*</span>
+            </label>
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                onClick={() => setShowCourseDropdown(!showCourseDropdown)}
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: '12px',
+                  border: '1px solid #CBD5E1',
+                  fontSize: '13px',
+                  outline: 'none',
+                  backgroundColor: '#FFFFFF',
+                  textAlign: 'left',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit'
+                }}
+              >
+                <span style={{ fontWeight: courseCode ? 700 : 400, color: courseCode ? '#0F172A' : '#94A3B8' }}>
+                  {courseCode ? `${courseCode} – ${courseTitle || courseCode} (${creditHours} CH)` : '-- Select HEC Course --'}
+                </span>
+                <ChevronDown size={15} color="#94A3B8" />
+              </button>
+
+              {showCourseDropdown && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    zIndex: 50,
+                    marginTop: '4px',
+                    borderRadius: '12px',
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #E2E8F0',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+                    maxHeight: '180px',
+                    overflowY: 'auto'
+                  }}
+                >
+                  {filteredCourses.length === 0 ? (
+                    <div style={{ padding: '12px', fontSize: '12px', color: '#94A3B8', textAlign: 'center' }}>No courses found</div>
+                  ) : (
+                    filteredCourses.map(c => (
+                      <div
+                        key={c.code || c._id}
+                        onClick={() => {
+                          setCourseCode(c.code);
+                          setCourseTitle(c.title);
+                          setCreditHours(c.creditHours || 3);
+                          setShowCourseDropdown(false);
+                        }}
+                        style={{
+                          padding: '10px 14px',
+                          borderBottom: '1px solid #F1F5F9',
+                          cursor: 'pointer',
+                          textAlign: 'left'
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#EFF6FF')}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#FFFFFF')}
+                      >
+                        <p style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#1E293B' }}>{c.code} – {c.title}</p>
+                        <p style={{ margin: '2px 0 0', fontSize: '11px', fontWeight: 600, color: '#2563EB' }}>
+                          Semester {c.semester || selectedSemester} &bull; {c.creditHours || 3} Credit Hours
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Course Details Grid (Auto-Filled or Editable) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <label style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: '#475569', letterSpacing: '0.5px' }}>
@@ -347,29 +631,6 @@ export default function SpecialPermissionForm({ onClose, onSuccess }) {
                 <option value={4}>4 Credit Hours</option>
               </select>
             </div>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: '#475569', letterSpacing: '0.5px' }}>
-              Course Title <span style={{ color: '#EF4444' }}>*</span>
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. Software Engineering"
-              value={courseTitle}
-              onChange={(e) => setCourseTitle(e.target.value)}
-              required
-              style={{
-                width: '100%',
-                padding: '10px 14px',
-                borderRadius: '12px',
-                border: '1px solid #CBD5E1',
-                fontSize: '13px',
-                outline: 'none',
-                boxSizing: 'border-box',
-                fontFamily: 'inherit',
-              }}
-            />
           </div>
 
           {/* Justification */}

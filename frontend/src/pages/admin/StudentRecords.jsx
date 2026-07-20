@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   Search, Plus, Eye, X, User, Award, Mail, BookOpen, AlertCircle,
   Download, UserPlus, ChevronLeft, ChevronRight, TrendingUp,
-  CheckCircle, AlertTriangle, FileText, Bell, Edit3, Trash2
+  CheckCircle, AlertTriangle, FileText, Bell, Edit3, Trash2, RefreshCw
 } from 'lucide-react';
 import { CircularProgress } from '@mui/material';
 import {
@@ -19,6 +19,7 @@ export default function StudentRecords({ setActiveNav }) {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [sessionFilter, setSessionFilter] = useState('');
   const [deptFilter, setDeptFilter] = useState('');
   const [batchFilter, setBatchFilter] = useState('');
   const [semesterFilter, setSemesterFilter] = useState('');
@@ -27,7 +28,7 @@ export default function StudentRecords({ setActiveNav }) {
   const [selected, setSelected] = useState(null);
   const [detailTab, setDetailTab] = useState('profile');
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ rollNumber: '', name: '', email: '', departmentId: '', batchId: '', cgpa: '' });
+  const [formData, setFormData] = useState({ rollNumber: '', name: '', email: '', departmentId: '', batchId: '', currentSemester: 1, cgpa: '', intakeSession: 'Fall' });
   const [batches, setBatches] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -37,10 +38,65 @@ export default function StudentRecords({ setActiveNav }) {
   const [auditLogs, setAuditLogs] = useState([]);
   const limit = 6; // Compact list to fit beautifully next to activities
 
+  // Helper to generate auto-incremented roll number based on selected department, batch & intake session
+  const generateNextRollNumber = (deptId, bId, session = 'Fall') => {
+    const selectedDept = departments.find(d => d._id === deptId || d.name === deptId);
+    const selectedBatch = batches.find(b => b._id === bId || b.code === bId);
+
+    const deptCode = selectedDept?.code || (departments[0]?.code) || 'BSCS';
+    const termLetter = session === 'Spring' ? 'S' : 'F';
+    let yrCode = `24${termLetter}`;
+
+    const batchCode = selectedBatch?.code || (batches[0]?.code);
+    if (batchCode) {
+      if (batchCode.includes('-')) {
+        const parts = batchCode.split('-');
+        const yr = parts[1] ? parts[1].replace(/^20/, '') : '24';
+        yrCode = `${yr}${termLetter}`;
+      } else {
+        yrCode = `${batchCode.replace(/^20/, '')}${termLetter}`;
+      }
+    }
+
+    const prefix = `${deptCode}-${yrCode}-`;
+    let maxNum = 0;
+
+    (students || []).forEach(s => {
+      if (s.rollNumber && s.rollNumber.startsWith(prefix)) {
+        const parts = s.rollNumber.split('-');
+        const num = parseInt(parts[2], 10);
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num;
+        }
+      }
+    });
+
+    const nextSeq = String(maxNum + 1).padStart(4, '0');
+    return `${prefix}${nextSeq}`;
+  };
+
+  const handleOpenAddModal = () => {
+    const defaultDept = departments[0]?._id || '';
+    const defaultBatch = batches[0]?._id || '';
+    const defaultSession = 'Fall';
+    const autoRoll = generateNextRollNumber(defaultDept, defaultBatch, defaultSession);
+    setFormData({
+      rollNumber: autoRoll,
+      name: '',
+      email: '',
+      departmentId: defaultDept,
+      batchId: defaultBatch,
+      currentSemester: 1,
+      cgpa: '',
+      intakeSession: defaultSession
+    });
+    setShowForm(true);
+  };
+
   // Edit / Delete Student States
   const [editingStudent, setEditingStudent] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editForm, setEditForm] = useState({ rollNumber: '', name: '', email: '', departmentId: '', batchId: '', cgpa: '', status: 'active' });
+  const [editForm, setEditForm] = useState({ rollNumber: '', name: '', email: '', departmentId: '', batchId: '', currentSemester: 1, cgpa: '', status: 'active', intakeSession: 'Fall' });
 
   const handleEditClick = (s) => {
     setEditingStudent(s);
@@ -51,7 +107,8 @@ export default function StudentRecords({ setActiveNav }) {
       departmentId: s.departmentId?._id || s.departmentId || '',
       batchId: s.batchId?._id || s.batchId || '',
       cgpa: s.cgpa || '',
-      status: s.status || 'active'
+      status: s.status || 'active',
+      intakeSession: s.intakeSession || (/-[0-9]{2}[Ss]-/.test(s.rollNumber) ? 'Spring' : 'Fall')
     });
     setShowEditModal(true);
   };
@@ -118,6 +175,7 @@ export default function StudentRecords({ setActiveNav }) {
       const params = new URLSearchParams({ page, limit });
       if (search) params.append('search', search);
       if (statusFilter) params.append('status', statusFilter);
+      if (sessionFilter) params.append('intakeSession', sessionFilter);
       if (deptFilter) params.append('department', deptFilter);
       if (batchFilter) params.append('batch', batchFilter);
       if (semesterFilter) params.append('semester', semesterFilter);
@@ -139,7 +197,7 @@ export default function StudentRecords({ setActiveNav }) {
 
   useEffect(() => {
     fetchStudents();
-  }, [page, search, statusFilter, deptFilter, batchFilter, semesterFilter]);
+  }, [page, search, statusFilter, sessionFilter, deptFilter, batchFilter, semesterFilter]);
 
   useEffect(() => {
     if (selected) {
@@ -371,7 +429,7 @@ export default function StudentRecords({ setActiveNav }) {
             <Download size={15} /> Export Records
           </button>
           <button
-            onClick={() => setShowForm(true)}
+            onClick={handleOpenAddModal}
             style={{
               display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 16px',
               backgroundColor: '#2563EB', border: 'none', borderRadius: '10px',
@@ -482,6 +540,17 @@ export default function StudentRecords({ setActiveNav }) {
                 ))}
               </select>
 
+              {/* Session Dropdown */}
+              <select
+                value={sessionFilter}
+                onChange={e => { setSessionFilter(e.target.value); setPage(1); }}
+                style={{ padding: '7px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', backgroundColor: '#FFFFFF', color: '#475569', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}
+              >
+                <option value="">All Intake Terms</option>
+                <option value="Spring">Spring Intake</option>
+                <option value="Fall">Fall Intake</option>
+              </select>
+
               {/* Status Dropdown */}
               <select
                 value={statusFilter}
@@ -495,7 +564,15 @@ export default function StudentRecords({ setActiveNav }) {
             </div>
 
             <button
-              onClick={handleClearFilters}
+              onClick={() => {
+                setSearch('');
+                setStatusFilter('');
+                setSessionFilter('');
+                setDeptFilter('');
+                setBatchFilter('');
+                setSemesterFilter('');
+                setPage(1);
+              }}
               style={{ border: 'none', backgroundColor: 'transparent', color: '#2563EB', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
             >
               Clear Filters
@@ -507,7 +584,7 @@ export default function StudentRecords({ setActiveNav }) {
             <table style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
                 <tr style={{ backgroundColor: '#FAFAFA', borderBottom: '1px solid #E2E8F0' }}>
-                  <th style={{ padding: '12px 20px', textAlign: 'left', color: '#64748B', fontWeight: 700, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Student ID</th>
+                  <th style={{ padding: '12px 20px', textAlign: 'left', color: '#64748B', fontWeight: 700, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Student ID & Session</th>
                   <th style={{ padding: '12px 20px', textAlign: 'left', color: '#64748B', fontWeight: 700, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Name</th>
                   <th style={{ padding: '12px 20px', textAlign: 'left', color: '#64748B', fontWeight: 700, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Department</th>
                   <th style={{ padding: '12px 20px', textAlign: 'left', color: '#64748B', fontWeight: 700, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Semester</th>
@@ -525,11 +602,27 @@ export default function StudentRecords({ setActiveNav }) {
                 ) : displayStudents.map((s, idx) => {
                   const initials = s.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
                   const avatarColor = ['#3B82F6', '#10B981', '#6366F1', '#8B5CF6', '#EC4899'][idx % 5];
+                  const isSpring = (s.intakeSession === 'Spring') || (!s.intakeSession && /-[0-9]{2}[Ss]-/.test(s.rollNumber || ''));
                   return (
                     <tr key={s._id} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s' }}>
-                      {/* Student ID */}
+                      {/* Student ID & Session Badge */}
                       <td style={{ padding: '12px 20px', fontFamily: 'monospace', fontWeight: 600, color: '#475569', fontSize: '12px' }}>
-                        {s.rollNumber}
+                        <div>{s.rollNumber}</div>
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          padding: '1px 7px',
+                          borderRadius: '4px',
+                          marginTop: '3px',
+                          backgroundColor: isSpring ? '#EEF2FF' : '#FEF3C7',
+                          color: isSpring ? '#4F46E5' : '#D97706',
+                          border: `1px solid ${isSpring ? '#C7D2FE' : '#FDE68A'}`
+                        }}>
+                          {isSpring ? '🌸 Spring' : '🍂 Fall'}
+                        </span>
                       </td>
 
                       {/* User Profile (Avatar + Name + Email) */}
@@ -897,59 +990,194 @@ export default function StudentRecords({ setActiveNav }) {
 
       {/* ── Add Student Form Modal ── */}
       {showForm && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div style={{ backgroundColor: '#fff', borderRadius: 24, padding: 24, maxWidth: 480, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#1B3A6B' }}>Add New Student</h3>
-              <button onClick={() => setShowForm(false)} style={{ padding: 4, border: 'none', backgroundColor: 'transparent', cursor: 'pointer', color: '#94A3B8' }}><X size={20} /></button>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', padding: '16px' }}>
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '24px', padding: '28px', maxWidth: '520px', width: '100%', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', border: '1px solid #E2E8F0' }}>
+            
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', backgroundColor: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <UserPlus size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>Enrol New Student</h3>
+                  <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#64748B' }}>Add student file to institutional records</p>
+                </div>
+              </div>
+              <button onClick={() => setShowForm(false)} style={{ padding: '6px', border: 'none', backgroundColor: '#F1F5F9', borderRadius: '50%', cursor: 'pointer', color: '#64748B' }}>
+                <X size={18} />
+              </button>
             </div>
+
             <form onSubmit={handleSave}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                
+                {/* Roll Number with Auto-Generate Badge */}
                 <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Roll Number *</label>
-                  <input required value={formData.rollNumber} onChange={e => setFormData(f => ({ ...f, rollNumber: e.target.value }))}
-                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, outline: 'none', fontFamily: 'inherit' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Roll Number *
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newRoll = generateNextRollNumber(formData.departmentId, formData.batchId);
+                        setFormData(f => ({ ...f, rollNumber: newRoll }));
+                      }}
+                      style={{ fontSize: '11px', fontWeight: 700, color: '#2563EB', border: 'none', backgroundColor: '#EFF6FF', padding: '2px 8px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      <RefreshCw size={10} /> Auto-Generate
+                    </button>
+                  </div>
+                  <input
+                    required
+                    value={formData.rollNumber}
+                    onChange={e => setFormData(f => ({ ...f, rollNumber: e.target.value }))}
+                    placeholder="e.g. BSCS-24F-0014"
+                    style={{ width: '100%', padding: '10px 14px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', fontWeight: 600, outline: 'none', fontFamily: 'monospace', backgroundColor: '#F8FAFC' }}
+                  />
                 </div>
+
+                {/* Name */}
                 <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Name *</label>
-                  <input required value={formData.name} onChange={e => setFormData(f => ({ ...f, name: e.target.value }))}
-                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, outline: 'none', fontFamily: 'inherit' }} />
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                    Full Student Name *
+                  </label>
+                  <input
+                    required
+                    value={formData.name}
+                    onChange={e => setFormData(f => ({ ...f, name: e.target.value }))}
+                    placeholder="e.g. Muhammad Ahmed"
+                    style={{ width: '100%', padding: '10px 14px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }}
+                  />
                 </div>
+
+                {/* Email */}
                 <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Email</label>
-                  <input type="email" value={formData.email} onChange={e => setFormData(f => ({ ...f, email: e.target.value }))}
-                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, outline: 'none', fontFamily: 'inherit' }} />
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                    Institutional Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={e => setFormData(f => ({ ...f, email: e.target.value }))}
+                    placeholder="e.g. ahmed@stmu.edu.pk"
+                    style={{ width: '100%', padding: '10px 14px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }}
+                  />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+                {/* Department, Batch & Intake Term Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Department *</label>
-                    <select required value={formData.departmentId} onChange={e => setFormData(f => ({ ...f, departmentId: e.target.value }))}
-                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, backgroundColor: '#fff', outline: 'none', fontFamily: 'inherit' }}>
-                      <option value="">Select...</option>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                      Department *
+                    </label>
+                    <select
+                      required
+                      value={formData.departmentId}
+                      onChange={e => {
+                        const newDeptId = e.target.value;
+                        const newRoll = generateNextRollNumber(newDeptId, formData.batchId, formData.intakeSession);
+                        setFormData(f => ({ ...f, departmentId: newDeptId, rollNumber: newRoll }));
+                      }}
+                      style={{ width: '100%', padding: '10px 12px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', backgroundColor: '#fff', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}
+                    >
+                      <option value="">Select Department...</option>
                       {departments.map(d => <option key={d._id} value={d._id}>{d.name}</option>)}
                     </select>
                   </div>
+
                   <div>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Batch *</label>
-                    <select required value={formData.batchId} onChange={e => setFormData(f => ({ ...f, batchId: e.target.value }))}
-                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, backgroundColor: '#fff', outline: 'none', fontFamily: 'inherit' }}>
-                      <option value="">Select...</option>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                      Batch *
+                    </label>
+                    <select
+                      required
+                      value={formData.batchId}
+                      onChange={e => {
+                        const newBatchId = e.target.value;
+                        const newRoll = generateNextRollNumber(formData.departmentId, newBatchId, formData.intakeSession);
+                        setFormData(f => ({ ...f, batchId: newBatchId, rollNumber: newRoll }));
+                      }}
+                      style={{ width: '100%', padding: '10px 12px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', backgroundColor: '#fff', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}
+                    >
+                      <option value="">Select Batch...</option>
                       {batches.map(b => <option key={b._id} value={b._id}>{b.code}</option>)}
                     </select>
                   </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                      Intake Term *
+                    </label>
+                    <select
+                      required
+                      value={formData.intakeSession || 'Fall'}
+                      onChange={e => {
+                        const newSession = e.target.value;
+                        const newRoll = generateNextRollNumber(formData.departmentId, formData.batchId, newSession);
+                        setFormData(f => ({ ...f, intakeSession: newSession, rollNumber: newRoll }));
+                      }}
+                      style={{ width: '100%', padding: '10px 12px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', backgroundColor: '#fff', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}
+                    >
+                      <option value="Fall">🍂 Fall Intake</option>
+                      <option value="Spring">🌸 Spring Intake</option>
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>CGPA</label>
-                  <input type="number" step="0.01" min="0" max="4" value={formData.cgpa} onChange={e => setFormData(f => ({ ...f, cgpa: e.target.value }))}
-                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, outline: 'none', fontFamily: 'inherit' }} />
+
+                {/* Semester & CGPA Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                      Current Semester *
+                    </label>
+                    <select
+                      required
+                      value={formData.currentSemester || 1}
+                      onChange={e => setFormData(f => ({ ...f, currentSemester: Number(e.target.value) }))}
+                      style={{ width: '100%', padding: '10px 12px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', backgroundColor: '#fff', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}
+                    >
+                      {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => (
+                        <option key={sem} value={sem}>Semester {sem}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                      Initial CGPA
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="4"
+                      placeholder="0.00"
+                      value={formData.cgpa}
+                      onChange={e => setFormData(f => ({ ...f, cgpa: e.target.value }))}
+                      style={{ width: '100%', padding: '10px 14px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }}
+                    />
+                  </div>
                 </div>
+
               </div>
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20 }}>
-                <button type="button" onClick={() => setShowForm(false)}
-                  style={{ padding: '8px 20px', borderRadius: 10, border: '1px solid #E2E8F0', backgroundColor: '#fff', color: '#64748B', fontWeight: 600, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>Cancel</button>
-                <button type="submit" disabled={saving}
-                  style={{ padding: '8px 20px', borderRadius: 10, border: 'none', backgroundColor: '#2563EB', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 13, opacity: saving ? 0.7 : 1, fontFamily: 'inherit' }}>
-                  {saving ? 'Saving...' : 'Create Student'}
+
+              {/* Form Action Buttons */}
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #F1F5F9' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  style={{ padding: '10px 20px', borderRadius: '10px', border: '1px solid #CBD5E1', backgroundColor: '#fff', color: '#64748B', fontWeight: 700, cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  style={{ padding: '10px 24px', borderRadius: '10px', border: 'none', backgroundColor: '#2563EB', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '13px', opacity: saving ? 0.7 : 1, fontFamily: 'inherit', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)' }}
+                >
+                  {saving ? 'Creating...' : 'Create Student'}
                 </button>
               </div>
             </form>
@@ -959,42 +1187,42 @@ export default function StudentRecords({ setActiveNav }) {
 
       {/* ── Edit Student Form Modal ── */}
       {showEditModal && editingStudent && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div style={{ backgroundColor: '#fff', borderRadius: 24, padding: 24, maxWidth: 480, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#1B3A6B' }}>Edit Student Record</h3>
-              <button onClick={() => { setShowEditModal(false); setEditingStudent(null); }} style={{ padding: 4, border: 'none', backgroundColor: 'transparent', cursor: 'pointer', color: '#94A3B8' }}><X size={20} /></button>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', padding: '16px' }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: '24px', padding: '28px', maxWidth: '520px', width: '100%', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', border: '1px solid #E2E8F0' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>Edit Student Record</h3>
+              <button onClick={() => { setShowEditModal(false); setEditingStudent(null); }} style={{ padding: '6px', border: 'none', backgroundColor: '#F1F5F9', borderRadius: '50%', cursor: 'pointer', color: '#64748B' }}><X size={18} /></button>
             </div>
             <form onSubmit={handleEditSave}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Roll Number *</label>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Roll Number *</label>
                   <input required value={editForm.rollNumber} onChange={e => setEditForm(f => ({ ...f, rollNumber: e.target.value }))}
-                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, outline: 'none', fontFamily: 'inherit' }} />
+                    style={{ width: '100%', padding: '10px 14px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', outline: 'none', fontFamily: 'monospace', backgroundColor: '#F8FAFC' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Name *</label>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Full Student Name *</label>
                   <input required value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
-                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, outline: 'none', fontFamily: 'inherit' }} />
+                    style={{ width: '100%', padding: '10px 14px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Email</label>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Email</label>
                   <input type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
-                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, outline: 'none', fontFamily: 'inherit' }} />
+                    style={{ width: '100%', padding: '10px 14px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Department *</label>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Department *</label>
                     <select required value={editForm.departmentId} onChange={e => setEditForm(f => ({ ...f, departmentId: e.target.value }))}
-                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, backgroundColor: '#fff', outline: 'none', fontFamily: 'inherit' }}>
+                      style={{ width: '100%', padding: '10px 12px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', backgroundColor: '#fff', outline: 'none', fontFamily: 'inherit' }}>
                       <option value="">Select...</option>
                       {departments.map(d => <option key={d._id} value={d._id}>{d.name}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Batch *</label>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Batch *</label>
                     <select required value={editForm.batchId} onChange={e => setEditForm(f => ({ ...f, batchId: e.target.value }))}
-                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, backgroundColor: '#fff', outline: 'none', fontFamily: 'inherit' }}>
+                      style={{ width: '100%', padding: '10px 12px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', backgroundColor: '#fff', outline: 'none', fontFamily: 'inherit' }}>
                       <option value="">Select...</option>
                       {batches.map(b => <option key={b._id} value={b._id}>{b.code}</option>)}
                     </select>
@@ -1002,25 +1230,44 @@ export default function StudentRecords({ setActiveNav }) {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>CGPA</label>
-                    <input type="number" step="0.01" min="0" max="4" value={editForm.cgpa} onChange={e => setEditForm(f => ({ ...f, cgpa: e.target.value }))}
-                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, outline: 'none', fontFamily: 'inherit' }} />
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Semester *</label>
+                    <select required value={editForm.currentSemester || 1} onChange={e => setEditForm(f => ({ ...f, currentSemester: Number(e.target.value) }))}
+                      style={{ width: '100%', padding: '10px 12px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', backgroundColor: '#fff', outline: 'none', fontFamily: 'inherit' }}>
+                      {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => (
+                        <option key={sem} value={sem}>Semester {sem}</option>
+                      ))}
+                    </select>
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Status *</label>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Intake Term *</label>
+                    <select required value={editForm.intakeSession || 'Fall'} onChange={e => setEditForm(f => ({ ...f, intakeSession: e.target.value }))}
+                      style={{ width: '100%', padding: '10px 12px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', backgroundColor: '#fff', outline: 'none', fontFamily: 'inherit' }}>
+                      <option value="Fall">🍂 Fall Intake</option>
+                      <option value="Spring">🌸 Spring Intake</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>CGPA</label>
+                    <input type="number" step="0.01" min="0" max="4" value={editForm.cgpa} onChange={e => setEditForm(f => ({ ...f, cgpa: e.target.value }))}
+                      style={{ width: '100%', padding: '10px 14px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Status *</label>
                     <select required value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))}
-                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, backgroundColor: '#fff', outline: 'none', fontFamily: 'inherit' }}>
+                      style={{ width: '100%', padding: '10px 12px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', backgroundColor: '#fff', outline: 'none', fontFamily: 'inherit' }}>
                       <option value="active">Active</option>
                       <option value="inactive">Inactive</option>
                     </select>
                   </div>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20 }}>
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #F1F5F9' }}>
                 <button type="button" onClick={() => { setShowEditModal(false); setEditingStudent(null); }}
-                  style={{ padding: '8px 20px', borderRadius: 10, border: '1px solid #E2E8F0', backgroundColor: '#fff', color: '#64748B', fontWeight: 600, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>Cancel</button>
+                  style={{ padding: '10px 20px', borderRadius: '10px', border: '1px solid #CBD5E1', backgroundColor: '#fff', color: '#64748B', fontWeight: 700, cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit' }}>Cancel</button>
                 <button type="submit" disabled={saving}
-                  style={{ padding: '8px 20px', borderRadius: 10, border: 'none', backgroundColor: '#2563EB', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 13, opacity: saving ? 0.7 : 1, fontFamily: 'inherit' }}>
+                  style={{ padding: '10px 24px', borderRadius: '10px', border: 'none', backgroundColor: '#2563EB', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '13px', opacity: saving ? 0.7 : 1, fontFamily: 'inherit', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)' }}>
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>

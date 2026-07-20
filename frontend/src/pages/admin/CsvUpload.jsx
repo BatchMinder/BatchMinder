@@ -23,15 +23,15 @@ export default function CsvUpload() {
     status: "Processing...",
     dataPreview: [
       { id: '1', stId: 'BSCS-23S-0092', name: 'Muhammad Ahmed', dept: 'Computer Science', batch: 'BSCS-2023', sem: '6', cgpa: '3.82', status: 'Valid' },
-      { id: '2', stId: 'BSCS-23S-0056', name: 'Sara Ali', dept: 'Software Engineering', batch: 'BSE-2023', sem: '4', cgpa: '2.45', status: 'Valid' },
+      { id: '2', stId: 'BSSE-23S-0056', name: 'Sara Ali', dept: 'Software Engineering', batch: 'BSSE-2023', sem: '4', cgpa: '2.45', status: 'Valid' },
       { id: '3', stId: 'BSEE-21S-0031', name: 'Usman Hassan', dept: 'Electrical Engineering', batch: 'BSEE-2021', sem: '8', cgpa: '3.81', status: 'Valid' },
       { id: '4', stId: 'BSCS-23S-0078', name: 'Fatima Aziz', dept: 'Computer Science', batch: 'BSCS-2023', sem: '6', cgpa: '3.10', status: 'Valid' },
-      { id: '5', stId: 'BSE-23S-0044', name: 'Muhammad Khan', dept: 'Software Engineering', batch: 'BSE-2023', sem: '6', cgpa: '1.98', status: 'Invalid' },
+      { id: '5', stId: 'BSSE-23S-0044', name: 'Muhammad Khan', dept: 'Software Engineering', batch: 'BSSE-2023', sem: '6', cgpa: '1.98', status: 'Invalid' },
       { id: '6', stId: 'BSME-21S-0019', name: 'Ayesha Habib', dept: 'Mechanical Engineering', batch: 'BSME-2021', sem: '8', cgpa: '3.67', status: 'Valid' },
       { id: '7', stId: 'BSCS-24S-0012', name: 'Zain Raza', dept: 'Computer Science', batch: 'BSCS-2024', sem: '2', cgpa: '3.22', status: 'Valid' },
       { id: '8', stId: 'BSEE-22S-0065', name: 'Hida Nawaz', dept: 'Electrical Engineering', batch: 'BSEE-2022', sem: '5', cgpa: '2.15', status: 'Invalid' },
       { id: '9', stId: 'BSCS-23S-0031', name: 'Hassan Rauf', dept: 'Computer Science', batch: 'BSCS-2023', sem: '1', cgpa: '0.00', status: 'Invalid' },
-      { id: '10', stId: 'BSE-23S-0158', name: 'Laiba Noor', dept: 'Software Engineering', batch: 'BSE-2023', sem: '4', cgpa: '2.78', status: 'Valid' },
+      { id: '10', stId: 'BSSE-23S-0158', name: 'Laiba Noor', dept: 'Software Engineering', batch: 'BSSE-2023', sem: '4', cgpa: '2.78', status: 'Valid' },
     ],
     validationErrors: [
       { row: '9', field: 'CGPA', desc: 'CGPA cannot be 0.00' },

@@ -68,6 +68,11 @@ const migrationSchema = new mongoose.Schema({
     default: '',
     trim: true,
   },
+  transcriptCloudinaryId: {
+    type: String,
+    default: '',
+    trim: true,
+  },
   transcriptOriginalName: {
     type: String,
     default: '',

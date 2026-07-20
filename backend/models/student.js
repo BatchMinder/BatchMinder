@@ -83,6 +83,11 @@ const studentSchema = new mongoose.Schema({
     ref: 'Batch',
     required: [true, 'Please specify batch'],
   },
+  intakeSession: {
+    type: String,
+    enum: ['Spring', 'Fall'],
+    default: 'Fall',
+  },
   currentSemester: {
     type: Number,
     default: 1,
@@ -151,8 +156,9 @@ async function recalculateDegreeProgress(doc) {
   const completedCredits = (doc.courses || [])
     .filter(c => c.enrollmentStatus === 'completed' || c.status === 'completed')
     .reduce((sum, c) => sum + (c.creditHours || 0), 0);
-  const remainingCredits = Math.max(130 - completedCredits, 0);
-  const completionPercentage = parseFloat(((completedCredits / 130) * 100).toFixed(2));
+  const totalRequiredCredits = 130;
+  const remainingCredits = Math.max(totalRequiredCredits - completedCredits, 0);
+  const completionPercentage = parseFloat(((completedCredits / totalRequiredCredits) * 100).toFixed(2));
 
   const backlog = [];
   try {

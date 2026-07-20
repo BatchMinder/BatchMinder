@@ -90,6 +90,7 @@ export default function RecordsDirectory() {
         name: student.name,
         email: student.email || 'N/A',
         cgpa: student.cgpa || 0.0,
+        currentSemester: student.currentSemester || 1,
         status: student.status === 'good_standing' 
           ? 'Good' 
           : student.status === 'warning' 
@@ -278,7 +279,9 @@ export default function RecordsDirectory() {
                       <div className="text-xs text-slate-400 font-medium">{student.email}</div>
                     </td>
                     <td className="py-3.5 px-4 text-slate-500">CS Batch {student.batch}</td>
-                    <td className="py-3.5 px-4 font-bold text-slate-800">{student.cgpa.toFixed(2)}</td>
+                    <td className="py-3.5 px-4 font-bold text-slate-800">
+                      {student.currentSemester === 1 || Number(student.currentSemester) === 1 ? 'N/A' : student.cgpa.toFixed(2)}
+                    </td>
                     <td className="py-3.5 px-4">
                       <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border uppercase tracking-wider ${statusBadges[student.status].bg}`}>
                         {statusBadges[student.status].label}

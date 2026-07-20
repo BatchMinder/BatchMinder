@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { CircularProgress } from '@mui/material';
 import Select from 'react-select';
 import MigrationAudit from '../migration/MigrationAudit';
+import STMUGradingScaleTable from '../../components/migration/STMUGradingScaleTable';
 
 export default function MigrationRecords() {
   const [migrations, setMigrations] = useState([]);
@@ -17,6 +18,7 @@ export default function MigrationRecords() {
 
   const [actioning, setActioning] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [targetSemester, setTargetSemester] = useState('');
 
   // New Request Modal State
   const [showNewModal, setShowNewModal] = useState(false);
@@ -184,6 +186,11 @@ export default function MigrationRecords() {
       return;
     }
 
+    if (!transcriptFile) {
+      setNewReqError('HEC-Verified Transcript is mandatory. Please upload the student transcript file before submitting the request.');
+      return;
+    }
+
     setIsSubmittingNew(true);
     try {
       const res = await fetch('/api/migrations', {
@@ -198,6 +205,7 @@ export default function MigrationRecords() {
           sourceInstitution: newReq.sourceInstitution,
           fromProgram: newReq.fromSemester ? `Semester ${newReq.fromSemester}` : '',
           currentSemester: newReq.fromSemester || 1,
+          intakeSession: newReq.intakeSession || 'Spring',
           transferredCourses: []
         })
       });
@@ -245,6 +253,12 @@ export default function MigrationRecords() {
 
   const handleDecision = async (status, remarksOverride) => {
     if (!selected) return;
+
+    if (status === 'approved' && !selected.transcriptUrl && !transcriptFile) {
+      setActionError('Migration request cannot be approved without an uploaded HEC-Verified Transcript.');
+      return;
+    }
+
     setActioning(true);
     setActionError('');
     
@@ -260,6 +274,11 @@ export default function MigrationRecords() {
       courseDecisions,
       remarks: remarksOverride || decisionRemarks || `Migration ${status} by admin.`
     };
+
+    // Add target semester if approving
+    if (status === 'approved' && targetSemester) {
+      decisionPayload.targetSemester = parseInt(targetSemester);
+    }
 
     try {
       const res = await fetch(`/api/migrations/${selected._id}/decide`, {
@@ -484,7 +503,7 @@ export default function MigrationRecords() {
                     if (m.status === 'rejected') { sColor = '#DC2626'; sBg = '#FEE2E2'; }
                     
                     return (
-                      <tr key={m._id} onClick={() => setSelected(m)} style={{ borderBottom: '1px solid #F8FAFC', cursor: 'pointer', backgroundColor: isSelected ? '#EFF6FF' : 'transparent', transition: 'all 0.2s' }}>
+                      <tr key={m._id} onClick={() => { setSelected(m); setTargetSemester(''); }} style={{ borderBottom: '1px solid #F8FAFC', cursor: 'pointer', backgroundColor: isSelected ? '#EFF6FF' : 'transparent', transition: 'all 0.2s' }}>
                         <td style={{ padding: '12px 8px', color: '#2563EB', fontWeight: 600 }}>{m.studentId?.rollNumber}</td>
                         <td style={{ padding: '12px 8px', color: '#0F172A', fontWeight: 500 }}>{m.studentId?.name}</td>
                         <td style={{ padding: '12px 8px', color: '#64748B' }}>{m.sourceInstitution}</td>
@@ -568,9 +587,15 @@ export default function MigrationRecords() {
                   <span style={{ color: '#64748B' }}>Remaining Credits</span>
                   <span style={{ fontWeight: 600, color: '#EF4444' }}>{remainingCredits || '-'}</span>
                 </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #E2E8F0', paddingTop: '8px', marginTop: '4px' }}>
+                  <span style={{ color: '#2563EB', fontWeight: 700 }}>STMU Current Sem Placement</span>
+                  <span style={{ fontWeight: 800, color: '#2563EB', backgroundColor: '#EFF6FF', padding: '2px 8px', borderRadius: '12px' }}>
+                    Semester {selected?.studentId?.currentSemester || Math.min(8, Math.max(1, Math.floor((selectedSummary.creditsAccepted || 0) / 16) + 1))}
+                  </span>
+                </div>
               </div>
 
-              <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '16px' }}>
+              <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '16px', marginBottom: '16px' }}>
                 <p style={{ margin: '0 0 8px', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>Degree Progress After Transfer</p>
                 <div style={{ width: '100%', height: '8px', backgroundColor: '#F1F5F9', borderRadius: '4px', overflow: 'hidden', marginBottom: '8px' }}>
                   <div style={{ height: '100%', width: `${degreeProgress}%`, backgroundColor: '#2563EB' }}></div>
@@ -580,6 +605,9 @@ export default function MigrationRecords() {
                   <span>{degreeProgress}% Completed</span>
                 </div>
               </div>
+
+              {/* Official STMU Grading System & Formula Reference */}
+              <STMUGradingScaleTable compact={true} />
             </div>
 
             {/* Course Equivalency Mapping */}
@@ -743,6 +771,28 @@ export default function MigrationRecords() {
               <p style={{ margin: '0 0 20px', fontSize: '13px', color: '#0F172A', backgroundColor: '#F8FAFC', padding: '12px', borderRadius: '8px', border: '1px solid #E2E8F0', fontStyle: 'italic' }}>
                 All accepted courses meet the curriculum equivalency criteria. Student is eligible for credit transfer.
               </p>
+
+              {/* Target Semester Selection */}
+              <div style={{ marginBottom: '20px', padding: '12px', backgroundColor: '#F0F9FF', border: '1px solid #BFDBFE', borderRadius: '8px' }}>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#1E40AF', textTransform: 'uppercase', marginBottom: '8px' }}>
+                  Assign Target Semester:
+                </label>
+                <select 
+                  value={targetSemester}
+                  onChange={(e) => setTargetSemester(e.target.value)}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #93C5FD', fontSize: '13px', fontWeight: 600, color: '#1E40AF', backgroundColor: '#fff' }}>
+                  <option value="">-- Select Target Semester --</option>
+                  <option value="1">Semester 1</option>
+                  <option value="2">Semester 2</option>
+                  <option value="3">Semester 3</option>
+                  <option value="4">Semester 4</option>
+                  <option value="5">Semester 5</option>
+                  <option value="6">Semester 6</option>
+                  <option value="7">Semester 7</option>
+                  <option value="8">Semester 8</option>
+                </select>
+              </div>
+
               {actionError && <p style={{ color: '#EF4444', fontSize: '12px', marginBottom: '12px' }}>{actionError}</p>}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <button 
@@ -775,101 +825,129 @@ export default function MigrationRecords() {
 
       {/* New Request Modal */}
       {showNewModal && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '24px' }}>
-          <div style={{ backgroundColor: '#fff', borderRadius: '20px', width: '100%', maxWidth: '480px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
-            <div style={{ padding: '24px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#1E293B' }}>Create Migration Request</h2>
-              <button onClick={() => setShowNewModal(false)} style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer' }}>
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '24px' }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: '24px', width: '100%', maxWidth: '560px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', padding: '24px' }}>
+            
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #E2E8F0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Plus size={18} color="#2563EB" />
+                </div>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 800, color: '#0F172A' }}>Add Migrated Student Request</h2>
+                  <p style={{ margin: 0, fontSize: '11px', color: '#64748B' }}>Create credit transfer & equivalency audit application</p>
+                </div>
+              </div>
+              <button onClick={() => setShowNewModal(false)} style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', padding: '4px', borderRadius: '6px' }}>
                 <X size={20} />
               </button>
             </div>
-            <div style={{ padding: '24px' }}>
-              {newReqError && (
-                <div style={{ padding: '12px', backgroundColor: '#FEF2F2', color: '#EF4444', borderRadius: '8px', fontSize: '13px', fontWeight: 600, marginBottom: '16px' }}>
-                  {newReqError}
-                </div>
-              )}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+            {/* Error Message */}
+            {newReqError && (
+              <div style={{ padding: '12px 16px', backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', color: '#DC2626', borderRadius: '10px', fontSize: '13px', fontWeight: 600, marginBottom: '18px' }}>
+                {newReqError}
+              </div>
+            )}
+
+            {/* Form Fields */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                  Student Full Name <span style={{ color: '#EF4444' }}>*</span>
+                </label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. Muhammad Faisal Raza"
+                  value={newReq.studentName}
+                  onChange={(e) => setNewReq({...newReq, studentName: e.target.value})}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13.5px', outline: 'none' }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Student Name <span style={{ color: '#EF4444' }}>*</span></label>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                    Email <span style={{ color: '#94A3B8', fontWeight: 400 }}>(Optional)</span>
+                  </label>
                   <input 
-                    type="text" 
-                    placeholder="e.g. Muhammad Faisal Raza"
-                    value={newReq.studentName}
-                    onChange={(e) => setNewReq({...newReq, studentName: e.target.value})}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none' }}
+                    type="email" 
+                    placeholder="e.g. name@example.com"
+                    value={newReq.studentEmail}
+                    onChange={(e) => setNewReq({...newReq, studentEmail: e.target.value})}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13.5px', outline: 'none' }}
                   />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Email <span style={{ color: '#94A3B8', fontWeight: 400 }}>(Optional)</span></label>
-                    <input 
-                      type="email" 
-                      placeholder="e.g. name@example.com"
-                      value={newReq.studentEmail}
-                      onChange={(e) => setNewReq({...newReq, studentEmail: e.target.value})}
-                      style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Phone <span style={{ color: '#94A3B8', fontWeight: 400 }}>(Optional)</span></label>
-                    <input 
-                      type="text" 
-                      placeholder="e.g. 0300-1234567"
-                      value={newReq.studentPhone}
-                      onChange={(e) => setNewReq({...newReq, studentPhone: e.target.value})}
-                      style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none' }}
-                    />
-                  </div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Target Department <span style={{ color: '#EF4444' }}>*</span></label>
-                    <select 
-                      value={newReq.departmentId}
-                      onChange={(e) => setNewReq({...newReq, departmentId: e.target.value})}
-                      style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', backgroundColor: '#fff' }}
-                    >
-                      <option value="">Select Department</option>
-                      {departmentsList.map(d => (
-                        <option key={d._id} value={d._id}>{d.name} ({d.code})</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Target Batch <span style={{ color: '#EF4444' }}>*</span></label>
-                    <select 
-                      value={newReq.batchId}
-                      onChange={(e) => setNewReq({...newReq, batchId: e.target.value})}
-                      style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', backgroundColor: '#fff' }}
-                    >
-                      <option value="">Select Batch</option>
-                      {batchesList.filter(b => b.departmentId === newReq.departmentId || b.departmentId?._id === newReq.departmentId).map(b => (
-                        <option key={b._id} value={b._id}>{b.code}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Source Institution <span style={{ color: '#EF4444' }}>*</span></label>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                    Phone <span style={{ color: '#94A3B8', fontWeight: 400 }}>(Optional)</span>
+                  </label>
                   <input 
                     type="text" 
-                    placeholder="e.g. NUST UNIVERSITY"
-                    value={newReq.sourceInstitution}
-                    onChange={(e) => setNewReq({...newReq, sourceInstitution: e.target.value})}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none' }}
+                    placeholder="e.g. 0300-1234567"
+                    value={newReq.studentPhone}
+                    onChange={(e) => setNewReq({...newReq, studentPhone: e.target.value})}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13.5px', outline: 'none' }}
                   />
                 </div>
+              </div>
 
-                {/* Semester */}
-
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Semester at Source Institution</label>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                    Target Department <span style={{ color: '#EF4444' }}>*</span>
+                  </label>
+                  <select 
+                    value={newReq.departmentId}
+                    onChange={(e) => setNewReq({...newReq, departmentId: e.target.value, batchId: ''})}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13.5px', outline: 'none', backgroundColor: '#fff' }}
+                  >
+                    <option value="">Select Department</option>
+                    {departmentsList.filter(d => ['CS', 'AI', 'SE', 'CY'].includes(d.code)).map(d => (
+                      <option key={d._id} value={d._id}>{d.name} ({d.code})</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                    Target Batch <span style={{ color: '#EF4444' }}>*</span>
+                  </label>
+                  <select 
+                    value={newReq.batchId}
+                    onChange={(e) => setNewReq({...newReq, batchId: e.target.value})}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13.5px', outline: 'none', backgroundColor: '#fff' }}
+                  >
+                    <option value="">Select Batch</option>
+                    {batchesList.filter(b => (b.departmentId === newReq.departmentId || b.departmentId?._id === newReq.departmentId)).map(b => (
+                      <option key={b._id} value={b._id}>{b.code}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                  Source Institution <span style={{ color: '#EF4444' }}>*</span>
+                </label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. NUST UNIVERSITY"
+                  value={newReq.sourceInstitution}
+                  onChange={(e) => setNewReq({...newReq, sourceInstitution: e.target.value})}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13.5px', outline: 'none' }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                    Semester at Source Institution
+                  </label>
                   <select
                     value={newReq.fromSemester}
                     onChange={(e) => setNewReq({...newReq, fromSemester: e.target.value})}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', backgroundColor: '#fff' }}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13.5px', outline: 'none', backgroundColor: '#fff' }}
                   >
                     <option value="">Select semester completed</option>
                     {[1,2,3,4,5,6,7,8].map(s => (
@@ -877,47 +955,68 @@ export default function MigrationRecords() {
                     ))}
                   </select>
                 </div>
-                {/* Transcript Upload */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>
-                    HEC-Verified Transcript <span style={{ color: '#94A3B8', fontWeight: 400 }}>(PDF or Image)</span>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                    STMU Intake Session
                   </label>
-                  <input
-                    ref={transcriptInputRef}
-                    type="file"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    onChange={(e) => setTranscriptFile(e.target.files[0] || null)}
-                    style={{ display: 'none' }}
-                  />
-                  <div
-                    onClick={() => transcriptInputRef.current?.click()}
-                    style={{
-                      border: `2px dashed ${transcriptFile ? '#2563EB' : '#CBD5E1'}`,
-                      borderRadius: '10px',
-                      padding: '16px',
-                      textAlign: 'center',
-                      cursor: 'pointer',
-                      backgroundColor: transcriptFile ? '#EFF6FF' : '#F8FAFC',
-                      transition: 'all 0.2s'
-                    }}
+                  <select
+                    value={newReq.intakeSession || 'Spring'}
+                    onChange={(e) => setNewReq({...newReq, intakeSession: e.target.value})}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13.5px', outline: 'none', backgroundColor: '#fff' }}
                   >
-                    {transcriptFile ? (
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#2563EB', fontSize: '13px', fontWeight: 600 }}>
-                        <FileText size={16} />
-                        {transcriptFile.name}
-                        <span style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 400 }}>({(transcriptFile.size / 1024).toFixed(1)} KB)</span>
-                      </div>
-                    ) : (
-                      <div style={{ color: '#94A3B8', fontSize: '13px' }}>
-                        <Upload size={20} style={{ marginBottom: '4px', display: 'block', margin: '0 auto 4px' }} />
-                        Click to upload transcript (PDF/Image, max 15MB)
-                      </div>
-                    )}
-                  </div>
+                    <option value="Spring">🌸 Spring Intake</option>
+                    <option value="Fall">🍂 Fall Intake</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* STMU Semester Placement Notice */}
+              <div style={{ backgroundColor: '#F0F9FF', border: '1px solid #BAE6FD', padding: '12px 14px', borderRadius: '10px', fontSize: '11.5px', color: '#0369A1' }}>
+                <strong style={{ color: '#0284C7' }}>💡 STMU Semester Placement Rule:</strong> Student's Current Semester in STMU is automatically calculated based on accepted transferred credit hours upon approval (16-32 CH = Sem 2, 33-49 CH = Sem 3, etc.).
+              </div>
+
+              {/* Transcript Upload */}
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                  HEC-Verified Transcript <span style={{ color: '#EF4444' }}>*</span> <span style={{ color: '#94A3B8', fontWeight: 400 }}>(PDF or Image, max 15MB)</span>
+                </label>
+                <input
+                  ref={transcriptInputRef}
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) => setTranscriptFile(e.target.files[0] || null)}
+                  style={{ display: 'none' }}
+                />
+                <div
+                  onClick={() => transcriptInputRef.current?.click()}
+                  style={{
+                    border: `2px dashed ${transcriptFile ? '#2563EB' : '#CBD5E1'}`,
+                    borderRadius: '12px',
+                    padding: '20px 16px',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    backgroundColor: transcriptFile ? '#EFF6FF' : '#F8FAFC',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {transcriptFile ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#2563EB', fontSize: '13px', fontWeight: 700 }}>
+                      <FileText size={18} />
+                      {transcriptFile.name}
+                      <span style={{ color: '#64748B', fontSize: '11px', fontWeight: 500 }}>({(transcriptFile.size / 1024).toFixed(1)} KB)</span>
+                    </div>
+                  ) : (
+                    <div style={{ color: '#64748B', fontSize: '12.5px' }}>
+                      <Upload size={22} style={{ color: '#3B82F6', marginBottom: '6px', display: 'block', margin: '0 auto 6px' }} />
+                      Click to upload HEC transcript (PDF or Image)
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
-            <div style={{ padding: '16px 24px', backgroundColor: '#F8FAFC', borderTop: '1px solid #E2E8F0', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+
+            {/* Footer Buttons Inline */}
+            <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #E2E8F0', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
               <button 
                 onClick={() => setShowNewModal(false)}
                 style={{ padding: '10px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, color: '#64748B', backgroundColor: 'transparent', border: 'none', cursor: 'pointer' }}
@@ -927,7 +1026,7 @@ export default function MigrationRecords() {
               <button 
                 onClick={submitNewRequest}
                 disabled={isSubmittingNew}
-                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, color: '#fff', backgroundColor: '#2563EB', border: 'none', cursor: isSubmittingNew ? 'not-allowed' : 'pointer', opacity: isSubmittingNew ? 0.7 : 1 }}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 22px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, color: '#fff', backgroundColor: '#2563EB', border: 'none', cursor: isSubmittingNew ? 'not-allowed' : 'pointer', opacity: isSubmittingNew ? 0.7 : 1, boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
               >
                 {isSubmittingNew ? <CircularProgress size={14} style={{ color: '#fff' }} /> : <CheckCircle size={16} />}
                 Create Request

@@ -123,8 +123,8 @@ export default function ResetPassword() {
       </div>
 
       {/* Right Panel: Reset Password Form */}
-      <div className="flex-1 bg-white flex flex-col justify-center px-6 sm:px-16 py-16 relative">
-        <div className="max-w-md w-full mx-auto space-y-8 select-none">
+      <div className="flex-1 bg-white flex flex-col justify-center px-6 sm:px-12 py-10 relative overflow-y-auto">
+        <div className="max-w-md w-full mx-auto space-y-6 select-none my-auto">
           
           <div className="space-y-2">
             <button

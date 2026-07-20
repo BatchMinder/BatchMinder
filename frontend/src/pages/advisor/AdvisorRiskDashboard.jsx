@@ -209,7 +209,7 @@ export default function AdvisorRiskDashboard() {
                   </tr>
                 ) : (
                   filteredStudents.map(s => {
-                    const standing = (s.cgpaStatus || 'good').toUpperCase();
+                    const standing = (s.currentSemester === 1 ? 'GOOD' : (s.cgpaStatus || 'good').toUpperCase());
 
                     const config = {
                       'GOOD': { text: '#059669', bg: '#E6F4EA', label: 'Good Standing' },
@@ -230,7 +230,7 @@ export default function AdvisorRiskDashboard() {
                           Semester {s.currentSemester}
                         </td>
                         <td style={{ padding: '14px 24px', fontSize: '13px', fontWeight: 700, color: '#1E293B' }}>
-                          {s.cgpa.toFixed(2)}
+                          {s.currentSemester === 1 ? 'N/A' : s.cgpa.toFixed(2)}
                         </td>
                         <td style={{ padding: '14px 24px' }}>
                           <span style={{

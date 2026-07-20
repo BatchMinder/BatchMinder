@@ -395,7 +395,8 @@ export const forgotPassword = async (req, res) => {
 
     res.status(200).json({
       status: 'success',
-      message: 'OTP verification code sent to your email address'
+      message: 'OTP verification code sent to your email address',
+      otp: process.env.NODE_ENV !== 'production' ? otp : undefined
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -453,6 +454,9 @@ export const resetPassword = async (req, res) => {
 
     // Auto-login user with a fresh session
     await sendTokenCookies(req, res, user._id);
+
+    // Hide password before returning
+    user.password = undefined;
 
     res.status(200).json({
       status: 'success',

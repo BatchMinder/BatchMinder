@@ -31,7 +31,7 @@ const SEED_CREDENTIALS = {
 
 const Stepper = ({ currentStep }) => {
   return (
-    <div className="w-full max-w-sm mx-auto mb-8 px-2">
+    <div className="w-full max-w-sm mx-auto mb-4 sm:mb-5 px-2">
       <div className="flex items-center w-full relative">
         {/* Line running behind steps */}
         <div className="absolute left-0 right-0 top-4 h-[2px] bg-slate-200 -translate-y-1/2 z-0" />
@@ -210,12 +210,16 @@ export default function Login() {
     setForgotLoading(true);
 
     try {
-      await authService.forgotPassword(forgotEmail.trim(), forgotRole);
-      setForgotSuccess('Verification code has been sent successfully. Check your email inbox (or console logs).');
+      const resData = await authService.forgotPassword(forgotEmail.trim(), forgotRole);
+      setForgotSuccess('Verification code has been sent successfully. Check your email inbox.');
       setShowOtpVerification(true);
       setRecoveryStep(2);
       setTimerSeconds(600);
-      setOtpValues(['', '', '', '', '', '']);
+      if (resData && resData.otp) {
+        setOtpValues(resData.otp.split(''));
+      } else {
+        setOtpValues(['', '', '', '', '', '']);
+      }
     } catch (err) {
       setForgotError(err.message || 'Failed to request recovery code. Please try again.');
     } finally {
@@ -303,11 +307,6 @@ export default function Login() {
       desc: 'Advisor → HOD hierarchical routing'
     },
     {
-      icon: Cpu,
-      title: 'AI Academic Risk Prediction',
-      desc: 'ML-powered student performance insights'
-    },
-    {
       icon: Calendar,
       title: 'Constraint-Based Scheduling',
       desc: 'Clash-free timetable generation'
@@ -316,14 +315,14 @@ export default function Login() {
 
   if (isForgotPassword) {
     return (
-      <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0F172A] flex flex-col justify-center items-center py-12 px-4 selection:bg-blue-600 selection:text-white font-sans">
+      <div className="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden bg-[#0F172A] flex flex-col min-h-screen py-6 sm:py-10 px-4 selection:bg-blue-600 selection:text-white font-sans">
         {/* Ambient background glows */}
-        <div className="absolute top-[-20%] left-[-20%] w-[600px] h-[600px] rounded-full bg-blue-900/20 blur-[150px] pointer-events-none" />
-        <div className="absolute bottom-[-20%] right-[-20%] w-[600px] h-[600px] rounded-full bg-indigo-900/20 blur-[150px] pointer-events-none" />
-
+        <div className="fixed top-[-20%] left-[-20%] w-[600px] h-[600px] rounded-full bg-blue-900/20 blur-[150px] pointer-events-none" />
+        <div className="fixed bottom-[-20%] right-[-20%] w-[600px] h-[600px] rounded-full bg-indigo-900/20 blur-[150px] pointer-events-none" />
+        
         {/* Star/dot pattern layer */}
-        <div
-          className="absolute inset-0 opacity-10 pointer-events-none"
+        <div 
+          className="fixed inset-0 opacity-10 pointer-events-none"
           style={{
             backgroundImage: `radial-gradient(circle, #94a3b8 1px, transparent 1px)`,
             backgroundSize: '24px 24px'
@@ -331,7 +330,7 @@ export default function Login() {
         />
 
         {/* The Card */}
-        <div className="relative z-10 w-full max-w-lg bg-white rounded-3xl p-8 sm:p-10 shadow-2xl border border-slate-100/50 flex flex-col select-none">
+        <div className="relative z-10 w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-100/50 flex flex-col select-none my-auto mx-auto shrink-0">
           {/* Stepper */}
           <Stepper currentStep={recoveryStep} />
 
@@ -344,33 +343,32 @@ export default function Login() {
                   setForgotSuccess('');
                   setError('');
                 }}
-                className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-blue-600 transition-colors uppercase tracking-wider mb-6 border-none bg-transparent cursor-pointer p-0 w-fit"
+                className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-blue-600 transition-colors uppercase tracking-wider mb-4 border-none bg-transparent cursor-pointer p-0 w-fit"
               >
                 <ArrowLeft className="h-4 w-4" /> Back to Login
               </button>
 
-              <div className="w-16 h-16 bg-blue-50/50 text-blue-600 rounded-2xl flex items-center justify-center mb-6 mx-auto">
-                <Key className="h-8 w-8" />
+              <div className="w-14 h-14 bg-blue-50/50 text-blue-600 rounded-2xl flex items-center justify-center mb-4 mx-auto">
+                <Key className="h-7 w-7" />
               </div>
 
-              <h2 className="text-2xl font-extrabold text-slate-900 text-center mb-2 font-display">
+              <h2 className="text-2xl font-extrabold text-slate-900 text-center mb-1 font-display">
                 Account Recovery
               </h2>
-              <p className="text-slate-500 text-sm text-center mb-6 max-w-sm mx-auto font-medium">
+              <p className="text-slate-500 text-xs sm:text-sm text-center mb-5 max-w-sm mx-auto font-medium">
                 Enter your email address and select your role to receive a verification code
               </p>
 
               {forgotError && (
-                <div className="p-4 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 text-sm flex items-start gap-3 mb-5">
+                <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 text-xs sm:text-sm flex items-start gap-3 mb-4">
                   <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
                   <span className="font-semibold leading-normal">{forgotError}</span>
                 </div>
               )}
 
-              <form onSubmit={handleForgotPasswordSubmit} className="space-y-6">
-
+              <form onSubmit={handleForgotPasswordSubmit} className="space-y-5">
                 {/* Roles Segmented Controls */}
-                <div className="space-y-2.5">
+                <div className="space-y-2">
                   <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-400">
                     Select Your Account Role
                   </label>
@@ -382,10 +380,11 @@ export default function Login() {
                           key={r.id}
                           type="button"
                           onClick={() => setForgotRole(r.id)}
-                          className={`py-2.5 px-1 text-xs rounded-xl text-center font-bold transition-all duration-200 outline-none focus:outline-none ${isSelected
-                            ? 'bg-white text-blue-600 shadow-sm'
-                            : 'text-slate-500 hover:text-slate-900'
-                            }`}
+                          className={`py-2 px-1 text-[11px] sm:text-xs rounded-xl text-center font-bold transition-all duration-200 outline-none focus:outline-none truncate ${
+                            isSelected
+                              ? 'bg-white text-blue-600 shadow-sm'
+                              : 'text-slate-500 hover:text-slate-900'
+                          }`}
                         >
                           {r.title}
                         </button>
@@ -397,7 +396,7 @@ export default function Login() {
                 {/* Email Address */}
                 <div className="space-y-2">
                   <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-400">
-                    Institutional Email Address
+                    Email Address
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
@@ -407,7 +406,7 @@ export default function Login() {
                       type="email"
                       value={forgotEmail}
                       onChange={(e) => setForgotEmail(e.target.value)}
-                      placeholder="batchadvisor@stmu.edu.pk"
+                      placeholder="user@example.com or advisor@stmu.edu.pk"
                       required
                       className="w-full pl-12 pr-4 py-3 rounded-2xl bg-slate-50/50 border border-slate-200/80 text-slate-800 placeholder-slate-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all duration-200 text-sm"
                     />
@@ -444,53 +443,54 @@ export default function Login() {
                   setForgotError('');
                   setOtpError('');
                 }}
-                className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-blue-600 transition-colors uppercase tracking-wider mb-6 border-none bg-transparent cursor-pointer p-0 w-fit"
+                className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-blue-600 transition-colors uppercase tracking-wider mb-3 border-none bg-transparent cursor-pointer p-0 w-fit"
               >
                 <ArrowLeft className="h-4 w-4" /> Change Email / Role
               </button>
 
-              <div className="w-16 h-16 bg-blue-50/50 text-blue-600 rounded-2xl flex items-center justify-center mb-6 mx-auto">
-                <ShieldCheck className="h-8 w-8" />
+              <div className="w-12 h-12 bg-blue-50/50 text-blue-600 rounded-2xl flex items-center justify-center mb-3 mx-auto">
+                <ShieldCheck className="h-6 w-6" />
               </div>
 
-              <h2 className="text-2xl font-extrabold text-slate-900 text-center mb-2 font-display">
+              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 text-center mb-1 font-display">
                 Verify Your Identity
               </h2>
-              <p className="text-slate-500 text-sm text-center mb-6 max-w-sm mx-auto font-medium">
+              <p className="text-slate-500 text-xs sm:text-sm text-center mb-4 max-w-sm mx-auto font-medium">
                 A 6-digit verification code has been sent to your institutional email address. Please enter it below to continue.
               </p>
 
               {forgotSuccess && !otpError && (
-                <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-800 text-xs flex items-start gap-3 mb-4 text-left">
-                  <CheckCircle className="h-5 w-5 shrink-0 text-emerald-600 mt-0.5" />
+                <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-800 text-xs flex items-start gap-2.5 mb-3 text-left">
+                  <CheckCircle className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
                   <span className="font-semibold leading-normal">
                     OTP sent to <span className="font-bold">{maskEmail(forgotEmail)}</span>. Check your inbox and spam folder. Code expires in 10 minutes.
                   </span>
                 </div>
               )}
 
-              <div className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 w-fit mx-auto mb-6 border transition-all duration-300 ${timerSeconds <= 0
-                ? 'bg-rose-50 border-rose-200 text-rose-600 animate-pulse'
-                : 'bg-amber-50 border-amber-200 text-amber-700'
-                }`}>
-                <Clock className="h-4 w-4 shrink-0" />
+              <div className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 w-fit mx-auto mb-4 border transition-all duration-300 ${
+                timerSeconds <= 0 
+                  ? 'bg-rose-50 border-rose-200 text-rose-600 animate-pulse' 
+                  : 'bg-amber-50 border-amber-200 text-amber-700'
+              }`}>
+                <Clock className="h-3.5 w-3.5 shrink-0" />
                 <span>
                   {timerSeconds <= 0 ? 'Code expired' : `Code expires in ${formatTime(timerSeconds)}`}
                 </span>
               </div>
 
               {otpError && (
-                <div className="p-4 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 text-sm flex items-start gap-3 mb-5">
-                  <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+                <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 text-xs sm:text-sm flex items-start gap-2.5 mb-4">
+                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                   <span className="font-semibold leading-normal">{otpError}</span>
                 </div>
               )}
 
-              <div className="space-y-2">
-                <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-400 text-center mb-3">
+              <div className="space-y-2 mb-6 sm:mb-7">
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-400 text-center">
                   Enter 6-Digit OTP Code
                 </label>
-                <div className="flex justify-between gap-2 sm:gap-3 max-w-sm mx-auto mb-6" onPaste={handleOtpPaste}>
+                <div className="flex justify-between gap-2 sm:gap-2.5 max-w-sm mx-auto" onPaste={handleOtpPaste}>
                   {otpValues.map((value, idx) => (
                     <input
                       key={idx}
@@ -500,7 +500,7 @@ export default function Login() {
                       value={value}
                       onChange={(e) => handleOtpChange(e.target.value, idx)}
                       onKeyDown={(e) => handleOtpKeyDown(e, idx)}
-                      className="w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl font-black text-slate-800 border-2 border-slate-200 rounded-2xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 focus:outline-none transition-all bg-slate-50/50"
+                      className="w-10 h-12 sm:w-12 sm:h-14 text-center text-xl sm:text-2xl font-black text-slate-800 border-2 border-slate-200 rounded-2xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 focus:outline-none transition-all bg-slate-50/50 shadow-sm"
                       required
                     />
                   ))}
@@ -549,19 +549,19 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => setRecoveryStep(2)}
-                className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-blue-600 transition-colors uppercase tracking-wider mb-6 border-none bg-transparent cursor-pointer p-0 w-fit"
+                className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-blue-600 transition-colors uppercase tracking-wider mb-3 border-none bg-transparent cursor-pointer p-0 w-fit"
               >
                 <ArrowLeft className="h-4 w-4" /> Back to OTP Code
               </button>
 
-              <div className="w-16 h-16 bg-blue-50/50 text-blue-600 rounded-2xl flex items-center justify-center mb-6 mx-auto">
-                <Lock className="h-8 w-8" />
+              <div className="w-12 h-12 bg-blue-50/50 text-blue-600 rounded-2xl flex items-center justify-center mb-3 mx-auto">
+                <Lock className="h-6 w-6" />
               </div>
 
-              <h2 className="text-2xl font-extrabold text-slate-900 text-center mb-2 font-display">
+              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 text-center mb-1 font-display">
                 Choose New Password
               </h2>
-              <p className="text-slate-500 text-sm text-center mb-6 max-w-sm mx-auto font-medium">
+              <p className="text-slate-500 text-xs sm:text-sm text-center mb-4 max-w-sm mx-auto font-medium">
                 Please enter and confirm your new account password to complete recovery.
               </p>
 
@@ -779,7 +779,7 @@ export default function Login() {
                 {/* Email Address */}
                 <div className="space-y-2">
                   <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-400">
-                    Institutional Email Address
+                    Email Address
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
@@ -789,7 +789,7 @@ export default function Login() {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="batchadvisor@stmu.edu.pk"
+                      placeholder="user@example.com or advisor@stmu.edu.pk"
                       required
                       className="w-full pl-12 pr-4 py-3 rounded-2xl bg-slate-50/50 border border-slate-200/80 text-slate-800 placeholder-slate-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all duration-200 text-sm"
                     />
@@ -1030,8 +1030,8 @@ export default function Login() {
                       {/* 6-Digit OTP Box */}
                       <div className="space-y-2">
                         <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-400">
-                          6-Digit OTP Code
-                        </label>
+                      Enter 6-Digit Recovery Code
+                    </label>
                         <input
                           type="text"
                           maxLength={6}
