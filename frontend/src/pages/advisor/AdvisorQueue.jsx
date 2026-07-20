@@ -83,6 +83,7 @@ export default function AdvisorQueue() {
   const [eligibleCourses, setEligibleCourses] = useState({ enrolledCourses: [], curriculumCourses: [] });
   const [loadingCourses, setLoadingCourses] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState('');
+  const [showSubjectDropdown, setShowSubjectDropdown] = useState(false);
 
   const fetchRequests = async (showRefresher = false) => {
     if (showRefresher) setRefreshing(true);
@@ -394,7 +395,7 @@ export default function AdvisorQueue() {
 
         {/* ── Bottom: Approval Workflow + History + Remarks (when request selected) ── */}
         {selectedRequest && (
-          <div className="order-3 xl:col-start-1 xl:row-start-2 grid grid-cols-1 lg:grid-cols-3 gap-4 min-w-0">
+          <div className="order-3 xl:col-start-1 xl:row-start-2 grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4 min-w-0">
 
               {/* Approval Workflow */}
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
@@ -450,7 +451,7 @@ export default function AdvisorQueue() {
               </div>
 
               {/* Advisor Remarks + Next Action */}
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex flex-col gap-3">
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex flex-col justify-between gap-3 min-w-0 overflow-hidden">
                 <div>
                   <h4 className="text-xs font-extrabold text-slate-700 mb-1.5">Advisor Remarks</h4>
                   <p className="text-[10px] text-slate-400 mb-2">Add your remarks (optional)</p>
@@ -472,16 +473,16 @@ export default function AdvisorQueue() {
                   </div>
                 )}
                 {isActionable(selectedRequest.status) ? (
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-[10px] font-extrabold text-slate-600 uppercase tracking-widest mb-2">Next Action</p>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2 w-full min-w-0">
                       <button onClick={() => handleResolveAction(true)} disabled={actionLoading}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-bold rounded-lg transition-colors disabled:opacity-50">
-                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> Approve
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer disabled:opacity-50 min-w-0">
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Approve</span>
                       </button>
                       <button onClick={() => handleResolveAction(false)} disabled={actionLoading}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-rose-300 hover:bg-rose-50 text-rose-600 text-[11px] font-bold rounded-lg transition-colors">
-                        <X className="w-3 h-3 shrink-0" /> Reject
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-rose-300 hover:bg-rose-50 text-rose-600 text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer min-w-0">
+                        <X className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Reject</span>
                       </button>
                     </div>
                   </div>
@@ -598,12 +599,52 @@ export default function AdvisorQueue() {
               <div className="flex flex-col gap-1.5 relative">
                 <label className="text-[11px] font-bold text-slate-600">Search Student *</label>
                 {selectedStudent ? (
-                  <div className="flex justify-between items-center p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg">
-                    <div>
-                      <p className="text-xs font-bold text-emerald-800">{selectedStudent.name}</p>
-                      <p className="text-[10px] text-emerald-600">{selectedStudent.rollNumber} · CGPA: {parseFloat(selectedStudent.cgpa || 0).toFixed(2)}</p>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex justify-between items-center p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg">
+                      <div>
+                        <p className="text-xs font-bold text-emerald-800">{selectedStudent.name}</p>
+                        <p className="text-[10px] text-emerald-600">{selectedStudent.rollNumber} · CGPA: {parseFloat(selectedStudent.cgpa || 0).toFixed(2)} · Sem: {selectedStudent.currentSemester}</p>
+                      </div>
+                      <button type="button" onClick={() => setSelectedStudent(null)} className="text-[11px] font-bold text-emerald-700 hover:underline cursor-pointer">Change</button>
                     </div>
-                    <button type="button" onClick={() => setSelectedStudent(null)} className="text-[11px] font-bold text-emerald-700 hover:underline">Change</button>
+
+                    {/* Live Credit Hour Meter & Fulfillment Indicator */}
+                    {(() => {
+                      const activeEnrolled = (eligibleCourses.enrolledCourses || []).filter(c =>
+                        c.status === 'enrolled' || c.enrollmentStatus === 'enrolled' || c.grade === 'IP' || c.semester === selectedStudent.currentSemester
+                      );
+                      const currentEnrolled = activeEnrolled.reduce((sum, c) => sum + (c.creditHours || 3), 0);
+                      const maxLimit = selectedStudent.cgpa >= 3.5 ? 21 : (selectedStudent.cgpa < 2.0 && selectedStudent.currentSemester > 1) ? 12 : 18;
+                      const addedCH = requestType === 'add' ? (creditHours || 0) : -(creditHours || 0);
+                      const projectedCH = Math.max(0, currentEnrolled + (selectedCourseId ? addedCH : 0));
+                      const isFulfilled = projectedCH === maxLimit;
+                      const isExceeded = projectedCH > maxLimit;
+
+                      return (
+                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="font-extrabold text-slate-700">Credit Hour Meter</span>
+                            <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${
+                              isExceeded ? 'bg-rose-100 text-rose-700 border border-rose-200' :
+                              isFulfilled ? 'bg-amber-100 text-amber-800 border border-amber-200' :
+                              'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                            }`}>
+                              {isExceeded ? '🛑 Exceeds Max Limit' : isFulfilled ? '⚠️ Limit Fulfilled (100%)' : '✅ Within Credit Limit'}
+                            </span>
+                          </div>
+                          <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full transition-all duration-300 ${isExceeded ? 'bg-rose-500' : isFulfilled ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                              style={{ width: `${Math.min(100, (projectedCH / maxLimit) * 100)}%` }}
+                            />
+                          </div>
+                          <div className="flex justify-between items-center text-[11px] text-slate-500 font-medium">
+                            <span>Enrolled: <b>{currentEnrolled} CH</b> {selectedCourseId && <span>({addedCH > 0 ? `+${addedCH}` : addedCH} CH = <b>{projectedCH} CH</b>)</span>}</span>
+                            <span>Max Allowed: <b>{maxLimit} CH</b></span>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 ) : (
                   <>
@@ -633,15 +674,54 @@ export default function AdvisorQueue() {
                 </select>
               </div>
               {selectedStudent && (
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-1.5 relative">
                   <label className="text-[11px] font-bold text-slate-600">Choose Subject *</label>
-                  {loadingCourses ? <div className="flex items-center gap-2 text-xs text-slate-500"><CircularProgress size={10} /> Loading...</div> : (
-                    <select value={selectedCourseId} onChange={handleCourseChange} required className="px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white outline-none cursor-pointer">
-                      <option value="">-- Choose Subject --</option>
-                      {(requestType === 'add' ? eligibleCourses.curriculumCourses : eligibleCourses.enrolledCourses).map(c => (
-                        <option key={c._id || c.code || c.courseCode} value={c._id || c.code || c.courseCode}>{c.courseCode || c.code} – {c.courseTitle || c.title} ({c.creditHours} CH)</option>
-                      ))}
-                    </select>
+                  {loadingCourses ? (
+                    <div className="flex items-center gap-2 text-xs text-slate-500"><CircularProgress size={10} /> Loading courses...</div>
+                  ) : (
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setShowSubjectDropdown(!showSubjectDropdown)}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white text-left flex justify-between items-center cursor-pointer outline-none hover:border-blue-400 transition-colors"
+                      >
+                        <span className={courseCode ? "font-bold text-slate-800" : "text-slate-400"}>
+                          {courseCode ? `${courseCode} – ${courseTitle} (${creditHours} CH)` : '-- Choose Subject --'}
+                        </span>
+                        <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                      </button>
+
+                      {showSubjectDropdown && (
+                        <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-[180px] overflow-y-auto divide-y divide-slate-100">
+                          {(requestType === 'add' ? eligibleCourses.curriculumCourses : eligibleCourses.enrolledCourses).length === 0 ? (
+                            <div className="p-3 text-xs text-slate-400 text-center">No available subjects found</div>
+                          ) : (
+                            (requestType === 'add' ? eligibleCourses.curriculumCourses : eligibleCourses.enrolledCourses).map(c => {
+                              const id = c._id || c.code || c.courseCode;
+                              const code = c.courseCode || c.code;
+                              const title = c.courseTitle || c.title;
+                              const ch = c.creditHours || 3;
+                              return (
+                                <div
+                                  key={id}
+                                  onClick={() => {
+                                    setSelectedCourseId(id);
+                                    setCourseCode(code);
+                                    setCourseTitle(title);
+                                    setCreditHours(ch);
+                                    setShowSubjectDropdown(false);
+                                  }}
+                                  className="p-2.5 hover:bg-blue-50 cursor-pointer transition-colors"
+                                >
+                                  <p className="text-xs font-bold text-slate-800">{code} – {title}</p>
+                                  <p className="text-[10px] font-semibold text-blue-600">{ch} Credit Hours</p>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               )}

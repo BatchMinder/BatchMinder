@@ -9,6 +9,8 @@ import Curriculum from './models/curriculum.js';
 import Migration from './models/migration.js';
 import ApprovalRequest from './models/approvalRequest.js';
 import Notification from './models/notification.js';
+import { seedHECCurriculums } from './seedHECCurriculum.js';
+import { calculateSTMU_CGPA } from './utils/stmuGrading.js';
 
 dotenv.config();
 
@@ -41,44 +43,49 @@ async function seed() {
     // ── Departments ──
     const depts = await Department.insertMany([
       { code: 'CS', name: 'Computer Science', established: 2018, status: 'Active', color: '#3B82F6' },
+      { code: 'AI', name: 'Artificial Intelligence', established: 2021, status: 'Active', color: '#10B981' },
       { code: 'SE', name: 'Software Engineering', established: 2019, status: 'Active', color: '#7C3AED' },
-      { code: 'EE', name: 'Electrical Engineering', established: 2020, status: 'Active', color: '#EF4444' },
+      { code: 'CY', name: 'Cyber Security', established: 2022, status: 'Active', color: '#EF4444' },
     ]);
-    const [cs, se, ee] = depts.map(d => d._id);
+    const [cs, ai, se, cy] = depts.map(d => d._id);
     console.log(`  ${depts.length} departments`);
 
     // ── Users ──
     const users = await User.create([
       { name: 'Dean User', email: 'dean@stmu.edu.pk', password: 'password123', role: 'super_admin', status: 'Active' },
       { name: 'Admin CS Only', email: 'admin.cs@stmu.edu.pk', password: 'password123', role: 'academic_admin', departmentIds: [cs], dept: 'Computer Science', status: 'Active' },
-      { name: 'Admin CS+SE', email: 'admin.both@stmu.edu.pk', password: 'password123', role: 'academic_admin', departmentIds: [cs, se], dept: 'All Departments', status: 'Active' },
+      { name: 'Admin All Depts', email: 'admin.both@stmu.edu.pk', password: 'password123', role: 'academic_admin', departmentIds: [cs, ai, se, cy], dept: 'All Departments', status: 'Active' },
       { name: 'HOD Computer Science', email: 'hod.cs@stmu.edu.pk', password: 'password123', role: 'admin', departmentIds: [cs], dept: 'Computer Science', status: 'Active' },
+      { name: 'HOD Artificial Intelligence', email: 'hod.ai@stmu.edu.pk', password: 'password123', role: 'admin', departmentIds: [ai], dept: 'Artificial Intelligence', status: 'Active' },
       { name: 'HOD Software Engineering', email: 'hod.se@stmu.edu.pk', password: 'password123', role: 'admin', departmentIds: [se], dept: 'Software Engineering', status: 'Active' },
+      { name: 'HOD Cyber Security', email: 'hod.cy@stmu.edu.pk', password: 'password123', role: 'admin', departmentIds: [cy], dept: 'Cyber Security', status: 'Active' },
       { name: 'Advisor Ahmed', email: 'advisor.both@stmu.edu.pk', password: 'password123', role: 'advisor', dept: 'Computer Science', status: 'Active' },
       { name: 'Advisor Fatima', email: 'advisor.cs@stmu.edu.pk', password: 'password123', role: 'advisor', dept: 'Computer Science', status: 'Active' },
       { name: 'Advisor Usman', email: 'advisor.se@stmu.edu.pk', password: 'password123', role: 'advisor', dept: 'Software Engineering', status: 'Active' },
-      { name: 'HOD Electrical Engineering', email: 'hod.ee@stmu.edu.pk', password: 'password123', role: 'admin', departmentIds: [ee], dept: 'Electrical Engineering', status: 'Active' },
     ]);
     console.log(`  ${users.length} users`);
 
     // Update HOD references on departments
     const hodCS = users.find(u => u.email === 'hod.cs@stmu.edu.pk');
+    const hodAI = users.find(u => u.email === 'hod.ai@stmu.edu.pk');
     const hodSE = users.find(u => u.email === 'hod.se@stmu.edu.pk');
-    const hodEE = users.find(u => u.email === 'hod.ee@stmu.edu.pk');
+    const hodCY = users.find(u => u.email === 'hod.cy@stmu.edu.pk');
     await Department.updateOne({ _id: cs }, { hodId: hodCS._id });
+    await Department.updateOne({ _id: ai }, { hodId: hodAI._id });
     await Department.updateOne({ _id: se }, { hodId: hodSE._id });
-    await Department.updateOne({ _id: ee }, { hodId: hodEE._id });
+    await Department.updateOne({ _id: cy }, { hodId: hodCY._id });
 
     // ── Batches ──
     const batches = await Batch.insertMany([
-      { code: 'BSCS-2022', departmentId: cs, startYear: 2022, advisor: 'Advisor Ahmed', status: 'Allocated' },
-      { code: 'BSCS-2023', departmentId: cs, startYear: 2023, advisor: 'Advisor Fatima', status: 'Allocated' },
-      { code: 'BSCS-2024', departmentId: cs, startYear: 2024, advisor: 'Unassigned', status: 'Unassigned' },
-      { code: 'BSSE-2022', departmentId: se, startYear: 2022, advisor: 'Advisor Usman', status: 'Allocated' },
-      { code: 'BSSE-2023', departmentId: se, startYear: 2023, advisor: 'Unassigned', status: 'Unassigned' },
-      { code: 'BSEE-2022', departmentId: ee, startYear: 2022, advisor: 'Unassigned', status: 'Unassigned' },
+      { code: 'BSCS-2022', departmentId: cs, startYear: 2022, intakeSession: 'Fall', advisor: 'Advisor Ahmed', status: 'Allocated' },
+      { code: 'BSCS-2023', departmentId: cs, startYear: 2023, intakeSession: 'Fall', advisor: 'Advisor Fatima', status: 'Allocated' },
+      { code: 'BSCS-2024', departmentId: cs, startYear: 2024, intakeSession: 'Fall', advisor: 'Unassigned', status: 'Unassigned' },
+      { code: 'BSAI-2023', departmentId: ai, startYear: 2023, intakeSession: 'Fall', advisor: 'Unassigned', status: 'Unassigned' },
+      { code: 'BSSE-2022', departmentId: se, startYear: 2022, intakeSession: 'Fall', advisor: 'Advisor Usman', status: 'Allocated' },
+      { code: 'BSSE-2023', departmentId: se, startYear: 2023, intakeSession: 'Spring', advisor: 'Unassigned', status: 'Unassigned' },
+      { code: 'BSCY-2023', departmentId: cy, startYear: 2023, intakeSession: 'Fall', advisor: 'Unassigned', status: 'Unassigned' },
     ]);
-    const [bscs22, bscs23, bscs24, bsse22, bsse23, bsee22] = batches.map(b => b._id);
+    const [bscs22, bscs23, bscs24, bsai23, bsse22, bsse23, bscy23] = batches.map(b => b._id);
     console.log(`  ${batches.length} batches`);
 
     // Assign batches to advisors
@@ -119,23 +126,40 @@ async function seed() {
     ];
 
     // cgpaStatus thresholds: critical < 2.0, warning <= 2.1, good > 2.1
-    const batchPool = [bscs22, bscs23, bscs24, bsse22, bsse23, bsee22];
-    const deptPool = [cs, cs, cs, se, se, ee];
+    const batchInfoPool = [
+      { batchId: bscs22, deptId: cs, code: 'BSCS', year: '22F' },
+      { batchId: bscs22, deptId: cs, code: 'BSCS', year: '22S' },
+      { batchId: bscs23, deptId: cs, code: 'BSCS', year: '23F' },
+      { batchId: bscs23, deptId: cs, code: 'BSCS', year: '23S' },
+      { batchId: bscs24, deptId: cs, code: 'BSCS', year: '24F' },
+      { batchId: bsai23, deptId: ai, code: 'BSAI', year: '23F' },
+      { batchId: bsai23, deptId: ai, code: 'BSAI', year: '23S' },
+      { batchId: bsse22, deptId: se, code: 'BSSE', year: '22F' },
+      { batchId: bsse22, deptId: se, code: 'BSSE', year: '22S' },
+      { batchId: bsse23, deptId: se, code: 'BSSE', year: '23F' },
+      { batchId: bscy23, deptId: cy, code: 'BSCY', year: '23F' },
+      { batchId: bscy23, deptId: cy, code: 'BSCY', year: '23S' },
+    ];
 
+    let globalStudentCounter = 0;
     const students = [];
     for (let i = 0; i < 60; i++) {
-      const batchIdx = i % 6;
+      const info = batchInfoPool[i % batchInfoPool.length];
+      globalStudentCounter++;
+      const seqNum = String(globalStudentCounter).padStart(4, '0');
+
       const enrolledAt = new Date();
       enrolledAt.setMonth(enrolledAt.getMonth() - Math.floor(i / 3));
 
       const cgpa = cgpaValues[i % cgpaValues.length] + (Math.random() * 0.2 - 0.1);
 
       students.push({
-        rollNumber: `F22-${i < 30 ? 'BCS' : i < 50 ? 'BSSE' : 'BSEE'}-${String(i + 1).padStart(3, '0')}`,
+        rollNumber: `${info.code}-${info.year}-${seqNum}`,
         name: studentNames[i % studentNames.length],
         email: studentNames[i % studentNames.length].toLowerCase().replace(/\s+/g, '.') + '@stmu.edu.pk',
-        departmentId: deptPool[batchIdx],
-        batchId: batchPool[batchIdx],
+        departmentId: info.deptId,
+        batchId: info.batchId,
+        intakeSession: info.year.endsWith('S') ? 'Spring' : 'Fall',
         currentSemester: Math.min(8, Math.floor(i / 7) + 1),
         cgpa: Math.round(cgpa * 100) / 100,
         status: i < 45 ? 'active' : 'inactive',
@@ -145,9 +169,14 @@ async function seed() {
 
     await Student.insertMany(students);
 
+    const getNextRoll = (batchId, code, year) => {
+      globalStudentCounter++;
+      return `${code}-${year}-${String(globalStudentCounter).padStart(4, '0')}`;
+    };
+
     const migrationStudents = await Student.insertMany([
       {
-        rollNumber: 'BSCS-22B-0092',
+        rollNumber: getNextRoll(bscs22, 'BSCS', '22F'),
         name: 'Ali Hassan',
         email: 'ali.hassan@stmu.edu.pk',
         phone: '0300-234-5692',
@@ -159,7 +188,7 @@ async function seed() {
         enrolledAt: new Date('2022-02-15')
       },
       {
-        rollNumber: 'BSSE-22F-0045',
+        rollNumber: getNextRoll(bsse22, 'BSSE', '22F'),
         name: 'Saba Khan',
         email: 'saba.khan@stmu.edu.pk',
         phone: '0312-555-4545',
@@ -171,7 +200,7 @@ async function seed() {
         enrolledAt: new Date('2022-09-15')
       },
       {
-        rollNumber: 'BSCS-22B-0154',
+        rollNumber: getNextRoll(bscs22, 'BSCS', '22F'),
         name: 'Usama Ali',
         email: 'usama.ali@stmu.edu.pk',
         phone: '0321-456-7890',
@@ -183,19 +212,19 @@ async function seed() {
         enrolledAt: new Date('2022-02-15')
       },
       {
-        rollNumber: 'BBAI-23S-0023',
+        rollNumber: getNextRoll(bsai23, 'BSAI', '23F'),
         name: 'Hina Fatima',
         email: 'hina.fatima@stmu.edu.pk',
         phone: '0333-789-0123',
-        departmentId: cs,
-        batchId: bscs23,
+        departmentId: ai,
+        batchId: bsai23,
         currentSemester: 3,
         cgpa: 3.20,
         status: 'active',
         enrolledAt: new Date('2023-06-15')
       },
       {
-        rollNumber: 'BSCS-23F-0088',
+        rollNumber: getNextRoll(bscs23, 'BSCS', '23F'),
         name: 'Ahmed Raza',
         email: 'ahmed.raza@stmu.edu.pk',
         phone: '0345-987-6543',
@@ -207,7 +236,7 @@ async function seed() {
         enrolledAt: new Date('2023-09-15')
       },
       {
-        rollNumber: 'BSCS-22F-0071',
+        rollNumber: getNextRoll(bsse22, 'BSSE', '22F'),
         name: 'Hamza Sheikh',
         email: 'hamza.sheikh@stmu.edu.pk',
         phone: '0301-234-5678',
@@ -219,16 +248,16 @@ async function seed() {
         enrolledAt: new Date('2022-09-15')
       },
       {
-        rollNumber: 'BSAS-24F-0010',
+        rollNumber: getNextRoll(bscy23, 'BSCY', '23F'),
         name: 'M. Abdullah',
         email: 'm.abdullah@stmu.edu.pk',
         phone: '0324-111-2222',
-        departmentId: cs,
-        batchId: bscs24,
+        departmentId: cy,
+        batchId: bscy23,
         currentSemester: 2,
         cgpa: 3.65,
         status: 'active',
-        enrolledAt: new Date('2024-09-15')
+        enrolledAt: new Date('2023-09-15')
       }
     ]);
     const statusCounts = { good: 0, warning: 0, critical: 0 };
@@ -239,152 +268,43 @@ async function seed() {
     console.log(`  ${students.length} students (good=${statusCounts.good}, warning=${statusCounts.warning}, critical=${statusCounts.critical})`);
 
     // ── Curricula ──
-    const hecSemesters = {
-      1: [
-        { title: 'Quantitative Reasoning-I', creditHours: 3, category: 'GE' },
-        { title: 'Functional English', creditHours: 3, category: 'GE' },
-        { title: 'Applications of Information and Communication Technologies', creditHours: 3, category: 'GE' },
-        { title: 'Social Science', creditHours: 2, category: 'GE' },
-        { title: 'Programming Fundamentals', creditHours: 4, category: 'CS' },
-        { title: 'Calculus & Analytical Geometry (IDS I)', creditHours: 3, category: 'IDS' },
-      ],
-      2: [
-        { title: 'Quantitative Reasoning-II', creditHours: 3, category: 'GE' },
-        { title: 'Arts and Humanities', creditHours: 2, category: 'GE' },
-        { title: 'Pakistan Studies', creditHours: 2, category: 'GE' },
-        { title: 'Fehm-e-Quran – I', creditHours: 1, category: 'GE' },
-        { title: 'Object Oriented Programming', creditHours: 4, category: 'CS' },
-        { title: 'Digital Logic Design', creditHours: 4, category: 'CS' },
-        { title: 'Linear Algebra (IDS II)', creditHours: 3, category: 'IDS' },
-      ],
-      3: [
-        { title: 'Expository Writing', creditHours: 3, category: 'GE' },
-        { title: 'Natural Science', creditHours: 3, category: 'GE' },
-        { title: 'Fehm-e-Quran – II', creditHours: 1, category: 'GE' },
-        { title: 'Data Structures', creditHours: 4, category: 'CS' },
-        { title: 'Database Systems', creditHours: 4, category: 'CS' },
-        { title: 'Operating Systems', creditHours: 4, category: 'CS' },
-      ],
-      4: [
-        { title: 'Civics and Community Engagement', creditHours: 2, category: 'GE' },
-        { title: 'Ideology and Constitution of Pakistan', creditHours: 2, category: 'GE' },
-        { title: 'Entrepreneurship', creditHours: 2, category: 'GE' },
-        { title: 'Islamic Studies / Ethics', creditHours: 2, category: 'GE' },
-        { title: 'Software Engineering', creditHours: 3, category: 'CS' },
-        { title: 'Computer Organization & Architecture', creditHours: 3, category: 'CS' },
-        { title: 'Design & Analysis of Algorithms', creditHours: 3, category: 'CS' },
-      ],
-      5: [
-        { title: 'Computer Networks', creditHours: 3, category: 'CS' },
-        { title: 'Information Security', creditHours: 3, category: 'CS' },
-        { title: 'Artificial Intelligence', creditHours: 3, category: 'CS' },
-        { title: 'Theory of Automata', creditHours: 3, category: 'CS' },
-        { title: 'IDS - III', creditHours: 3, category: 'IDS' },
-        { title: 'IDS - IV', creditHours: 3, category: 'IDS' },
-      ],
-      6: [
-        { title: 'Cloud Computing', creditHours: 3, category: 'CS' },
-        { title: 'Elective-I', creditHours: 3, category: 'CS' },
-        { title: 'Elective-II', creditHours: 3, category: 'CS' },
-        { title: 'Elective-III', creditHours: 3, category: 'CS' },
-        { title: 'Elective-IV', creditHours: 3, category: 'CS' },
-      ],
-      7: [
-        { title: 'Elective-V', creditHours: 3, category: 'CS' },
-        { title: 'Elective-VI', creditHours: 3, category: 'CS' },
-        { title: 'Elective-VII', creditHours: 3, category: 'CS' },
-        { title: 'Elective-VIII', creditHours: 3, category: 'CS' },
-        { title: 'Professional Certification', creditHours: 3, category: 'CERT' },
-      ],
-      8: [
-        { title: 'Final Year Project', creditHours: 6, category: 'FYP' },
-        { title: 'Field Experience / Internship', creditHours: 3, category: 'INT' },
-      ],
-    };
+    // ── Curricula (Official STMU HEC 8-Semester Standards) ──
+    await seedHECCurriculums();
 
-    const counters = {};
-    const hecCsCourses = [];
-    for (const [sem, list] of Object.entries(hecSemesters)) {
-      const semester = Number(sem);
-      for (const c of list) {
-        counters[c.category] = (counters[c.category] || 0) + 1;
-        const code = `${c.category}-${100 + counters[c.category]}`;
-        hecCsCourses.push({
-          code,
-          title: c.title,
-          creditHours: c.creditHours,
-          semester,
-          deptIdx: 0
-        });
-      }
-    }
+    const csCurriculum = await Curriculum.findOne({ version: 'HEC-2025-BSCS' });
+    const aiCurriculum = await Curriculum.findOne({ version: 'HEC-2025-BSAI' });
+    const seCurriculum = await Curriculum.findOne({ version: 'HEC-2025-BSSE' });
+    const cyCurriculum = await Curriculum.findOne({ version: 'HEC-2025-BSCySec' });
 
-    const courseTemplates = [
-      // CS courses
-      ...hecCsCourses,
-      // SE courses
-      { code: 'SE101', title: 'Intro to Software Engineering', creditHours: 3, semester: 1, deptIdx: 1 },
-      { code: 'SE102', title: 'Requirements Engineering', creditHours: 3, semester: 2, deptIdx: 1 },
-      { code: 'SE201', title: 'Software Design & Architecture', creditHours: 3, semester: 3, deptIdx: 1 },
-      { code: 'SE202', title: 'Software Quality Assurance', creditHours: 3, semester: 4, deptIdx: 1 },
-      { code: 'SE301', title: 'Software Project Management', creditHours: 3, semester: 5, deptIdx: 1 },
-      { code: 'SE302', title: 'Human Computer Interaction', creditHours: 3, semester: 6, deptIdx: 1 },
-      // EE courses
-      { code: 'EE101', title: 'Circuit Analysis', creditHours: 3, semester: 1, deptIdx: 2 },
-      { code: 'EE102', title: 'Digital Logic Design', creditHours: 3, semester: 2, deptIdx: 2 },
-      { code: 'EE201', title: 'Electronic Devices & Circuits', creditHours: 3, semester: 3, deptIdx: 2 },
-      { code: 'EE202', title: 'Signals & Systems', creditHours: 3, semester: 4, deptIdx: 2 },
-    ];
+    await Batch.updateMany({ departmentId: cs }, { curriculumVersionId: csCurriculum?._id });
+    await Batch.updateMany({ departmentId: ai }, { curriculumVersionId: aiCurriculum?._id });
+    await Batch.updateMany({ departmentId: se }, { curriculumVersionId: seCurriculum?._id });
+    await Batch.updateMany({ departmentId: cy }, { curriculumVersionId: cyCurriculum?._id });
 
-    const curriculums = [];
-    const curriculumBatches = [
-      { batchId: bscs22, deptId: cs, version: '1.0', courses: courseTemplates.filter(c => c.deptIdx === 0) },
-      { batchId: bscs23, deptId: cs, version: '1.0', courses: courseTemplates.filter(c => c.deptIdx === 0) },
-      { batchId: bscs24, deptId: cs, version: '2.0', courses: courseTemplates.filter(c => c.deptIdx === 0) },
-      { batchId: bsse22, deptId: se, version: '1.0', courses: courseTemplates.filter(c => c.deptIdx === 1) },
-      { batchId: bsse23, deptId: se, version: '1.0', courses: courseTemplates.filter(c => c.deptIdx === 1) },
-      { batchId: bsee22, deptId: ee, version: '1.0', courses: courseTemplates.filter(c => c.deptIdx === 2) },
-    ];
-
-    for (const cb of curriculumBatches) {
-      const curr = await Curriculum.create({
-        departmentId: cb.deptId,
-        batchId: cb.batchId,
-        version: cb.version,
-        status: 'active',
-        courses: cb.courses.map(c => ({
-          code: c.code,
-          title: c.title,
-          creditHours: c.creditHours,
-          semester: c.semester,
-          prerequisiteCourseIds: [],
-        })),
-      });
-      curriculums.push(curr);
-
-      await Batch.updateOne({ _id: cb.batchId }, { curriculumVersionId: curr._id });
-    }
-    console.log(`  ${curriculums.length} curricula`);
+    const curriculums = [csCurriculum, aiCurriculum, seCurriculum, cyCurriculum].filter(Boolean);
+    console.log(`  ${curriculums.length} official STMU HEC curricula assigned to 4 departments`);
 
     // ── Student Course History & Enrollment Seeding ──
     const seededStudents = await Student.find({});
     for (const student of seededStudents) {
       const studentCurriculum = curriculums.find(
-        curr => curr.departmentId.toString() === student.departmentId.toString() &&
-          curr.batchId.toString() === student.batchId.toString()
-      );
-      if (studentCurriculum) {
+        curr => curr.departmentId && curr.departmentId.toString() === student.departmentId.toString()
+      ) || curriculums.find(curr => curr.isHecStandard) || curriculums[0];
+
+      if (studentCurriculum && studentCurriculum.courses) {
         const studentCourses = [];
         studentCurriculum.courses.forEach(currCourse => {
           if (currCourse.semester < student.currentSemester) {
             // Completed courses in past semesters
+            const grade = ['A', 'A-', 'B+', 'B', 'B-', 'C+', 'C'][Math.floor(Math.random() * 7)];
             studentCourses.push({
               courseCode: currCourse.code,
               courseTitle: currCourse.title,
               creditHours: currCourse.creditHours,
               semester: currCourse.semester,
-              grade: ['A', 'B+', 'B', 'C+', 'C'][Math.floor(Math.random() * 5)],
+              grade,
               enrollmentStatus: 'completed',
+              status: 'completed',
               attendance: Math.floor(Math.random() * 20) + 80
             });
           } else if (currCourse.semester === student.currentSemester) {
@@ -396,11 +316,19 @@ async function seed() {
               semester: currCourse.semester,
               grade: 'IP',
               enrollmentStatus: 'enrolled',
+              status: 'enrolled',
               attendance: Math.floor(Math.random() * 15) + 85
             });
           }
         });
         student.courses = studentCourses;
+
+        // Recalculate CGPA using STMU formula if student has completed courses
+        if (student.currentSemester > 1) {
+          const calcCgpa = calculateSTMU_CGPA(studentCourses);
+          if (calcCgpa > 0) student.cgpa = calcCgpa;
+        }
+
         await student.save();
       }
     }

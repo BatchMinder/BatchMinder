@@ -98,10 +98,10 @@ export default function RequestDetail({ request, userRole = 'hod', onClose, onAc
                 margin: '2px 0 0',
                 fontSize: '14px',
                 fontWeight: 800,
-                color: student.cgpaStatus === 'critical' ? '#EF4444' : student.cgpaStatus === 'warning' ? '#F59E0B' : '#10B981',
+                color: student.currentSemester === 1 ? '#64748B' : (student.cgpaStatus === 'critical' ? '#EF4444' : student.cgpaStatus === 'warning' ? '#F59E0B' : '#10B981'),
               }}
             >
-              {student.cgpa !== undefined ? student.cgpa.toFixed(2) : 'N/A'}
+              {student.currentSemester === 1 || Number(student.currentSemester) === 1 ? 'N/A' : (student.cgpa !== undefined ? student.cgpa.toFixed(2) : 'N/A')}
             </p>
           </div>
           <div>

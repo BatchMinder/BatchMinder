@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
   Search, ShieldAlert, ShieldCheck, AlertTriangle, 
-  X, Eye, BookOpen, Clock, Mail, Calendar, GraduationCap, Brain, Play
+  X, Eye, BookOpen, Clock, Mail, Calendar, GraduationCap
 } from 'lucide-react';
 import { CircularProgress } from '@mui/material';
 import AcademicSummary from '../../pages/students/AcademicSummary';
@@ -22,31 +22,10 @@ export default function AdvisorStudents({ selectedBatch }) {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
-  const [predictionResult, setPredictionResult] = useState(null);
-  const [predicting, setPredicting] = useState(false);
   const [degreeProgress, setDegreeProgress] = useState(null);
   const [detailTab, setDetailTab] = useState('profile');
 
-  const handlePredictRisk = async (studentId) => {
-    setPredicting(true);
-    try {
-      const res = await fetch(`/api/students/${studentId}/predict-risk`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const data = await res.json();
-      if (res.ok && data.status === 'success') {
-        setPredictionResult(data.data);
-      } else {
-        alert(data.message || 'Failed to analyze risk.');
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Network error during risk calculation.');
-    } finally {
-      setPredicting(false);
-    }
-  };
+
 
   const assignedBatches = user?.assignedBatchIds || [];
   const hasNoBatches = assignedBatches.length === 0;
@@ -82,7 +61,6 @@ export default function AdvisorStudents({ selectedBatch }) {
 
   const handleOpenDetails = async (studentId) => {
     setStudentDetailsLoading(true);
-    setPredictionResult(null);
     setDegreeProgress(null);
     setDetailTab('profile');
     try {
@@ -234,7 +212,7 @@ export default function AdvisorStudents({ selectedBatch }) {
                     {config.label}
                   </span>
                   <span style={{ fontSize: '14px', fontWeight: 800, color: '#1E293B' }}>
-                    {s.cgpa.toFixed(2)} CGPA
+                    {s.currentSemester === 1 ? 'N/A' : `${s.cgpa.toFixed(2)} CGPA`}
                   </span>
                 </div>
 
@@ -370,7 +348,7 @@ export default function AdvisorStudents({ selectedBatch }) {
                 <div style={{ padding: '12px', borderRadius: '10px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', textAlign: 'center' }}>
                   <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>Cumulative CGPA</span>
                   <p style={{ margin: '4px 0 0', fontSize: '14px', fontWeight: 800, color: '#1E293B' }}>
-                    {selectedStudent.cgpa.toFixed(2)}
+                    {selectedStudent.currentSemester === 1 ? 'N/A' : selectedStudent.cgpa.toFixed(2)}
                   </p>
                 </div>
                 <div style={{ padding: '12px', borderRadius: '10px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', textAlign: 'center' }}>
@@ -435,68 +413,7 @@ export default function AdvisorStudents({ selectedBatch }) {
                 </div>
               )}
 
-              {/* AI Risk Prediction Panel */}
-              <div style={{ padding: '16px', borderRadius: '12px', border: '1px solid #E2E8F0', backgroundColor: '#F8FAFC', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Brain size={16} color="#2563EB" />
-                  <span style={{ fontSize: '13px', fontWeight: 800, color: '#1E293B' }}>AI Academic Risk Assistant</span>
-                </div>
 
-                {!predictionResult ? (
-                  <button
-                    onClick={() => handlePredictRisk(selectedStudent._id)}
-                    disabled={predicting}
-                    style={{
-                      width: '100%', padding: '8px 12px', borderRadius: '8px', border: 'none',
-                      backgroundColor: '#2563EB', color: '#fff', fontSize: '12.5px', fontWeight: 700,
-                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                      fontFamily: 'inherit'
-                    }}
-                  >
-                    {predicting ? <CircularProgress size={12} color="inherit" /> : <Play size={11} fill="#fff" style={{ border: 'none' }} />}
-                    <span>Run AI Academic Risk Diagnostic</span>
-                  </button>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {predictionResult.message === 'Insufficient data for prediction' || (predictionResult.historicalCGPA && predictionResult.historicalCGPA.length < 2) ? (
-                      <div style={{ padding: '10px', borderRadius: '8px', backgroundColor: '#FFFBEB', border: '1px solid #FDE68A', fontSize: '11px', color: '#B45309', lineHeight: 1.4 }}>
-                        <b>Prediction Limitation Notice:</b> Insufficient academic history. Student profile currently only holds {predictionResult.historicalCGPA?.length || 1} semester(s) of history, but the forecaster model requires at least 2.
-                      </div>
-                    ) : (
-                      <>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 600 }}>Risk Level:</span>
-                          <span style={{
-                            fontSize: '11px', fontWeight: 800, padding: '2px 8px', borderRadius: '12px',
-                            color: predictionResult.riskLevel === 'CRITICAL' ? '#DC2626' : predictionResult.riskLevel === 'WARNING' ? '#D97706' : '#059669',
-                            backgroundColor: predictionResult.riskLevel === 'CRITICAL' ? '#FCE8E6' : predictionResult.riskLevel === 'WARNING' ? '#FEF7E0' : '#E6F4EA'
-                          }}>
-                            {predictionResult.riskLevel} ({Math.round(predictionResult.riskScore * 100)}%)
-                          </span>
-                        </div>
-                        <div style={{ fontSize: '12px', color: '#475569', lineHeight: 1.4 }}>
-                          <b>AI Advisor Recommendation:</b>
-                          <ul style={{ margin: '4px 0 0', paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            {predictionResult.riskLevel === 'CRITICAL' ? (
-                              <>
-                                <li>Restrict registration load to maximum 12 CH (BR-2).</li>
-                                <li>Direct referral to peer tutoring and department helpdesk.</li>
-                              </>
-                            ) : predictionResult.riskLevel === 'WARNING' ? (
-                              <>
-                                <li>Advise student to limit credit load to 15 CH.</li>
-                                <li>Schedule bi-weekly advising check-ins.</li>
-                              </>
-                            ) : (
-                              <li>Low academic risk. Maintain standard 18 CH enrollment.</li>
-                            )}
-                          </ul>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
 
               {/* Courses Enrollments Grouped by Semester */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -510,10 +427,14 @@ export default function AdvisorStudents({ selectedBatch }) {
                 ) : (() => {
                   const gradePointsMap = {
                     'A': 4.0,
-                    'B+': 3.5,
+                    'A-': 3.7,
+                    'B+': 3.3,
                     'B': 3.0,
-                    'C+': 2.5,
+                    'B-': 2.7,
+                    'C+': 2.3,
                     'C': 2.0,
+                    'C-': 1.7,
+                    'D': 1.0,
                     'F': 0.0
                   };
 

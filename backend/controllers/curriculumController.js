@@ -184,17 +184,38 @@ export const createOrUpdateCurriculumMap = async (req, res) => {
 
 export const getHECCurriculum = async (req, res) => {
   try {
-    let hecDept = await Department.findOne({ code: 'HEC' });
-    let hecBatch = await Batch.findOne({ code: 'HEC-2025' });
+    const { code, program, department } = req.query;
+    const targetCode = (code || program || department || '').toUpperCase();
 
-    if (!hecDept || !hecBatch) {
-      return res.status(404).json({ message: 'HEC curriculum not found' });
+    let query = {};
+    if (targetCode) {
+      const dept = await Department.findOne({
+        $or: [
+          { code: targetCode },
+          { name: new RegExp(targetCode, 'i') }
+        ]
+      });
+      if (dept) {
+        query.departmentId = dept._id;
+      }
     }
 
-    const curriculum = await Curriculum.findOne({
-      departmentId: hecDept._id,
-      batchId: hecBatch._id
-    });
+    let curriculum = null;
+    if (query.departmentId) {
+      curriculum = await Curriculum.findOne(query)
+        .populate('departmentId', 'name code')
+        .populate('batchId', 'code name');
+    }
+
+    if (!curriculum) {
+      curriculum = await Curriculum.findOne({ version: /HEC/i })
+        .populate('departmentId', 'name code')
+        .populate('batchId', 'code name');
+    }
+
+    if (!curriculum) {
+      return res.status(404).json({ message: 'HEC curriculum not found' });
+    }
 
     res.status(200).json({ status: 'success', data: { curriculum } });
   } catch (error) {

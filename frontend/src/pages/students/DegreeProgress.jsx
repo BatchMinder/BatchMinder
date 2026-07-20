@@ -15,21 +15,24 @@ export default function DegreeProgress({ student }) {
 
   useEffect(() => {
     const fetchCurriculum = async () => {
-      if (!batchId) return;
       setLoading(true);
       try {
-        let res = await fetch(`/api/curriculums/batch/${batchId}`);
-        let data = await res.json();
-        if (res.ok && data.status === 'success' && (data.data.curriculum || data.data)) {
-          setCurriculum(data.data.curriculum || data.data);
-        } else {
-          // Fallback to HEC curriculum
-          res = await fetch('/api/curriculums/hec');
-          data = await res.json();
-          if (res.ok && data.data) {
-            setCurriculum(data.data.curriculum || data.data);
+        let loadedCurr = null;
+        if (batchId) {
+          const res = await fetch(`/api/curriculums/batch/${batchId}`);
+          if (res.ok) {
+            const data = await res.json();
+            loadedCurr = data.data?.curriculum || data.data;
           }
         }
+        if (!loadedCurr) {
+          const res = await fetch('/api/curriculums/hec');
+          if (res.ok) {
+            const data = await res.json();
+            loadedCurr = data.data?.curriculum || data.data;
+          }
+        }
+        setCurriculum(loadedCurr);
       } catch (err) {
         console.error('Failed to fetch curriculum map:', err);
       } finally {
@@ -224,7 +227,7 @@ export default function DegreeProgress({ student }) {
               electivesTotal={totals.electives.total}
               genEdCompleted={totals.genEd.completed}
               genEdTotal={totals.genEd.total}
-              cgpaStatus={student.cgpaStatus || (student.cgpa >= 2.5 ? 'good' : student.cgpa >= 2.0 ? 'warning' : 'critical')}
+              cgpaStatus={student.currentSemester === 1 ? 'good' : (student.cgpaStatus || (student.cgpa >= 2.5 ? 'good' : student.cgpa >= 2.0 ? 'warning' : 'critical'))}
             />
           </div>
 

@@ -17,6 +17,11 @@ const batchSchema = new mongoose.Schema({
     type: Number,
     required: [true, 'Please specify start year'],
   },
+  intakeSession: {
+    type: String,
+    enum: ['Spring', 'Fall'],
+    default: 'Fall',
+  },
   curriculumVersionId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Curriculum',

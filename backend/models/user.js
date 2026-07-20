@@ -12,7 +12,7 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Please provide an email'],
     lowercase: true,
     trim: true,
-    match: [/^[a-zA-Z0-9._%+-]+@(?:stmu\.edu\.pk|gmail\.com)$/, 'Must match STMU domain or Gmail format']
+    match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email address']
   },
   password: {
     type: String,

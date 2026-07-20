@@ -3,6 +3,8 @@ import Student from '../models/student.js';
 import { scopeToUserDepartments } from '../middleware/scopeMiddleware.js';
 import { logAudit, logNotification } from '../utils/logger.js';
 import { recalculateProgress } from '../services/progressRecalculationService.js';
+import { STMU_GRADE_MAP, calculateSTMU_CGPA, calculateMigratedStudentSemester } from '../utils/stmuGrading.js';
+import { uploadToCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -113,7 +115,7 @@ export const decideMigration = async (req, res) => {
     }
 
     const { id } = req.params;
-    const { courseDecisions, remarks, status } = req.body;
+    const { courseDecisions, remarks, status, targetSemester } = req.body;
 
     if (!courseDecisions || !Array.isArray(courseDecisions) || courseDecisions.length === 0) {
       return res.status(400).json({ message: 'Please provide courseDecisions array' });
@@ -149,7 +151,17 @@ export const decideMigration = async (req, res) => {
     if (remarks) migration.remarks = remarks;
 
     // Use the explicit status provided by the frontend, defaulting to approved if valid
-    migration.status = (status === 'rejected' || status === 'returned') ? status : 'approved';
+    const targetStatus = (status === 'rejected' || status === 'returned') ? status : 'approved';
+
+    // Strict Rule: Cannot approve a migration request without an uploaded transcript
+    if (targetStatus === 'approved' && !migration.transcriptUrl) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Migration request cannot be approved without an uploaded HEC-Verified Transcript.'
+      });
+    }
+
+    migration.status = targetStatus;
 
     const acceptedCredits = migration.transferredCourses
       .filter(c => c.equivalencyStatus === 'accepted')
@@ -162,10 +174,14 @@ export const decideMigration = async (req, res) => {
 
     await migration.save();
 
-    const student = await Student.findById(migration.studentId);
+    // Only update student if migration is approved
+    let student = null;
     let oldCgpaStatus = null;
-    if (student) {
-      oldCgpaStatus = student.cgpaStatus;
+    
+    if (targetStatus === 'approved') {
+      student = await Student.findById(migration.studentId);
+      if (student) {
+        oldCgpaStatus = student.cgpaStatus;
 
       // Fetch target curriculums to resolve course titles
       const mongoose = (await import('mongoose')).default;
@@ -175,8 +191,6 @@ export const decideMigration = async (req, res) => {
         const deptCurr = await Curriculum.findOne({ batchId: student.batchId });
         if (deptCurr && deptCurr.courses) allTargetCourses = [...allTargetCourses, ...deptCurr.courses];
       }
-      const hecCurr = await Curriculum.findOne({ isHecStandard: true });
-      if (hecCurr && hecCurr.courses) allTargetCourses = [...allTargetCourses, ...hecCurr.courses];
 
       // Recalculate degree progress & synchronize transferred courses to student profile
       for (const c of migration.transferredCourses) {
@@ -227,18 +241,33 @@ export const decideMigration = async (req, res) => {
         }
       }
 
-      // Calculate True CGPA
-      let totalPoints = 0;
-      let totalCredits = 0;
-      const gradePoints = { 'A': 4.0, 'A-': 3.7, 'B+': 3.3, 'B': 3.0, 'B-': 2.7, 'C+': 2.3, 'C': 2.0, 'C-': 1.7, 'D': 1.0, 'F': 0.0 };
+      // Assign target semester (use provided targetSemester or keep current semester)
+      const assignedSemester = targetSemester || student.currentSemester || 1;
+      student.currentSemester = assignedSemester;
+
+      // Auto-enroll migrated student in HEC curriculum courses for their assigned semester
+      const batchCurriculum = await Curriculum.findOne({ batchId: student.batchId });
       
-      for (const sc of student.courses) {
-        if (sc.grade && gradePoints[sc.grade] !== undefined) {
-          totalPoints += gradePoints[sc.grade] * (sc.creditHours || 0);
-          totalCredits += (sc.creditHours || 0);
+      if (batchCurriculum && batchCurriculum.courses) {
+        const semesterCourses = batchCurriculum.courses.filter(c => c.semester === assignedSemester);
+        for (const hecCourse of semesterCourses) {
+          const existingCourse = student.courses.find(sc => sc.courseCode === hecCourse.code);
+          if (!existingCourse) {
+            student.courses.push({
+              courseCode: hecCourse.code,
+              courseTitle: hecCourse.title,
+              creditHours: hecCourse.creditHours,
+              grade: 'IP',
+              enrollmentStatus: 'enrolled',
+              status: 'enrolled',
+              semester: assignedSemester
+            });
+          }
         }
       }
-      student.cgpa = totalCredits > 0 ? Number((totalPoints / totalCredits).toFixed(2)) : 0;
+
+      // Calculate True CGPA using STMU GPA formula: Sum(Points * CH) / Sum(CH)
+      student.cgpa = calculateSTMU_CGPA(student.courses);
       
       await student.save();
 
@@ -260,6 +289,7 @@ export const decideMigration = async (req, res) => {
           { upsert: true }
         );
       }
+    }
     }
 
     // 1. Log Audit
@@ -346,19 +376,21 @@ export const uploadTranscript = async (req, res) => {
       return res.status(400).json({ message: 'No file uploaded. Please attach a PDF or image.' });
     }
 
-    // Store the file in uploads/transcripts/
-    const uploadsDir = path.join(__dirname, '..', 'uploads', 'transcripts');
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
+    // Delete existing transcript from Cloudinary if previously uploaded
+    if (migration.transcriptCloudinaryId) {
+      try {
+        await deleteFromCloudinary(migration.transcriptCloudinaryId);
+      } catch (delErr) {
+        console.warn('[uploadTranscript] Failed to delete previous Cloudinary file:', delErr.message);
+      }
     }
 
-    const ext = path.extname(req.file.originalname) || '.pdf';
-    const filename = `transcript_${migration._id}_${Date.now()}${ext}`;
-    const filePath = path.join(uploadsDir, filename);
-    fs.writeFileSync(filePath, req.file.buffer);
+    // Upload to Cloudinary
+    const cloudResult = await uploadToCloudinary(req.file.buffer, 'transcripts', { resource_type: 'auto' });
 
-    const transcriptUrl = `/uploads/transcripts/${filename}`;
+    const transcriptUrl = cloudResult.secure_url || cloudResult.url;
     migration.transcriptUrl = transcriptUrl;
+    migration.transcriptCloudinaryId = cloudResult.public_id || '';
     migration.transcriptOriginalName = req.file.originalname;
     await migration.save();
 
@@ -369,7 +401,7 @@ export const uploadTranscript = async (req, res) => {
       targetType: 'Migration',
       targetId: migration._id.toString(),
       departmentId: migration.departmentId.toString(),
-      metadata: { description: `Transcript uploaded: ${req.file.originalname}` },
+      metadata: { description: `Transcript uploaded to Cloudinary: ${req.file.originalname}` },
     });
 
     res.status(200).json({
@@ -397,9 +429,24 @@ export const parseTranscript = async (req, res) => {
       return res.status(400).json({ message: 'No transcript uploaded for this migration. Please upload the transcript first.' });
     }
 
-    const filePath = path.join(__dirname, '..', migration.transcriptUrl);
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ message: 'Transcript file not found on disk.' });
+    let pdfBuffer;
+    if (migration.transcriptUrl.startsWith('http://') || migration.transcriptUrl.startsWith('https://')) {
+      try {
+        const response = await fetch(migration.transcriptUrl);
+        if (!response.ok) {
+          return res.status(404).json({ message: 'Failed to download transcript file from Cloudinary.' });
+        }
+        const arrayBuffer = await response.arrayBuffer();
+        pdfBuffer = new Uint8Array(arrayBuffer);
+      } catch (fetchErr) {
+        return res.status(500).json({ message: `Error fetching transcript from Cloudinary: ${fetchErr.message}` });
+      }
+    } else {
+      const filePath = path.join(__dirname, '..', migration.transcriptUrl);
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ message: 'Transcript file not found on disk.' });
+      }
+      pdfBuffer = new Uint8Array(fs.readFileSync(filePath));
     }
 
     let rawText = '';
@@ -407,7 +454,6 @@ export const parseTranscript = async (req, res) => {
     // Try pdfjs-dist first for text extraction
     try {
       const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
-      const pdfBuffer = new Uint8Array(fs.readFileSync(filePath));
       const doc = await pdfjsLib.getDocument({ data: pdfBuffer }).promise;
       const textParts = [];
       for (let i = 1; i <= doc.numPages; i++) {
@@ -530,10 +576,10 @@ export const parseTranscript = async (req, res) => {
           }
         }
         
-        // Get HEC curriculum as fallback
-        const hecCurr = await Curriculum.findOne({ isHecStandard: true });
-        if (hecCurr && hecCurr.courses) {
-          allTargetCourses = [...allTargetCourses, ...hecCurr.courses];
+        // Get batch curriculum as fallback
+        const batchCurr = await Curriculum.findOne({ batchId: student.batchId });
+        if (batchCurr && batchCurr.courses) {
+          allTargetCourses = [...allTargetCourses, ...batchCurr.courses];
         }
 
         if (allTargetCourses.length > 0) {

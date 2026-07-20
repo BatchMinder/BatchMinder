@@ -99,11 +99,11 @@ export const getStudents = async (req, res, next) => {
 
     const skip = (Number(page) - 1) * Number(limit);
 
-    // Default sort by cgpa asc (lowest cgpa/critical students at the top)
+    // Default sort in ascending order by rollNumber (e.g. BSCS-23F-0003, BSCS-23S-0016, BSCS-23F-0027)
     const students = await Student.find(filter)
       .populate('batchId', 'code')
       .populate('departmentId', 'name code')
-      .sort({ cgpa: 1 })
+      .sort({ rollNumber: 1 })
       .skip(skip)
       .limit(Number(limit));
 
@@ -180,23 +180,32 @@ export const getStudentEligibleCourses = async (req, res, next) => {
       });
     }
 
-    // Fetch active curriculum courses matching student's department and batch
-    const curriculum = await Curriculum.findOne({
-      departmentId: student.departmentId,
-      batchId: student.batchId,
-      status: 'active'
-    });
+    // Fetch active curriculum courses matching HEC version, department or batch
+    let curriculum = await Curriculum.findOne({ version: 'HEC-2025-BSCS' });
+    if (!curriculum && student.batchId) {
+      curriculum = await Curriculum.findOne({ batchId: student.batchId });
+    }
+    if (!curriculum && student.departmentId) {
+      curriculum = await Curriculum.findOne({ departmentId: student.departmentId });
+    }
 
-    const enrolledCodes = new Set((student.courses || []).map(c => c.courseCode));
-    const curriculumCourses = curriculum
-      ? curriculum.courses.filter(c => !enrolledCodes.has(c.code))
-      : [];
+    // Active currently enrolled courses for current semester (for drop / withdrawal)
+    const activeEnrolledCourses = (student.courses || []).filter(c =>
+      c.status === 'enrolled' || c.enrollmentStatus === 'enrolled' || c.grade === 'IP' || c.semester === student.currentSemester
+    );
+
+    const activeEnrolledCodes = new Set(activeEnrolledCourses.map(c => c.courseCode));
+    let curriculumCourses = curriculum && curriculum.courses ? curriculum.courses : [];
+    
+    // Available curriculum courses to register (matching student semester up to current)
+    const availableCourses = curriculumCourses.filter(c => c.semester <= (student.currentSemester || 1) && !activeEnrolledCodes.has(c.code));
+    const finalCurriculumCourses = availableCourses.length > 0 ? availableCourses : curriculumCourses.filter(c => !activeEnrolledCodes.has(c.code));
 
     res.status(200).json({
       status: 'success',
       data: {
-        enrolledCourses: student.courses || [],
-        curriculumCourses
+        enrolledCourses: activeEnrolledCourses.length > 0 ? activeEnrolledCourses : (student.courses || []),
+        curriculumCourses: finalCurriculumCourses
       }
     });
   } catch (err) {

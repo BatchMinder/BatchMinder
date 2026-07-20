@@ -69,6 +69,11 @@ const curriculumSchema = new mongoose.Schema({
     enum: ['active', 'archived'],
     default: 'active',
   },
+  isHecStandard: {
+    type: Boolean,
+    default: false,
+    index: true,
+  },
   courses: [courseSchema],
   createdAt: {
     type: Date,

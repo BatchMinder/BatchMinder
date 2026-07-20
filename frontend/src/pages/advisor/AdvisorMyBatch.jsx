@@ -270,7 +270,7 @@ export default function AdvisorMyBatch({ selectedBatch }) {
                 {/* CGPA + Status */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
                   <span style={{ fontSize: '14px', fontWeight: 800, color: '#0F172A' }}>
-                    {s.cgpa != null ? Number(s.cgpa).toFixed(2) : '—'}
+                    {s.currentSemester === 1 ? 'N/A' : (s.cgpa != null ? Number(s.cgpa).toFixed(2) : '—')}
                   </span>
                   {statusBadge(s.cgpaStatus)}
                 </div>
@@ -388,7 +388,7 @@ export default function AdvisorMyBatch({ selectedBatch }) {
                     <div style={{ backgroundColor: '#F8FAFC', borderRadius: '12px', padding: '16px', border: '1px solid #F1F5F9' }}>
                       <p style={{ margin: 0, fontSize: '10px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>CGPA</p>
                       <h3 style={{ margin: '4px 0 0', fontSize: '28px', fontWeight: 800, color: '#0F172A' }}>
-                        {selectedStudent.cgpa != null ? Number(selectedStudent.cgpa).toFixed(2) : '—'}
+                        {selectedStudent.currentSemester === 1 ? 'N/A' : (selectedStudent.cgpa != null ? Number(selectedStudent.cgpa).toFixed(2) : '—')}
                       </h3>
                     </div>
                     <div style={{ backgroundColor: '#F8FAFC', borderRadius: '12px', padding: '16px', border: '1px solid #F1F5F9' }}>

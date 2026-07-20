@@ -5,7 +5,6 @@ import {
   createStudent,
   updateStudent,
   deleteStudent,
-  predictStudentRisk,
   bulkUploadStudents,
   syncLmsRecords,
   promoteSemester,
@@ -33,7 +32,6 @@ router.route('/:id')
   .patch(restrictTo('super_admin', 'academic_admin'), updateStudent)
   .delete(restrictTo('super_admin', 'academic_admin'), deleteStudent);
 
-router.get('/:id/degree-progress', restrictTo('super_admin', 'academic_admin', 'admin', 'advisor'), getStudentDegreeProgress);
-router.post('/:id/predict-risk', restrictTo('super_admin', 'academic_admin', 'admin', 'advisor'), predictStudentRisk);
+router.get('/:id/degree-progress', restrictTo('dean', 'academic_admin', 'admin', 'advisor'), getStudentDegreeProgress);
 
 export default router;

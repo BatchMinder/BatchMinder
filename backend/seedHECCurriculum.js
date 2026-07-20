@@ -1,150 +1,384 @@
 import dotenv from 'dotenv';
 import connectDB from './utils/db.js';
+import User from './models/user.js';
 import Department from './models/department.js';
 import Batch from './models/batch.js';
 import Curriculum from './models/curriculum.js';
 
 dotenv.config();
 
-// Sourced directly from: HEC/NCRC/CS&IT/2025/8163 — "Curriculum of BS Computer
-// Science (2025)", Scheme of Studies, Semester I-VIII (compulsory courses only).
-// Credit hours below are the TOTAL credit hours as printed in the doc
-// (e.g. "4 (3+1)" -> 4). Specialization electives are NOT included here since
-// they don't map to a fixed semester (students pick 8 of ~15 per track) --
-// ask if you want those seeded separately as an elective pool.
+// HEC & STMU Curriculum Standards for 4 Degree Programs: BSCS, BSAI, BSSE, BSCySec
+// Exactly 44 Courses & 130 Credit Hours per program
+// Following STMU Course Coding Standards (CSC, AIC, SWE, CYS, MTH, ENG, ICT, PHY, MGT, PAK, ISL, SOC, HUM, ELE)
+const hecCurriculumsData = [
+  {
+    deptCode: 'CS',
+    deptName: 'Computer Science',
+    programName: 'BS Computer Science (BSCS) — STMU HEC Version',
+    version: 'HEC-2025-BSCS',
+    color: '#3B82F6',
+    semesters: {
+      1: [
+        { code: 'CSC-101', title: 'Programming Fundamentals', creditHours: 4, courseType: 'CORE' },
+        { code: 'ICT-101', title: 'Application of ICT', creditHours: 3, courseType: 'GENERAL' },
+        { code: 'CSC-102', title: 'Discrete Structures', creditHours: 3, courseType: 'CORE' },
+        { code: 'MTH-101', title: 'Calculus & Analytic Geometry', creditHours: 3, courseType: 'GENERAL' },
+        { code: 'ENG-101', title: 'Functional English', creditHours: 3, courseType: 'GENERAL' },
+      ],
+      2: [
+        { code: 'CSC-103', title: 'OOP', creditHours: 4, courseType: 'CORE' },
+        { code: 'CSC-104', title: 'Database Systems', creditHours: 3, courseType: 'CORE' },
+        { code: 'CSC-105', title: 'Digital Logic Design', creditHours: 3, courseType: 'CORE' },
+        { code: 'MTH-102', title: 'Multivariable Calculus', creditHours: 3, courseType: 'GENERAL' },
+        { code: 'MTH-103', title: 'Linear Algebra', creditHours: 3, courseType: 'GENERAL' },
+      ],
+      3: [
+        { code: 'CSC-201', title: 'Data Structures', creditHours: 3, courseType: 'CORE' },
+        { code: 'CYS-201', title: 'Information Security', creditHours: 3, courseType: 'CORE' },
+        { code: 'AIC-201', title: 'Artificial Intelligence', creditHours: 3, courseType: 'CORE' },
+        { code: 'CSC-202', title: 'Computer Networks', creditHours: 3, courseType: 'CORE' },
+        { code: 'SWE-201', title: 'Software Engineering', creditHours: 3, courseType: 'CORE' },
+        { code: 'MTH-201', title: 'Probability & Statistics', creditHours: 3, courseType: 'GENERAL' },
+      ],
+      4: [
+        { code: 'CSC-203', title: 'Computer Organization & Assembly Language', creditHours: 3, courseType: 'CORE' },
+        { code: 'CSC-204', title: 'Theory of Automata', creditHours: 3, courseType: 'CORE' },
+        { code: 'CSC-205', title: 'Advanced DBMS', creditHours: 3, courseType: 'CORE' },
+        { code: 'PHY-201', title: 'Applied Physics', creditHours: 3, courseType: 'GENERAL' },
+        { code: 'ENG-201', title: 'Expository Writing', creditHours: 3, courseType: 'GENERAL' },
+        { code: 'ISL-201', title: 'Islamic Studies', creditHours: 2, courseType: 'GENERAL' },
+      ],
+      5: [
+        { code: 'CSC-301', title: 'Operating Systems', creditHours: 3, courseType: 'CORE' },
+        { code: 'CSC-302', title: 'HCI & Computer Graphics', creditHours: 3, courseType: 'CORE' },
+        { code: 'CSC-303', title: 'Computer Architecture', creditHours: 3, courseType: 'CORE' },
+        { code: 'CSC-304', title: 'Web Technologies (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+        { code: 'CSC-305', title: 'Mobile App Dev 1 (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+        { code: 'MGT-301', title: 'Intro to Management', creditHours: 3, courseType: 'GENERAL' },
+      ],
+      6: [
+        { code: 'CSC-306', title: 'Compiler Construction', creditHours: 3, courseType: 'CORE' },
+        { code: 'CSC-307', title: 'Parallel & Distributed Computing', creditHours: 3, courseType: 'CORE' },
+        { code: 'CSC-308', title: 'Advanced Programming (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+        { code: 'MTH-301', title: 'Numerical Analysis (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+        { code: 'CSC-309', title: 'Web Engineering (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+        { code: 'CYS-301', title: 'Cyber Security (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+      ],
+      7: [
+        { code: 'CSC-401', title: 'FYP-I', creditHours: 3, courseType: 'CORE' },
+        { code: 'CSC-402', title: 'Analysis of Algorithms', creditHours: 3, courseType: 'CORE' },
+        { code: 'SWE-401', title: 'Software Testing & QA (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+        { code: 'MGT-401', title: 'Intro to Marketing (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+        { code: 'ENG-401', title: 'Technical & Business Writing', creditHours: 3, courseType: 'GENERAL' },
+        { code: 'MGT-402', title: 'Entrepreneurship', creditHours: 2, courseType: 'GENERAL' },
+      ],
+      8: [
+        { code: 'CSC-403', title: 'FYP-II', creditHours: 3, courseType: 'CORE' },
+        { code: 'PAK-401', title: 'Ideology & Constitution of Pakistan', creditHours: 3, courseType: 'GENERAL' },
+        { code: 'HUM-401', title: 'Professional Practices', creditHours: 2, courseType: 'GENERAL' },
+        { code: 'SOC-401', title: 'Civics & Community Engagement', creditHours: 2, courseType: 'GENERAL' },
+      ],
+    }
+  },
+  {
+    deptCode: 'AI',
+    deptName: 'Artificial Intelligence',
+    programName: 'BS Artificial Intelligence (BSAI) — STMU HEC Version',
+    version: 'HEC-2025-BSAI',
+    color: '#10B981',
+    semesters: {
+      1: [
+        { code: 'CSC-101', title: 'Programming Fundamentals', creditHours: 4, courseType: 'CORE' },
+        { code: 'ICT-101', title: 'Application of ICT', creditHours: 3, courseType: 'GENERAL' },
+        { code: 'CSC-102', title: 'Discrete Structures', creditHours: 3, courseType: 'CORE' },
+        { code: 'MTH-101', title: 'Calculus & Analytic Geometry', creditHours: 3, courseType: 'GENERAL' },
+        { code: 'ENG-101', title: 'Functional English', creditHours: 3, courseType: 'GENERAL' },
+      ],
+      2: [
+        { code: 'CSC-103', title: 'OOP', creditHours: 4, courseType: 'CORE' },
+        { code: 'CSC-104', title: 'Database Systems', creditHours: 3, courseType: 'CORE' },
+        { code: 'CSC-105', title: 'Digital Logic Design', creditHours: 3, courseType: 'CORE' },
+        { code: 'MTH-102', title: 'Multivariable Calculus', creditHours: 3, courseType: 'GENERAL' },
+        { code: 'MTH-103', title: 'Linear Algebra', creditHours: 3, courseType: 'GENERAL' },
+      ],
+      3: [
+        { code: 'CSC-201', title: 'Data Structures', creditHours: 3, courseType: 'CORE' },
+        { code: 'CYS-201', title: 'Information Security', creditHours: 3, courseType: 'CORE' },
+        { code: 'AIC-201', title: 'Artificial Intelligence', creditHours: 3, courseType: 'CORE' },
+        { code: 'CSC-202', title: 'Computer Networks', creditHours: 3, courseType: 'CORE' },
+        { code: 'SWE-201', title: 'Software Engineering', creditHours: 3, courseType: 'CORE' },
+        { code: 'MTH-201', title: 'Probability & Statistics', creditHours: 3, courseType: 'GENERAL' },
+      ],
+      4: [
+        { code: 'CSC-203', title: 'Computer Organization & Assembly Language', creditHours: 3, courseType: 'CORE' },
+        { code: 'AIC-202', title: 'Programming for AI', creditHours: 3, courseType: 'CORE' },
+        { code: 'AIC-203', title: 'Machine Learning', creditHours: 3, courseType: 'CORE' },
+        { code: 'PHY-201', title: 'Applied Physics', creditHours: 3, courseType: 'GENERAL' },
+        { code: 'ENG-201', title: 'Expository Writing', creditHours: 3, courseType: 'GENERAL' },
+        { code: 'ISL-201', title: 'Islamic Studies', creditHours: 2, courseType: 'GENERAL' },
+      ],
+      5: [
+        { code: 'CSC-301', title: 'Operating Systems', creditHours: 3, courseType: 'CORE' },
+        { code: 'AIC-301', title: 'Artificial Neural Networks & Deep Learning', creditHours: 3, courseType: 'CORE' },
+        { code: 'AIC-302', title: 'Knowledge Representation & Reasoning', creditHours: 3, courseType: 'CORE' },
+        { code: 'AIC-303', title: 'NLP (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+        { code: 'AIC-304', title: 'Speech Processing (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+        { code: 'MGT-301', title: 'Intro to Management', creditHours: 3, courseType: 'GENERAL' },
+      ],
+      6: [
+        { code: 'AIC-305', title: 'Computer Vision', creditHours: 3, courseType: 'CORE' },
+        { code: 'CSC-307', title: 'Parallel & Distributed Computing', creditHours: 3, courseType: 'CORE' },
+        { code: 'AIC-306', title: 'Data Mining (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+        { code: 'MTH-302', title: 'Advanced Statistics (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+        { code: 'AIC-307', title: 'Reinforcement Learning (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+        { code: 'CSC-204', title: 'Theory of Automata (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+      ],
+      7: [
+        { code: 'AIC-401', title: 'FYP-I', creditHours: 3, courseType: 'CORE' },
+        { code: 'CSC-402', title: 'Analysis of Algorithms', creditHours: 3, courseType: 'CORE' },
+        { code: 'CSC-302', title: 'HCI & Computer Graphics (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+        { code: 'MGT-401', title: 'Intro to Marketing (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+        { code: 'ENG-401', title: 'Technical & Business Writing', creditHours: 3, courseType: 'GENERAL' },
+        { code: 'MGT-402', title: 'Entrepreneurship', creditHours: 2, courseType: 'GENERAL' },
+      ],
+      8: [
+        { code: 'AIC-402', title: 'FYP-II', creditHours: 3, courseType: 'CORE' },
+        { code: 'PAK-401', title: 'Ideology & Constitution of Pakistan', creditHours: 3, courseType: 'GENERAL' },
+        { code: 'HUM-401', title: 'Professional Practices', creditHours: 2, courseType: 'GENERAL' },
+        { code: 'SOC-401', title: 'Civics & Community Engagement', creditHours: 2, courseType: 'GENERAL' },
+      ],
+    }
+  },
+  {
+    deptCode: 'SE',
+    deptName: 'Software Engineering',
+    programName: 'BS Software Engineering (BSSE) — STMU HEC Version',
+    version: 'HEC-2025-BSSE',
+    color: '#7C3AED',
+    semesters: {
+      1: [
+        { code: 'CSC-101', title: 'Programming Fundamentals', creditHours: 4, courseType: 'CORE' },
+        { code: 'ICT-101', title: 'Application of ICT', creditHours: 3, courseType: 'GENERAL' },
+        { code: 'CSC-102', title: 'Discrete Structures', creditHours: 3, courseType: 'CORE' },
+        { code: 'MTH-101', title: 'Calculus & Analytic Geometry', creditHours: 3, courseType: 'GENERAL' },
+        { code: 'ENG-101', title: 'Functional English', creditHours: 3, courseType: 'GENERAL' },
+      ],
+      2: [
+        { code: 'CSC-103', title: 'OOP', creditHours: 4, courseType: 'CORE' },
+        { code: 'CSC-104', title: 'Database Systems', creditHours: 3, courseType: 'CORE' },
+        { code: 'CSC-105', title: 'Digital Logic Design', creditHours: 3, courseType: 'CORE' },
+        { code: 'MTH-102', title: 'Multivariable Calculus', creditHours: 3, courseType: 'GENERAL' },
+        { code: 'MTH-103', title: 'Linear Algebra', creditHours: 3, courseType: 'GENERAL' },
+      ],
+      3: [
+        { code: 'CSC-201', title: 'Data Structures', creditHours: 3, courseType: 'CORE' },
+        { code: 'CYS-201', title: 'Information Security', creditHours: 3, courseType: 'CORE' },
+        { code: 'AIC-201', title: 'Artificial Intelligence', creditHours: 3, courseType: 'CORE' },
+        { code: 'CSC-202', title: 'Computer Networks', creditHours: 3, courseType: 'CORE' },
+        { code: 'SWE-201', title: 'Software Engineering', creditHours: 3, courseType: 'CORE' },
+        { code: 'MTH-201', title: 'Probability & Statistics', creditHours: 3, courseType: 'GENERAL' },
+      ],
+      4: [
+        { code: 'CSC-203', title: 'Computer Organization & Assembly Language', creditHours: 3, courseType: 'CORE' },
+        { code: 'SWE-202', title: 'Software Design & Architecture', creditHours: 3, courseType: 'CORE' },
+        { code: 'SWE-203', title: 'Software Construction & Development', creditHours: 3, courseType: 'CORE' },
+        { code: 'PHY-201', title: 'Applied Physics', creditHours: 3, courseType: 'GENERAL' },
+        { code: 'ENG-201', title: 'Expository Writing', creditHours: 3, courseType: 'GENERAL' },
+        { code: 'ISL-201', title: 'Islamic Studies', creditHours: 2, courseType: 'GENERAL' },
+      ],
+      5: [
+        { code: 'CSC-301', title: 'Operating Systems', creditHours: 3, courseType: 'CORE' },
+        { code: 'SWE-301', title: 'Software Quality Engineering', creditHours: 3, courseType: 'CORE' },
+        { code: 'SWE-302', title: 'Software Requirement Engineering', creditHours: 3, courseType: 'CORE' },
+        { code: 'SWE-303', title: 'Software V&V/Testing (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+        { code: 'SWE-304', title: 'OOAD (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+        { code: 'MGT-301', title: 'Intro to Management', creditHours: 3, courseType: 'GENERAL' },
+      ],
+      6: [
+        { code: 'SWE-305', title: 'Software Project Management', creditHours: 3, courseType: 'CORE' },
+        { code: 'CSC-307', title: 'Parallel & Distributed Computing', creditHours: 3, courseType: 'CORE' },
+        { code: 'CSC-303', title: 'Computer Architecture (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+        { code: 'CSC-204', title: 'Theory of Automata (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+        { code: 'CSC-302', title: 'HCI & Computer Graphics (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+        { code: 'CSC-304', title: 'Web Technologies (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+      ],
+      7: [
+        { code: 'SWE-401', title: 'FYP-I', creditHours: 3, courseType: 'CORE' },
+        { code: 'CSC-402', title: 'Analysis of Algorithms', creditHours: 3, courseType: 'CORE' },
+        { code: 'CSC-205', title: 'Advanced DBMS (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+        { code: 'MGT-401', title: 'Intro to Marketing (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+        { code: 'ENG-401', title: 'Technical & Business Writing', creditHours: 3, courseType: 'GENERAL' },
+        { code: 'MGT-402', title: 'Entrepreneurship', creditHours: 2, courseType: 'GENERAL' },
+      ],
+      8: [
+        { code: 'SWE-402', title: 'FYP-II', creditHours: 3, courseType: 'CORE' },
+        { code: 'PAK-401', title: 'Ideology & Constitution of Pakistan', creditHours: 3, courseType: 'GENERAL' },
+        { code: 'HUM-401', title: 'Professional Practices', creditHours: 2, courseType: 'GENERAL' },
+        { code: 'SOC-401', title: 'Civics & Community Engagement', creditHours: 2, courseType: 'GENERAL' },
+      ],
+    }
+  },
+  {
+    deptCode: 'CY',
+    deptName: 'Cyber Security',
+    programName: 'BS Cyber Security (BSCySec) — STMU HEC Version',
+    version: 'HEC-2025-BSCySec',
+    color: '#EF4444',
+    semesters: {
+      1: [
+        { code: 'CSC-101', title: 'Programming Fundamentals', creditHours: 4, courseType: 'CORE' },
+        { code: 'ICT-101', title: 'Application of ICT', creditHours: 3, courseType: 'GENERAL' },
+        { code: 'CSC-102', title: 'Discrete Structures', creditHours: 3, courseType: 'CORE' },
+        { code: 'MTH-101', title: 'Calculus & Analytic Geometry', creditHours: 3, courseType: 'GENERAL' },
+        { code: 'ENG-101', title: 'Functional English', creditHours: 3, courseType: 'GENERAL' },
+      ],
+      2: [
+        { code: 'CSC-103', title: 'OOP', creditHours: 4, courseType: 'CORE' },
+        { code: 'CSC-104', title: 'Database Systems', creditHours: 3, courseType: 'CORE' },
+        { code: 'CSC-105', title: 'Digital Logic Design', creditHours: 3, courseType: 'CORE' },
+        { code: 'MTH-102', title: 'Multivariable Calculus', creditHours: 3, courseType: 'GENERAL' },
+        { code: 'MTH-103', title: 'Linear Algebra', creditHours: 3, courseType: 'GENERAL' },
+      ],
+      3: [
+        { code: 'CSC-201', title: 'Data Structures', creditHours: 3, courseType: 'CORE' },
+        { code: 'CYS-201', title: 'Information Security', creditHours: 3, courseType: 'CORE' },
+        { code: 'AIC-201', title: 'Artificial Intelligence', creditHours: 3, courseType: 'CORE' },
+        { code: 'CSC-202', title: 'Computer Networks', creditHours: 3, courseType: 'CORE' },
+        { code: 'SWE-201', title: 'Software Engineering', creditHours: 3, courseType: 'CORE' },
+        { code: 'MTH-201', title: 'Probability & Statistics', creditHours: 3, courseType: 'GENERAL' },
+      ],
+      4: [
+        { code: 'CSC-203', title: 'Computer Organization & Assembly Language', creditHours: 3, courseType: 'CORE' },
+        { code: 'CYS-202', title: 'Cyber Security (domain core)', creditHours: 3, courseType: 'CORE' },
+        { code: 'CYS-203', title: 'Information Assurance', creditHours: 3, courseType: 'CORE' },
+        { code: 'PHY-201', title: 'Applied Physics', creditHours: 3, courseType: 'GENERAL' },
+        { code: 'ENG-201', title: 'Expository Writing', creditHours: 3, courseType: 'GENERAL' },
+        { code: 'ISL-201', title: 'Islamic Studies', creditHours: 2, courseType: 'GENERAL' },
+      ],
+      5: [
+        { code: 'CSC-301', title: 'Operating Systems', creditHours: 3, courseType: 'CORE' },
+        { code: 'CYS-301', title: 'Network Security', creditHours: 3, courseType: 'CORE' },
+        { code: 'CYS-302', title: 'Secure Software Design & Development', creditHours: 3, courseType: 'CORE' },
+        { code: 'CYS-303', title: 'Vulnerability Assessment & Reverse Engineering (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+        { code: 'ELE-101', title: 'Basic Electronics (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+        { code: 'MGT-301', title: 'Intro to Management', creditHours: 3, courseType: 'GENERAL' },
+      ],
+      6: [
+        { code: 'CYS-304', title: 'Digital Forensics', creditHours: 3, courseType: 'CORE' },
+        { code: 'CSC-307', title: 'Parallel & Distributed Computing', creditHours: 3, courseType: 'CORE' },
+        { code: 'CYS-305', title: 'Hardware Security (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+        { code: 'CYS-306', title: 'Malware Analysis (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+        { code: 'CYS-307', title: 'Wireless & Mobile Security (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+        { code: 'CSC-204', title: 'Theory of Automata (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+      ],
+      7: [
+        { code: 'CYS-401', title: 'FYP-I', creditHours: 3, courseType: 'CORE' },
+        { code: 'CSC-402', title: 'Analysis of Algorithms', creditHours: 3, courseType: 'CORE' },
+        { code: 'CSC-302', title: 'HCI & Computer Graphics (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+        { code: 'MGT-401', title: 'Intro to Marketing (elective)', creditHours: 3, courseType: 'ELECTIVE' },
+        { code: 'ENG-401', title: 'Technical & Business Writing', creditHours: 3, courseType: 'GENERAL' },
+        { code: 'MGT-402', title: 'Entrepreneurship', creditHours: 2, courseType: 'GENERAL' },
+      ],
+      8: [
+        { code: 'CYS-402', title: 'FYP-II', creditHours: 3, courseType: 'CORE' },
+        { code: 'PAK-401', title: 'Ideology & Constitution of Pakistan', creditHours: 3, courseType: 'GENERAL' },
+        { code: 'HUM-401', title: 'Professional Practices', creditHours: 2, courseType: 'GENERAL' },
+        { code: 'SOC-401', title: 'Civics & Community Engagement', creditHours: 2, courseType: 'GENERAL' },
+      ],
+    }
+  }
+];
 
-const semesters = {
-    1: [
-        { title: 'Quantitative Reasoning-I', creditHours: 3, category: 'GE' },
-        { title: 'Functional English', creditHours: 3, category: 'GE' },
-        { title: 'Applications of Information and Communication Technologies', creditHours: 3, category: 'GE' },
-        { title: 'Social Science', creditHours: 2, category: 'GE' },
-        { title: 'Programming Fundamentals', creditHours: 4, category: 'CS' },
-        { title: 'Calculus & Analytical Geometry (IDS I)', creditHours: 3, category: 'IDS' },
-    ],
-    2: [
-        { title: 'Quantitative Reasoning-II', creditHours: 3, category: 'GE' },
-        { title: 'Arts and Humanities', creditHours: 2, category: 'GE' },
-        { title: 'Pakistan Studies', creditHours: 2, category: 'GE' },
-        { title: 'Fehm-e-Quran – I', creditHours: 1, category: 'GE' },
-        { title: 'Object Oriented Programming', creditHours: 4, category: 'CS' },
-        { title: 'Digital Logic Design', creditHours: 4, category: 'CS' },
-        { title: 'Linear Algebra (IDS II)', creditHours: 3, category: 'IDS' },
-    ],
-    3: [
-        { title: 'Expository Writing', creditHours: 3, category: 'GE' },
-        { title: 'Natural Science', creditHours: 3, category: 'GE' },
-        { title: 'Fehm-e-Quran – II', creditHours: 1, category: 'GE' },
-        { title: 'Data Structures', creditHours: 4, category: 'CS' },
-        { title: 'Database Systems', creditHours: 4, category: 'CS' },
-        { title: 'Operating Systems', creditHours: 4, category: 'CS' },
-    ],
-    4: [
-        { title: 'Civics and Community Engagement', creditHours: 2, category: 'GE' },
-        { title: 'Ideology and Constitution of Pakistan', creditHours: 2, category: 'GE' },
-        { title: 'Entrepreneurship', creditHours: 2, category: 'GE' },
-        { title: 'Islamic Studies / Ethics', creditHours: 2, category: 'GE' },
-        { title: 'Software Engineering', creditHours: 3, category: 'CS' },
-        { title: 'Computer Organization & Architecture', creditHours: 3, category: 'CS' },
-        { title: 'Design & Analysis of Algorithms', creditHours: 3, category: 'CS' },
-    ],
-    5: [
-        { title: 'Computer Networks', creditHours: 3, category: 'CS' },
-        { title: 'Information Security', creditHours: 3, category: 'CS' },
-        { title: 'Artificial Intelligence', creditHours: 3, category: 'CS' },
-        { title: 'Theory of Automata', creditHours: 3, category: 'CS' },
-        { title: 'IDS - III', creditHours: 3, category: 'IDS' },
-        { title: 'IDS - IV', creditHours: 3, category: 'IDS' },
-    ],
-    6: [
-        { title: 'Cloud Computing', creditHours: 3, category: 'CS' },
-        { title: 'Elective-I', creditHours: 3, category: 'CS' },
-        { title: 'Elective-II', creditHours: 3, category: 'CS' },
-        { title: 'Elective-III', creditHours: 3, category: 'CS' },
-        { title: 'Elective-IV', creditHours: 3, category: 'CS' },
-    ],
-    7: [
-        { title: 'Elective-V', creditHours: 3, category: 'CS' },
-        { title: 'Elective-VI', creditHours: 3, category: 'CS' },
-        { title: 'Elective-VII', creditHours: 3, category: 'CS' },
-        { title: 'Elective-VIII', creditHours: 3, category: 'CS' },
-        { title: 'Professional Certification', creditHours: 3, category: 'CERT' },
-    ],
-    8: [
-        { title: 'Final Year Project', creditHours: 6, category: 'FYP' },
-        { title: 'Field Experience / Internship', creditHours: 3, category: 'INT' },
-    ],
-};
+export async function seedHECCurriculums() {
+  await connectDB();
+  console.log('Connected to DB. Seeding 4 STMU HEC Degree Curriculums...');
 
-function buildCourses() {
-    const counters = {};
+  for (const prog of hecCurriculumsData) {
+    // 1. Department
+    let dept = await Department.findOne({
+      $or: [{ code: prog.deptCode }, { name: prog.deptName }]
+    });
+    if (!dept) {
+      dept = await Department.create({
+        name: prog.deptName,
+        code: prog.deptCode,
+        established: 2025,
+        status: 'Active',
+        color: prog.color,
+      });
+      console.log(`Created Department: ${prog.deptName} (${prog.deptCode})`);
+    }
+
+    // 2. Batch
+    const batchCode = `BS${prog.deptCode}-2025`;
+    let batch = await Batch.findOne({ code: batchCode });
+    if (!batch) {
+      batch = await Batch.create({
+        code: batchCode,
+        name: `${prog.deptName} Batch 2025`,
+        departmentId: dept._id,
+        startYear: 2025,
+        advisor: 'System Advisor',
+        status: 'Allocated',
+      });
+      console.log(`Created Batch: ${batchCode}`);
+    }
+
+    // 3. Build Courses with STMU Codes
     const courses = [];
-
-    for (const [sem, list] of Object.entries(semesters)) {
-        const semester = Number(sem);
-        for (const c of list) {
-            counters[c.category] = (counters[c.category] || 0) + 1;
-            const code = `${c.category}-${100 + counters[c.category]}`;
-            courses.push({
-                code,
-                title: c.title,
-                creditHours: c.creditHours,
-                semester,
-            });
-        }
-    }
-    return courses;
-}
-
-async function run() {
-    await connectDB();
-    console.log('Connected. Seeding HEC BS Computer Science (2025) curriculum...');
-
-    let hecDept = await Department.findOne({ code: 'HEC' });
-    if (!hecDept) {
-        hecDept = await Department.create({
-            name: 'HEC Standards',
-            code: 'HEC',
-            established: 2025,
-            color: '#10B981',
+    for (const [sem, list] of Object.entries(prog.semesters)) {
+      const semester = Number(sem);
+      for (const c of list) {
+        courses.push({
+          code: c.code,
+          title: c.title,
+          creditHours: c.creditHours,
+          semester,
+          courseType: c.courseType || 'CORE',
+          prerequisiteCourseIds: [],
         });
-        console.log('Created Department: HEC Standards');
+      }
     }
 
-    let hecBatch = await Batch.findOne({ code: 'HEC-2025' });
-    if (!hecBatch) {
-        hecBatch = await Batch.create({
-            code: 'HEC-2025',
-            departmentId: hecDept._id,
-            startYear: 2025,
-            advisor: 'System',
-        });
-        console.log('Created Batch: HEC-2025');
-    }
-
-    const courses = buildCourses();
-
+    // 4. Upsert Curriculum
     const curriculum = await Curriculum.findOneAndUpdate(
-        { departmentId: hecDept._id, batchId: hecBatch._id, version: 'HEC-2025-BSCS' },
-        {
-            departmentId: hecDept._id,
-            batchId: hecBatch._id,
-            department: 'HEC Standards',
-            batch: 'HEC-2025',
-            version: 'HEC-2025-BSCS',
-            status: 'active',
-            courses,
-        },
-        { new: true, upsert: true, runValidators: true }
+      { departmentId: dept._id, batchId: batch._id, version: prog.version },
+      {
+        departmentId: dept._id,
+        batchId: batch._id,
+        department: prog.deptName,
+        batch: batchCode,
+        version: prog.version,
+        status: 'active',
+        totalRequiredCredits: courses.reduce((acc, curr) => acc + curr.creditHours, 0),
+        courses,
+      },
+      { new: true, upsert: true, runValidators: true }
     );
 
-    console.log(`Saved curriculum "${curriculum.version}" with ${curriculum.courses.length} courses.`);
-    courses.forEach(c => console.log(`  Sem ${c.semester}: [${c.code}] ${c.title} (${c.creditHours} CH)`));
+    // Link batch to curriculum
+    await Batch.updateOne({ _id: batch._id }, { curriculumVersionId: curriculum._id });
 
-    process.exit(0);
+    console.log(`Saved "${prog.programName}" (Version: ${curriculum.version}) with ${courses.length} STMU courses across 8 semesters (Total Credits: ${curriculum.totalRequiredCredits} CH).`);
+  }
+
+  // Clean up any old dummy "HEC Standards" department/batch if they exist
+  const oldHecDept = await Department.findOne({ $or: [{ code: 'HEC' }, { name: 'HEC Standards' }] });
+  if (oldHecDept) {
+    await Batch.deleteMany({ departmentId: oldHecDept._id });
+    await Curriculum.deleteMany({ departmentId: oldHecDept._id });
+    await Department.deleteOne({ _id: oldHecDept._id });
+    console.log('Removed legacy "HEC Standards" department and related records.');
+  }
+
+  console.log('Seeding of STMU HEC Curriculums completed successfully!');
 }
 
-run().catch(err => {
-    console.error('Seeding failed:', err);
-    process.exit(1);
-});
+if (process.argv[1] && process.argv[1].endsWith('seedHECCurriculum.js')) {
+  seedHECCurriculums()
+    .then(() => process.exit(0))
+    .catch((err) => {
+      console.error('Error seeding HEC curriculums:', err);
+      process.exit(1);
+    });
+}
