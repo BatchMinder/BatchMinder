@@ -244,6 +244,7 @@ export default function AdminLayout({
 
   const advancedAcademicNavItems = [
     { id: 'upload', label: 'CSV / Excel Upload', icon: Upload },
+    { id: 'batches', label: 'Batches', icon: Layers },
     { id: 'migrations', label: 'Migration Records', icon: ArrowRightLeft },
     { id: 'curriculum', label: 'Curriculum Setup', icon: BookOpen },
     { id: 'timetable_generator', label: 'Timetable Generator', icon: Calendar },
@@ -251,10 +252,13 @@ export default function AdminLayout({
     { id: 'schedule_override', label: 'Schedule Override', icon: Clock },
   ];
 
+
   const activeNavItem = [
     ...currentCoreNavItems,
     ...currentSystemNavItems,
-    ...advancedAcademicNavItems
+    ...advancedAcademicNavItems,
+    { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'audit_logs', label: 'Audit Logs', icon: FileText }
   ].find(item => item.id === activeNav);
   const activeNavLabel = activeNavItem ? activeNavItem.label : 'Dashboard';
   const unreadCount = notifications.filter(n => n.status === 'Unread').length;
@@ -463,6 +467,14 @@ export default function AdminLayout({
                 items={hodNavItems}
                 activeNav={activeNav} handleNavigate={handleNavigate} expandedFolders={expandedFolders} toggleFolder={toggleFolder}
               />
+              <SidebarSection
+                title="System"
+                items={[
+                  { id: 'audit_logs', label: 'Audit Logs', icon: FileText },
+                  { id: 'settings', label: 'Profile Settings', icon: Settings }
+                ]}
+                activeNav={activeNav} handleNavigate={handleNavigate} expandedFolders={expandedFolders} toggleFolder={toggleFolder}
+              />
             </div>
           ) : (
             <>
@@ -502,10 +514,12 @@ export default function AdminLayout({
                 items={[
                   { id: 'students', label: 'Student Records', icon: Users },
                   { id: 'upload', label: 'CSV/Excel Upload', icon: Upload },
+                  { id: 'batches', label: 'Batches', icon: Layers },
                   { id: 'migrations', label: 'Migration Records', icon: ArrowRightLeft }
                 ]}
                 activeNav={activeNav} handleNavigate={handleNavigate} expandedFolders={expandedFolders} toggleFolder={toggleFolder}
               />
+
 
               {/* ACADEMIC MANAGEMENT */}
               <SidebarSection
@@ -534,6 +548,7 @@ export default function AdminLayout({
                 title="System"
                 items={[
                   { id: 'notifications', label: 'Notifications', icon: Bell },
+                  ...(user?.role === 'dean' ? [{ id: 'audit_logs', label: 'Audit Logs', icon: FileText }] : []),
                   { id: 'settings', label: 'System Settings', icon: Settings }
                 ]}
                 activeNav={activeNav} handleNavigate={handleNavigate} expandedFolders={expandedFolders} toggleFolder={toggleFolder}
@@ -588,7 +603,14 @@ export default function AdminLayout({
             <Menu size={18} />
           </button>
 
-          <div style={{ flex: 1, minWidth: 0 }} />
+          <div style={{ flex: 1, minWidth: 0, paddingLeft: '8px' }}>
+            <h1 style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', margin: 0, letterSpacing: '-0.3px' }}>
+              {activeNavLabel}
+            </h1>
+            <p style={{ fontSize: '12px', color: '#64748B', margin: 0, fontWeight: 500 }}>
+              {portalLabel} • BatchMinder System
+            </p>
+          </div>
 
 
           {/* Advisor Batch Switcher — multi-batch */}

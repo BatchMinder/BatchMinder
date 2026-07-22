@@ -25,6 +25,7 @@ import CurriculumSetup from './pages/admin/CurriculumSetup';
 import Batches from './pages/admin/Batches';
 import NotificationsPage from './components/dashboard/NotificationsPage';
 import ProfileSettingsPage from './components/dashboard/ProfileSettingsPage';
+import AuditLogsPage from './components/dashboard/AuditLogsPage';
 import AdvisorDashboard from './components/dashboard/AdvisorDashboard';
 import AdvisorStudents from './components/dashboard/AdvisorStudents';
 import HODQueue from './pages/hod/HODQueue';
@@ -103,7 +104,7 @@ function App() {
     const path = window.location.pathname;
     if (path.startsWith('/dashboard/')) {
       const subPage = path.substring('/dashboard/'.length);
-      const validPages = ['dashboard', 'history', 'reporting', 'settings', 'notifications'];
+      const validPages = ['dashboard', 'history', 'reporting', 'settings', 'notifications', 'audit_logs'];
       if (validPages.includes(subPage)) {
         return subPage;
       }
@@ -185,7 +186,7 @@ function App() {
         if (validPages.includes(subPage)) setAdvisorActiveNav(subPage);
       }
       if (user?.role === 'admin') {
-        const validPages = ['dashboard', 'history', 'reporting', 'settings', 'notifications'];
+        const validPages = ['dashboard', 'history', 'reporting', 'settings', 'notifications', 'audit_logs'];
         if (validPages.includes(subPage)) setHodActiveNav(subPage);
       }
     };
@@ -408,13 +409,15 @@ function App() {
         upload: <DataIngestionHub />,
         migrations: <MigrationRecords />,
         curriculum: <CurriculumSetup />,
-        batches: <Batches />,
+        batches: <Batches setActiveNav={setAdminActiveNav} />,
+
         timetable: <TimetableGenerator setActiveNav={(nav) => { setAdminActiveNav(nav); if (nav === 'schedule_override' || nav === 'override') setOverrideInitialTab('timetable'); }} />,
         datesheet: <DatesheetGenerator setActiveNav={(nav) => { setAdminActiveNav(nav); if (nav === 'schedule_override' || nav === 'override') setOverrideInitialTab('datesheet'); }} />,
         override: <ScheduleOverride initialTab={overrideInitialTab} />,
         timetable_generator: <TimetableGenerator setActiveNav={(nav) => { setAdminActiveNav(nav); if (nav === 'schedule_override') setOverrideInitialTab('timetable'); }} />,
         datesheet_generator: <DatesheetGenerator setActiveNav={(nav) => { setAdminActiveNav(nav); if (nav === 'schedule_override') setOverrideInitialTab('datesheet'); }} />,
         schedule_override: <ScheduleOverride initialTab={overrideInitialTab} />,
+        audit_logs: <AuditLogsPage setActiveNav={setAdminActiveNav} />,
         settings: <ProfileSettingsPage />,
         notifications: <NotificationsPage setActiveNav={setAdminActiveNav} />,
         reports: <AdvisorReporting />,
@@ -456,6 +459,7 @@ function App() {
         reporting: <AdvisorReporting />,
         settings: <ProfileSettingsPage />,
         notifications: <NotificationsPage setActiveNav={setHodActiveNav} />,
+        audit_logs: <AuditLogsPage setActiveNav={setHodActiveNav} />,
       };
       return (
         <AdminLayout

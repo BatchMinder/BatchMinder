@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
-import { 
-  RefreshCw, Info, AlertTriangle, CheckCircle, Search, Edit2, 
-  LayoutGrid, FileText, Download, CheckCircle2, ChevronDown, 
+import {
+  RefreshCw, Info, AlertTriangle, CheckCircle, Search, Edit2,
+  LayoutGrid, FileText, Download, CheckCircle2, ChevronDown,
   MapPin, Clock, Users, BookOpen, Plus, UserPlus, Home, AlertCircle, FileBarChart, Calendar
 } from "lucide-react";
 
@@ -53,14 +53,14 @@ export default function TimetableGenerator({ setActiveNav }) {
   const [generating, setGenerating] = useState(false);
   const [batchSizes, setBatchSizes] = useState({});
   const [batches, setBatches] = useState([]);
-  
+
   // Filters
+
   const [selectedDept, setSelectedDept] = useState("Computer Science");
   const [selectedProgram, setSelectedProgram] = useState("BS Computer Science");
   const [selectedBatchId, setSelectedBatchId] = useState("");
-  const [selectedSemester, setSelectedSemester] = useState("1");
-  const [selectedSection, setSelectedSection] = useState("Section A");
-  const [viewMode, setViewMode] = useState("Weekly");
+  const [selectedSemester, setSelectedSemester] = useState("");
+
   const [timingPage, setTimingPage] = useState(1);
   const timingLimit = 5;
   const [clashPage, setClashPage] = useState(1);
@@ -90,7 +90,6 @@ export default function TimetableGenerator({ setActiveNav }) {
         setBatches(batchesData.data || []);
         if (batchesData.data?.length > 0) {
           setSelectedBatchId(batchesData.data[0]._id);
-          setSelectedSemester(batchesData.data[0].semester || "6");
         }
       }
 
@@ -99,9 +98,12 @@ export default function TimetableGenerator({ setActiveNav }) {
         const timeData = await timeRes.json();
         const data = timeData.data?.entries || [];
         setEntries(data);
+      } else {
+        setEntries([]);
       }
     } catch (err) {
       console.error("Failed to fetch:", err);
+      setEntries([]);
     } finally {
       setLoading(false);
     }
@@ -114,9 +116,13 @@ export default function TimetableGenerator({ setActiveNav }) {
       const payload = { batchId: selectedBatchId };
       if (selectedSemester) payload.semester = selectedSemester;
 
+      const token = localStorage.getItem("token");
       const saveRes = await fetch("/api/scheduling/auto-generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}` 
+        },
         body: JSON.stringify(payload)
       });
       if (saveRes.ok) {
@@ -149,7 +155,7 @@ export default function TimetableGenerator({ setActiveNav }) {
       e.room,
       e.instructor || 'TBD',
       e.batch,
-      e.semester || ''
+      e.semester || '6'
     ]);
 
     const csvContent = [
@@ -171,9 +177,17 @@ export default function TimetableGenerator({ setActiveNav }) {
     document.body.removeChild(link);
   };
 
-  // --- Dynamic Metrics (Scoped to Selected Semester) ---
-  const semFilterNum = selectedSemester ? Number(selectedSemester) : null;
-  const filteredEntries = entries.filter(e => !semFilterNum || e.semester === semFilterNum);
+  // --- Dynamic Metrics (Scoped to Selected Batch and Semester) ---
+  const selectedBatchObj = batches.find(b => b._id === selectedBatchId);
+  const semFilterStr = selectedSemester ? String(selectedSemester) : null;
+  const filtered = entries.filter(e => {
+    const matchesBatch = !selectedBatchObj || !e.batch || e.batch.toUpperCase() === selectedBatchObj.code.toUpperCase() || String(e.batchId?._id || e.batchId) === String(selectedBatchObj._id);
+    const matchesSem = !semFilterStr || !e.semester || String(e.semester) === semFilterStr;
+    return matchesBatch || matchesSem;
+  });
+  const filteredEntries = filtered.length > 0 ? filtered : entries;
+
+
 
   const conflicts = detectTimetableConflicts(filteredEntries, batchSizes);
   const totalClasses = filteredEntries.length;
@@ -188,7 +202,7 @@ export default function TimetableGenerator({ setActiveNav }) {
     if (e.room) roomCounts[e.room] = (roomCounts[e.room] || 0) + 1;
   });
   const roomData = Object.entries(roomCounts)
-    .sort((a,b) => b[1] - a[1])
+    .sort((a, b) => b[1] - a[1])
     .map(([name, value]) => ({ name, value }));
 
   // --- Class Timing Details Aggregation ---
@@ -219,40 +233,16 @@ export default function TimetableGenerator({ setActiveNav }) {
     return 'bg-indigo-50 border-indigo-100 border-l-indigo-500 text-indigo-900';
   };
 
-  const selectedBatchObj = batches.find(b => b._id === selectedBatchId);
-  const batchLabel = selectedBatchObj ? `${selectedBatchObj.code} (${selectedBatchObj.semester === 6 ? '2023 Spring' : '2024'})` : '23S (2023 Spring)';
 
-  if (loading) {
-    return <div className="p-8 text-center text-slate-500 font-semibold animate-pulse">Loading Timetable Management...</div>;
-  }
+
 
   return (
     <div className="bg-slate-50 min-h-screen text-slate-800 p-4 sm:p-6 pb-20 font-sans max-w-full overflow-x-hidden">
-      
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-extrabold text-[#1B3A6B] font-display">Timetable Management</h1>
-          <div className="text-xs text-slate-500 font-medium mt-1 flex flex-wrap items-center gap-1.5">
-            <span className="hover:text-brandAccent cursor-pointer transition-colors">BatchMinder ERP</span>
-            <span className="text-slate-300">/</span>
-            <span className="hover:text-brandAccent cursor-pointer transition-colors">Academic Management</span>
-            <span className="text-slate-300">/</span>
-            <span className="text-slate-700 font-bold">Timetable Management</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border border-slate-200 text-xs font-bold text-slate-600 shadow-sm">
-            <Calendar className="w-4 h-4 text-slate-400" />
-            Friday, May 22, 2026
-          </div>
-        </div>
-      </div>
 
       {/* Top Filter Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center gap-4 flex-1">
-          <div className="flex flex-col gap-1 w-full sm:w-40">
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
+          <div className="flex flex-col gap-1 w-full">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Department</label>
             <div className="relative">
               <select className="w-full appearance-none bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 py-2 px-3 rounded-lg outline-none cursor-pointer">
@@ -261,7 +251,7 @@ export default function TimetableGenerator({ setActiveNav }) {
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
-          <div className="flex flex-col gap-1 w-full sm:w-44">
+          <div className="flex flex-col gap-1 w-full">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Program</label>
             <div className="relative">
               <select className="w-full appearance-none bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 py-2 px-3 rounded-lg outline-none cursor-pointer">
@@ -270,54 +260,74 @@ export default function TimetableGenerator({ setActiveNav }) {
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
-          <div className="flex flex-col gap-1 w-full sm:w-40">
+          <div className="flex flex-col gap-1 w-full">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Batch (Year-Term)</label>
             <div className="relative">
-              <select 
-                value={selectedBatchId} 
+              <select
+                value={selectedBatchId}
                 onChange={e => setSelectedBatchId(e.target.value)}
-                className="w-full appearance-none bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 py-2 px-3 rounded-lg outline-none cursor-pointer"
+                className="w-full appearance-none bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 py-2 px-3 rounded-lg outline-none cursor-pointer pr-8"
               >
-                {batches.map(b => <option key={b._id} value={b._id}>{b.code} (2023 Spring)</option>)}
+                {batches.map(b => <option key={b._id} value={b._id}>{b.code} ({b.startYear || 2024})</option>)}
               </select>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
-          <div className="flex flex-col gap-1 w-full sm:w-32">
+          <div className="flex flex-col gap-1 w-full">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Semester</label>
             <div className="relative">
-              <select 
-                value={selectedSemester} 
+              <select
+                value={selectedSemester}
                 onChange={e => setSelectedSemester(e.target.value)}
-                className="w-full appearance-none bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 py-2 px-3 rounded-lg outline-none cursor-pointer"
+                className="w-full appearance-none bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 py-2 px-3 rounded-lg outline-none cursor-pointer pr-8"
               >
-                {[1,2,3,4,5,6,7,8].map(s => <option key={s} value={String(s)}>Semester {s}</option>)}
+                <option value="">All Semesters</option>
+                {[1, 2, 3, 4, 5, 6, 7, 8].map(s => <option key={s} value={String(s)}>Semester {s}</option>)}
               </select>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
-          </div>
-          <div className="flex flex-col gap-1 w-full sm:w-auto">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">View</label>
-            <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
-              <button onClick={() => setViewMode('Weekly')} className={`px-4 py-1.5 rounded-md text-[11px] font-bold transition-all ${viewMode === 'Weekly' ? 'bg-white text-brandNavy shadow-sm' : 'text-slate-500'}`}>Weekly</button>
-              <button onClick={() => setViewMode('Daily')} className={`px-4 py-1.5 rounded-md text-[11px] font-bold transition-all ${viewMode === 'Daily' ? 'bg-white text-brandNavy shadow-sm' : 'text-slate-500'}`}>Daily</button>
             </div>
           </div>
         </div>
-        <div>
-          <button 
-            onClick={handleExportTimetable}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-brandAccent/30 text-brandAccent text-xs font-bold rounded-lg shadow-sm hover:bg-blue-50 transition-colors"
+        <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+          <button
+            onClick={handleGenerate}
+            disabled={generating}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '10px 18px',
+              background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)', color: '#fff',
+              border: 'none', borderRadius: '10px',
+              fontSize: '13px', fontWeight: 700, cursor: generating ? 'not-allowed' : 'pointer',
+              opacity: generating ? 0.7 : 1,
+              boxShadow: '0 4px 12px rgba(37,99,235,0.2)',
+              transition: 'all 0.15s ease'
+            }}
+            onMouseEnter={e => { if(!generating) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(37,99,235,0.3)'; } }}
+            onMouseLeave={e => { if(!generating) { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(37,99,235,0.2)'; } }}
           >
-            <Download className="w-4 h-4" /> Export Timetable
+            <RefreshCw size={15} className={generating ? 'animate-spin' : ''} />
+            {generating ? 'Processing...' : 'Generate Algorithm'}
+          </button>
+          <button
+            onClick={handleExportTimetable}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '10px 18px',
+              backgroundColor: '#EFF6FF', color: '#2563EB',
+              border: '1px solid #BFDBFE', borderRadius: '10px',
+              fontSize: '13px', fontWeight: 700, cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+            onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#2563EB'; e.currentTarget.style.color = '#fff'; }}
+            onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#EFF6FF'; e.currentTarget.style.color = '#2563EB'; }}
+          >
+            <Download size={15} /> Export Timetable
           </button>
         </div>
       </div>
- 
-      <div className="flex flex-col xl:flex-row gap-6 items-start">
-        {/* Left Column: Grid & Tables */}
-        <div className="flex-1 w-full space-y-6 overflow-hidden">
-          
+
+      <div className="space-y-6">
+
           {/* Main Grid Card */}
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
             <div className="px-5 py-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white">
@@ -328,17 +338,28 @@ export default function TimetableGenerator({ setActiveNav }) {
                 <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase tracking-wider rounded border border-emerald-200">Published</span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-slate-500 font-medium">Effective From: May 20, 2026</span>
-                <button 
+                <button
                   onClick={() => setActiveNav && setActiveNav('schedule_override')}
-                  className="px-4 py-2 bg-brandAccent text-white text-xs font-bold rounded-lg shadow-sm hover:bg-blue-600 transition-colors"
+                  style={{
+                    padding: '9px 18px',
+                    background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
+                    color: '#fff', border: 'none', borderRadius: '10px',
+                    fontSize: '13px', fontWeight: 700, cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(37,99,235,0.2)',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(37,99,235,0.3)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(37,99,235,0.2)'; }}
                 >
                   Edit Timetable
                 </button>
+
               </div>
             </div>
 
             <div className="overflow-x-auto">
+
+
               <table className="w-full text-left border-collapse min-w-[1000px]">
                 <thead>
                   <tr className="bg-slate-50/50 text-slate-500 text-[11px] font-bold uppercase tracking-wider border-b border-slate-200">
@@ -385,9 +406,9 @@ export default function TimetableGenerator({ setActiveNav }) {
             </div>
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-6">
+          <div className="flex flex-col gap-6">
             {/* Bottom Table: Class Timing Details */}
-            <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl shadow-sm p-5 overflow-hidden">
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 overflow-hidden min-w-0">
               <h3 className="text-sm font-bold text-slate-800 mb-4">Class Timing Details</h3>
               <div className="overflow-x-auto rounded-xl border border-slate-200">
                 <table className="w-full text-left text-xs min-w-[700px]">
@@ -446,9 +467,9 @@ export default function TimetableGenerator({ setActiveNav }) {
             </div>
 
             {/* Bottom Panel: Clash Check */}
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 flex flex-col">
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 flex flex-col min-w-0">
               <h3 className="text-sm font-bold text-slate-800 mb-4">Timetable Clash Check</h3>
-              
+
               {conflicts.length === 0 ? (
                 <div className="flex-1 bg-emerald-50/50 border border-emerald-100 rounded-xl p-6 flex flex-col items-center justify-center text-center">
                   <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-3">
@@ -497,11 +518,9 @@ export default function TimetableGenerator({ setActiveNav }) {
             </div>
           </div>
 
-        </div>
+          {/* Summary Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* Right Sidebar */}
-        <div className="w-full xl:w-80 space-y-6 flex-shrink-0">
-          
           {/* Timetable Summary */}
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
             <h3 className="text-sm font-bold text-slate-800 mb-4">Timetable Summary</h3>
@@ -573,7 +592,8 @@ export default function TimetableGenerator({ setActiveNav }) {
                     <div key={i} className="flex items-center gap-1.5 text-[10px] font-bold text-slate-600">
                       <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
                       <span className="truncate max-w-[70px]" title={entry.name}>{entry.name}</span>
-                      <span className="text-slate-400 ml-auto">{Math.round((entry.value / entries.length) * 100)}%</span>
+                      <span className="text-slate-400 ml-auto">{Math.round((entry.value / (entries.length || 1)) * 100)}%</span>
+
                     </div>
                   ))}
                 </div>
@@ -587,32 +607,7 @@ export default function TimetableGenerator({ setActiveNav }) {
             )}
           </div>
 
-          {/* Quick Actions */}
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
-            <h3 className="text-sm font-bold text-slate-800 mb-4">Quick Actions</h3>
-            <div className="space-y-2">
-              <button className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-brandAccent/30 hover:bg-blue-50 text-brandNavy text-xs font-bold transition-all text-left">
-                <Plus className="w-4 h-4" /> Add New Class
-              </button>
-              <button className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-brandAccent/30 hover:bg-blue-50 text-brandNavy text-xs font-bold transition-all text-left">
-                <UserPlus className="w-4 h-4" /> Assign Instructor
-              </button>
-              <button className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-brandAccent/30 hover:bg-blue-50 text-brandNavy text-xs font-bold transition-all text-left">
-                <MapPin className="w-4 h-4" /> Assign Room
-              </button>
-              <button className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-amber-500/30 hover:bg-amber-50 text-amber-600 text-xs font-bold transition-all text-left">
-                <AlertCircle className="w-4 h-4" /> Check Clash
-              </button>
-              <button 
-                onClick={handleGenerate}
-                disabled={generating}
-                className="w-full flex items-center gap-3 p-3 rounded-xl border border-transparent bg-brandNavy text-white hover:bg-blue-900 text-xs font-bold transition-all text-left disabled:opacity-50"
-              >
-                <RefreshCw className={`w-4 h-4 ${generating ? 'animate-spin' : ''}`} /> 
-                {generating ? 'Processing...' : 'Generate Algorithm'}
-              </button>
-            </div>
-          </div>
+
 
           {/* Timetable Info */}
           <div className="bg-slate-50 border border-slate-200 rounded-2xl shadow-sm p-5">
@@ -630,13 +625,8 @@ export default function TimetableGenerator({ setActiveNav }) {
                 <span className="text-slate-500 font-medium">Semester:</span>
                 <span className="font-bold text-slate-800">{selectedSemester ? `Semester ${selectedSemester}` : 'All Semesters'}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-medium">Section:</span>
-                <span className="font-bold text-slate-800">{selectedSection}</span>
-              </div>
             </div>
           </div>
-
         </div>
       </div>
     </div>

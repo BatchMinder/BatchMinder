@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { User, Phone, Mail, Upload, Trash2, Shield, Save, CheckCircle2, AlertCircle, RefreshCw, Lock } from 'lucide-react';
+import { User, Phone, Mail, Upload, Trash2, Shield, Save, CheckCircle2, AlertCircle, RefreshCw, Lock, Eye, EyeOff } from 'lucide-react';
 import { useModal } from '../../contexts/ModalContext';
 
 export default function ProfileSettingsPage() {
@@ -17,6 +17,10 @@ export default function ProfileSettingsPage() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Status/Loading states
   const [savingProfile, setSavingProfile] = useState(false);
@@ -360,16 +364,23 @@ export default function ProfileSettingsPage() {
               <div style={{ position: 'relative' }}>
                 <Lock size={15} color="#94A3B8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
                 <input
-                  type="password"
+                  type={showCurrentPassword ? "text" : "password"}
                   value={currentPassword}
                   onChange={e => setCurrentPassword(e.target.value)}
                   placeholder="Enter current password"
                   style={{
-                    width: '100%', padding: '10px 12px 10px 36px', borderRadius: '8px',
+                    width: '100%', padding: '10px 36px 10px 36px', borderRadius: '8px',
                     border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none',
                     backgroundColor: '#FFFFFF', color: '#1E293B', fontFamily: 'inherit', boxSizing: 'border-box'
                   }}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                  style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+                >
+                  {showCurrentPassword ? <EyeOff size={15} color="#94A3B8" /> : <Eye size={15} color="#94A3B8" />}
+                </button>
               </div>
             </div>
 
@@ -380,16 +391,23 @@ export default function ProfileSettingsPage() {
                 <div style={{ position: 'relative' }}>
                   <Lock size={15} color="#94A3B8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
                   <input
-                    type="password"
+                    type={showNewPassword ? "text" : "password"}
                     value={newPassword}
                     onChange={e => setNewPassword(e.target.value)}
                     placeholder="Min 6 characters"
                     style={{
-                      width: '100%', padding: '10px 12px 10px 36px', borderRadius: '8px',
+                      width: '100%', padding: '10px 36px 10px 36px', borderRadius: '8px',
                       border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none',
                       backgroundColor: '#FFFFFF', color: '#1E293B', fontFamily: 'inherit', boxSizing: 'border-box'
                     }}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+                  >
+                    {showNewPassword ? <EyeOff size={15} color="#94A3B8" /> : <Eye size={15} color="#94A3B8" />}
+                  </button>
                 </div>
               </div>
 
@@ -398,16 +416,23 @@ export default function ProfileSettingsPage() {
                 <div style={{ position: 'relative' }}>
                   <Lock size={15} color="#94A3B8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
                   <input
-                    type="password"
+                    type={showConfirmPassword ? "text" : "password"}
                     value={confirmPassword}
                     onChange={e => setConfirmPassword(e.target.value)}
                     placeholder="Repeat new password"
                     style={{
-                      width: '100%', padding: '10px 12px 10px 36px', borderRadius: '8px',
+                      width: '100%', padding: '10px 36px 10px 36px', borderRadius: '8px',
                       border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none',
                       backgroundColor: '#FFFFFF', color: '#1E293B', fontFamily: 'inherit', boxSizing: 'border-box'
                     }}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+                  >
+                    {showConfirmPassword ? <EyeOff size={15} color="#94A3B8" /> : <Eye size={15} color="#94A3B8" />}
+                  </button>
                 </div>
               </div>
             </div>

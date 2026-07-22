@@ -9,11 +9,12 @@ router.use(protect);
 
 router.route('/')
   .get(restrictTo('dean', 'academic_admin', 'admin', 'advisor'), getAllBatches)
-  .post(restrictTo('dean', 'academic_admin'), createBatch);
+  .post(restrictTo('dean'), createBatch);
 
 router.route('/:id')
   .get(restrictTo('dean', 'academic_admin', 'admin', 'advisor'), getBatchById)
-  .patch(restrictTo('dean', 'academic_admin'), updateBatch)
-  .delete(restrictTo('dean', 'academic_admin'), deleteBatch);
+  .patch(restrictTo('dean'), updateBatch)
+  .delete(restrictTo('dean'), deleteBatch);
+
 
 export default router;

@@ -863,14 +863,20 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                   fontSize: '13px',
                   fontWeight: 700,
                   color: '#fff',
-                  backgroundColor: '#2563EB',
+                  background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
                   border: 'none',
+                  borderRadius: '10px',
+                  boxShadow: '0 4px 12px rgba(37,99,235,0.2)',
                   cursor: 'pointer',
-                  width: '100%'
+                  width: '100%',
+                  transition: 'all 0.15s ease'
                 }}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(37,99,235,0.3)'; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(37,99,235,0.2)'; }}
               >
                 <CheckCircle size={14} /> Import Valid Records
               </button>
+
             </div>
           </div>
         </>

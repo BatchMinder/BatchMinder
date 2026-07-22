@@ -137,10 +137,23 @@ export const getAllBatches = async (req, res) => {
       }
       if (scope.batchId) {
         filter = { _id: scope.batchId };
+      } else if (scope.departmentId && scope.departmentId.$in) {
+        const depts = await Department.find({ _id: { $in: scope.departmentId.$in } }).lean();
+        const deptNames = depts.map(d => d.name);
+        const deptCodes = depts.map(d => d.code);
+        const codeRegexes = deptCodes.map(c => ({ code: new RegExp(`^${c}`, 'i') }));
+        filter = {
+          $or: [
+            { departmentId: { $in: scope.departmentId.$in } },
+            { dept: { $in: deptNames } },
+            ...codeRegexes
+          ]
+        };
       } else {
         filter = scope;
       }
     }
+
     const batches = await Batch.find(filter)
       .populate('departmentId', 'name code color')
       .populate('advisorId', 'name email')

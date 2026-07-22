@@ -34,7 +34,7 @@ export default function AdvisorRiskDashboard() {
   }, []);
 
   const handleSelectStudent = (studentId) => {
-    const student = students.find(s => s._id === studentId);
+    const student = students.find(s => s._id === studentId || s.id === studentId);
     if (student) setSelectedStudent(student);
   };
 
@@ -140,7 +140,7 @@ export default function AdvisorRiskDashboard() {
       </div>
 
       {/* Main Workspace Layout */}
-      <div className={`grid grid-cols-1 ${selectedStudent ? 'xl:grid-cols-[1.2fr_0.8fr]' : ''} gap-5 transition-all duration-200`}>
+      <div className={`grid grid-cols-1 ${selectedStudent ? 'lg:grid-cols-[1.2fr_0.8fr]' : ''} gap-5 transition-all duration-200`}>
         
         {/* Left Side: Directory Table */}
         <div style={{

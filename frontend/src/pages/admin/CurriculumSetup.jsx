@@ -206,9 +206,22 @@ export default function CurriculumSetup() {
           <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 800, color: '#0F172A' }}>Curriculum Management</h2>
           <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748B' }}>Manage program curricula, map equivalencies, and configure rules.</p>
         </div>
-        <button onClick={() => setShowAddModal(true)} style={{ backgroundColor: '#2563EB', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 16px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <button
+          onClick={() => setShowAddModal(true)}
+          style={{
+            background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
+            color: '#fff', border: 'none', borderRadius: '10px',
+            padding: '10px 18px', fontSize: '13px', fontWeight: 700,
+            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px',
+            boxShadow: '0 4px 12px rgba(37,99,235,0.2)',
+            transition: 'all 0.15s ease'
+          }}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(37,99,235,0.3)'; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(37,99,235,0.2)'; }}
+        >
           <Plus size={16} /> Add New Curriculum Version
         </button>
+
       </div>
 
       {/* 1. TOP STATS ROW */}

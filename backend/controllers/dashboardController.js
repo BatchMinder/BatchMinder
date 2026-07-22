@@ -58,11 +58,11 @@ export const getDashboardStats = async (req, res) => {
       isDean ? User.countDocuments({}) : Promise.resolve(0),
       isDean ? User.countDocuments({ status: 'Active' }) : Promise.resolve(0),
       Department.find(isDean ? {} : { _id: { $in: req.user.departmentIds || [] } }).lean(),
-      isDean ? AuditLog.find({}).sort({ timestamp: -1 }).limit(6).lean() : Promise.resolve([]),
+      AuditLog.find({}).sort({ timestamp: -1 }).limit(6).lean(),
       Migration.countDocuments({ decidedAt: null }),
       Curriculum.find(isDean ? {} : scopeToUserDepartments(req)).lean(),
       Timetable.countDocuments(),
-      Upload.find({}).sort({ createdAt: -1 }).limit(4).populate('uploadedBy', 'name').lean()
+      Upload.find({}).sort({ createdAt: -1 }).limit(20).populate('uploadedBy', 'name').lean()
     ]);
 
     const totalStudents = allStudents.length;

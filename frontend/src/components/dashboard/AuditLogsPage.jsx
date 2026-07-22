@@ -44,6 +44,65 @@ const renderMetadataDetails = (meta, fallbackDescription = '') => {
   );
 };
 
+const CustomSelect = ({ value, onChange, options, placeholder = "Select..." }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = React.useRef(null);
+  
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setIsOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find(o => o.value === value);
+  const displayLabel = selectedOption ? selectedOption.label : placeholder;
+
+  return (
+    <div ref={dropdownRef} style={{ position: 'relative', width: '100%' }}>
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          width: '100%', padding: '8px 28px 8px 12px', borderRadius: '8px', border: '1px solid #E2E8F0',
+          fontSize: '12px', fontWeight: 600, color: '#1E293B', backgroundColor: '#FAFAFA',
+          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.01)'
+        }}
+      >
+        <span style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{displayLabel}</span>
+        <ChevronDown size={12} color="#64748B" style={{ position: 'absolute', right: '10px' }} />
+      </div>
+      {isOpen && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '4px',
+          backgroundColor: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: '8px',
+          boxShadow: '0 20px 25px -5px rgba(0,0,0,0.15), 0 10px 10px -5px rgba(0,0,0,0.05)',
+          zIndex: 9999, maxHeight: '220px', overflowY: 'auto'
+        }}>
+          {options.map((opt, idx) => (
+            <div
+              key={idx}
+              onClick={() => { onChange(opt.value); setIsOpen(false); }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F1F5F9'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              style={{
+                padding: '10px 12px', fontSize: '11.5px', color: '#334155', cursor: 'pointer',
+                borderBottom: idx < options.length - 1 ? '1px solid #F8FAFC' : 'none',
+                fontWeight: value === opt.value ? 700 : 500,
+                backgroundColor: value === opt.value ? '#F8FAFC' : 'transparent',
+                transition: 'background-color 0.1s'
+              }}
+            >
+              {opt.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function AuditLogsPage({ setActiveNav }) {
   const { user } = useAuth();
   const { departments } = useDepartments();
@@ -156,25 +215,55 @@ export default function AuditLogsPage({ setActiveNav }) {
 
   return (
     <div style={{ flex: 1, overflow: 'hidden', backgroundColor: '#F8FAFC', display: 'flex', flexDirection: 'column', fontFamily: 'inherit' }}>
-
-      <Header
-        title="System Audit Logs"
-        subtitle={isDean ? 'BatchMinder ERP • Dean • Audit Logs' : 'BatchMinder ERP • Audit Logs'}
-        setActiveNav={setActiveNav}
-      >
-        <button
-          onClick={fetchLogs}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '6px',
-            padding: '7px 14px', borderRadius: '8px', border: '1px solid #E2E8F0',
-            backgroundColor: '#FFFFFF', fontSize: '11px', fontWeight: 700, color: '#374151',
-            cursor: 'pointer', fontFamily: 'inherit'
-          }}
+      
+      {isDean ? (
+        <Header
+          title="System Audit Logs"
+          subtitle="BatchMinder ERP • Dean • Audit Logs"
+          setActiveNav={setActiveNav}
         >
-          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
-          Reload
-        </button>
-      </Header>
+          <button
+            onClick={fetchLogs}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              padding: '7px 14px', borderRadius: '8px', border: '1px solid #E2E8F0',
+              backgroundColor: '#FFFFFF', fontSize: '11px', fontWeight: 700, color: '#374151',
+              cursor: 'pointer', fontFamily: 'inherit',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+            }}
+          >
+            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+            Reload
+          </button>
+        </Header>
+      ) : (
+        <div style={{
+          padding: isMobile ? '16px 16px 0' : '24px 32px 0',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+        }}>
+          <div>
+            <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>
+              System Audit Logs
+            </h1>
+            <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748B' }}>
+              BatchMinder ERP • Audit Logs
+            </p>
+          </div>
+          <button
+            onClick={fetchLogs}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              padding: '7px 14px', borderRadius: '8px', border: '1px solid #E2E8F0',
+              backgroundColor: '#FFFFFF', fontSize: '11px', fontWeight: 700, color: '#374151',
+              cursor: 'pointer', fontFamily: 'inherit',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+            }}
+          >
+            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+            Reload
+          </button>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <div style={{ flex: 1, padding: isMobile ? '12px 16px' : '24px 32px', display: 'flex', flexDirection: 'column', gap: '16px', minHeight: 0 }}>
@@ -184,7 +273,8 @@ export default function AuditLogsPage({ setActiveNav }) {
           backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0',
           borderRadius: '12px', padding: isMobile ? '10px 14px' : '14px 20px',
           display: 'flex', flexDirection: 'column', gap: '12px',
-          boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+          boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
+          position: 'relative', zIndex: 1000
         }}>
           <div
             onClick={() => isMobile && setShowFiltersMobile(!showFiltersMobile)}
@@ -219,122 +309,104 @@ export default function AuditLogsPage({ setActiveNav }) {
           </div>
 
           {(!isMobile || showFiltersMobile) && (
-            <div style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-              gap: '16px',
+            <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 ${isDean ? 'xl:grid-cols-5' : ''} gap-4`} style={{
               borderTop: isMobile ? '1px solid #F1F5F9' : 'none',
-              paddingTop: isMobile ? '12px' : 0
+              paddingTop: isMobile ? '12px' : 0,
+              width: '100%'
             }}>
 
           {isDean && (
             <>
               {/* Department Filter */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '11.5px', color: '#64748B', fontWeight: 500 }}>Department:</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Department</span>
                 <div style={{ position: 'relative' }}>
-                  <select
+                  <CustomSelect
                     value={deptFilter}
-                    onChange={e => { setDeptFilter(e.target.value); setCurrentPage(1); }}
-                    style={{
-                      padding: '5px 24px 5px 10px', borderRadius: '6px', border: '1px solid #CBD5E1',
-                      fontSize: '11.5px', fontWeight: 600, color: '#1E293B', outline: 'none',
-                      backgroundColor: '#FAFAFA', appearance: 'none', cursor: 'pointer', fontFamily: 'inherit'
-                    }}
-                  >
-                    <option value="All Departments">All Departments</option>
-                    {departments.map(d => (
-                      <option key={d.id} value={d.name}>{d.name}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={11} color="#64748B" style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                    onChange={(val) => { setDeptFilter(val); setCurrentPage(1); }}
+                    options={[
+                      { value: 'All Departments', label: 'All Departments' },
+                      ...departments.map(d => ({ value: d.name, label: d.name }))
+                    ]}
+                  />
                 </div>
               </div>
 
               {/* Batch Filter */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '11.5px', color: '#64748B', fontWeight: 500 }}>Batch:</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Batch</span>
                 <div style={{ position: 'relative' }}>
-                  <select
+                  <CustomSelect
                     value={batchFilter}
-                    onChange={e => { setBatchFilter(e.target.value); setCurrentPage(1); }}
-                    style={{
-                      padding: '5px 24px 5px 10px', borderRadius: '6px', border: '1px solid #CBD5E1',
-                      fontSize: '11.5px', fontWeight: 600, color: '#1E293B', outline: 'none',
-                      backgroundColor: '#FAFAFA', appearance: 'none', cursor: 'pointer', fontFamily: 'inherit'
-                    }}
-                  >
-                    <option value="All Batches">All Batches</option>
-                    {batches.map(b => (
-                      <option key={b.id} value={b.code}>{b.code}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={11} color="#64748B" style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                    onChange={(val) => { setBatchFilter(val); setCurrentPage(1); }}
+                    options={[
+                      { value: 'All Batches', label: 'All Batches' },
+                      ...batches.map(b => ({ value: b.code, label: b.code }))
+                    ]}
+                  />
                 </div>
               </div>
             </>
           )}
 
-          {/* Action Filter */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '11.5px', color: '#64748B', fontWeight: 500 }}>Action:</span>
-            <div style={{ position: 'relative' }}>
-              <select
-                value={actionFilter}
-                onChange={e => { setActionFilter(e.target.value); setCurrentPage(1); }}
-                style={{
-                  padding: '5px 24px 5px 10px', borderRadius: '6px', border: '1px solid #CBD5E1',
-                  fontSize: '11.5px', fontWeight: 600, color: '#1E293B', outline: 'none',
-                  backgroundColor: '#FAFAFA', appearance: 'none', cursor: 'pointer', fontFamily: 'inherit'
-                }}
-              >
-                <option value="">All Actions</option>
-                <option value="STUDENT_CREATED">Student Created</option>
-                <option value="STUDENT_UPDATED">Student Updated</option>
-                <option value="STUDENT_DELETED">Student Deleted</option>
-                <option value="UPLOAD_VALIDATED">CSV Upload Validated</option>
-                <option value="UPLOAD_IMPORTED">CSV Upload Imported</option>
-                <option value="CURRICULUM_UPDATED">Curriculum Updated</option>
-                <option value="MIGRATION_CREATED">Migration Created</option>
-                <option value="MIGRATION_DECIDED">Migration Decided</option>
-                <option value="BATCH_CREATED">Batch Created</option>
-                <option value="BATCH_UPDATED">Batch Updated</option>
-                <option value="PROFILE_UPDATED">Profile Updated</option>
-                <option value="PROFILE_PICTURE_UPLOADED">Profile Picture Uploaded</option>
-                <option value="PROFILE_PICTURE_DELETED">Profile Picture Deleted</option>
-              </select>
-              <ChevronDown size={11} color="#64748B" style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-            </div>
-          </div>
-
-          {/* Date Range Filters */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '11.5px', color: '#64748B', fontWeight: 500 }}>Start Date:</span>
+          {/* Date Range Filters (Middle Columns) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Start Date</span>
             <input
               type="date"
               value={startDateFilter}
               onChange={e => { setStartDateFilter(e.target.value); setCurrentPage(1); }}
               style={{
-                padding: '4px 10px', borderRadius: '6px', border: '1px solid #CBD5E1',
-                fontSize: '11.5px', color: '#1E293B', outline: 'none',
-                backgroundColor: '#FAFAFA', fontFamily: 'inherit'
+                width: '100%',
+                padding: '7px 12px', borderRadius: '8px', border: '1px solid #E2E8F0',
+                fontSize: '12px', fontWeight: 600, color: '#1E293B', outline: 'none',
+                backgroundColor: '#FAFAFA', fontFamily: 'inherit',
+                boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.01)'
               }}
             />
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '11.5px', color: '#64748B', fontWeight: 500 }}>End Date:</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>End Date</span>
             <input
               type="date"
               value={endDateFilter}
               onChange={e => { setEndDateFilter(e.target.value); setCurrentPage(1); }}
               style={{
-                padding: '4px 10px', borderRadius: '6px', border: '1px solid #CBD5E1',
-                fontSize: '11.5px', color: '#1E293B', outline: 'none',
-                backgroundColor: '#FAFAFA', fontFamily: 'inherit'
+                width: '100%',
+                padding: '7px 12px', borderRadius: '8px', border: '1px solid #E2E8F0',
+                fontSize: '12px', fontWeight: 600, color: '#1E293B', outline: 'none',
+                backgroundColor: '#FAFAFA', fontFamily: 'inherit',
+                boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.01)'
               }}
             />
+          </div>
+
+          {/* Action Filter (Last Column) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Action</span>
+            <div style={{ position: 'relative' }}>
+              <CustomSelect
+                value={actionFilter}
+                onChange={(val) => { setActionFilter(val); setCurrentPage(1); }}
+                options={[
+                  { value: '', label: 'All Actions' },
+                  { value: 'STUDENT_CREATED', label: 'Student Created' },
+                  { value: 'STUDENT_UPDATED', label: 'Student Updated' },
+                  { value: 'STUDENT_DELETED', label: 'Student Deleted' },
+                  { value: 'UPLOAD_VALIDATED', label: 'CSV Upload Validated' },
+                  { value: 'UPLOAD_IMPORTED', label: 'CSV Upload Imported' },
+                  { value: 'CURRICULUM_UPDATED', label: 'Curriculum Updated' },
+                  { value: 'MIGRATION_CREATED', label: 'Migration Created' },
+                  { value: 'MIGRATION_DECIDED', label: 'Migration Decided' },
+                  { value: 'BATCH_CREATED', label: 'Batch Created' },
+                  { value: 'BATCH_UPDATED', label: 'Batch Updated' },
+                  { value: 'PROFILE_UPDATED', label: 'Profile Updated' },
+                  { value: 'PROFILE_PICTURE_UPLOADED', label: 'Profile Picture Uploaded' },
+                  { value: 'PROFILE_PICTURE_DELETED', label: 'Profile Picture Deleted' }
+                ]}
+              />
+            </div>
           </div>
             </div>
           )}
@@ -344,7 +416,8 @@ export default function AuditLogsPage({ setActiveNav }) {
         <div style={{
           backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0',
           borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column',
-          flex: 1, boxShadow: '0 1px 3px rgba(0,0,0,0.02)', minHeight: 0
+          flex: 1, boxShadow: '0 1px 3px rgba(0,0,0,0.02)', minHeight: 0,
+          position: 'relative', zIndex: 1
         }}>
 
           <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>

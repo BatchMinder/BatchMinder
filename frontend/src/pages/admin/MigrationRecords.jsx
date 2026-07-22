@@ -181,8 +181,8 @@ export default function MigrationRecords() {
 
   const submitNewRequest = async () => {
     setNewReqError('');
-    if (!newReq.studentName || !newReq.departmentId || !newReq.batchId || !newReq.sourceInstitution) {
-      setNewReqError('Please fill in all required fields (Name, Target Department, Target Batch, Source Institution)');
+    if (!newReq.studentName || !newReq.studentEmail || !newReq.studentPhone || !newReq.departmentId || !newReq.batchId || !newReq.sourceInstitution) {
+      setNewReqError('Please fill in all required fields (Name, Email, Phone, Target Department, Target Batch, Source Institution)');
       return;
     }
 
@@ -436,7 +436,7 @@ export default function MigrationRecords() {
             <div className="order-1 xl:order-none" style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0', overflow: 'hidden' }}>
               <div className="flex flex-col xl:flex-row justify-between xl:items-center gap-4 mb-5">
                 <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0F172A' }}>Migrated Students List</h3>
-                <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex flex-col sm:flex-row items-center gap-3">
                   <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                     <Search size={16} color="#64748B" style={{ position: 'absolute', left: '14px', pointerEvents: 'none' }} />
                     <input
@@ -446,7 +446,7 @@ export default function MigrationRecords() {
                       onChange={(e) => setSearchQuery(e.target.value)}
                       style={{
                         padding: '10px 16px 10px 40px',
-                        borderRadius: '12px',
+                        borderRadius: '10px',
                         border: '1px solid #E2E8F0',
                         fontSize: '13px',
                         fontWeight: 500,
@@ -469,17 +469,46 @@ export default function MigrationRecords() {
                       }}
                     />
                   </div>
-                  <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '13px', outline: 'none', backgroundColor: '#fff' }}>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    style={{
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      border: '1px solid #E2E8F0',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      outline: 'none',
+                      backgroundColor: '#F8FAFC',
+                      color: '#0F172A',
+                      cursor: 'pointer'
+                    }}
+                  >
                     <option value="all">All Status</option>
                     <option value="pending">Pending</option>
                     <option value="approved">Approved</option>
                     <option value="rejected">Rejected</option>
                   </select>
-                  <button onClick={openNewRequestModal} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', backgroundColor: '#2563EB', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
-                    <Plus size={14} /> New Migration Request
+                  <button
+                    onClick={openNewRequestModal}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '8px',
+                      padding: '10px 18px',
+                      background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
+                      color: '#fff', border: 'none', borderRadius: '10px',
+                      fontSize: '13px', fontWeight: 700, cursor: 'pointer',
+                      boxShadow: '0 4px 12px rgba(37,99,235,0.2)',
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.15s ease'
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(37,99,235,0.3)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(37,99,235,0.2)'; }}
+                  >
+                    <Plus size={16} /> New Migration Request
                   </button>
                 </div>
               </div>
+
 
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
@@ -794,26 +823,51 @@ export default function MigrationRecords() {
                 </div>
 
                 {actionError && <p style={{ color: '#EF4444', fontSize: '12px', marginBottom: '12px' }}>{actionError}</p>}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <button
                     onClick={() => handleDecision('rejected')}
                     disabled={actioning}
-                    style={{ padding: '10px', backgroundColor: 'transparent', color: '#EF4444', border: '1px solid #EF4444', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>
+                    style={{
+                      padding: '10px 14px', backgroundColor: '#F8FAFC', color: '#64748B',
+                      border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '12px', fontWeight: 700,
+                      cursor: actioning ? 'not-allowed' : 'pointer', transition: 'all 0.15s'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.backgroundColor = '#F1F5F9'}
+                    onMouseLeave={e => e.currentTarget.style.backgroundColor = '#F8FAFC'}
+                  >
                     Return Request
                   </button>
                   <button
                     onClick={() => handleDecision('rejected')}
                     disabled={actioning}
-                    style={{ padding: '10px', backgroundColor: '#FEE2E2', color: '#DC2626', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>
+                    style={{
+                      padding: '10px 14px', backgroundColor: '#FEF2F2', color: '#DC2626',
+                      border: '1px solid #FEE2E2', borderRadius: '10px', fontSize: '12px', fontWeight: 700,
+                      cursor: actioning ? 'not-allowed' : 'pointer', transition: 'all 0.15s'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.backgroundColor = '#FEE2E2'}
+                    onMouseLeave={e => e.currentTarget.style.backgroundColor = '#FEF2F2'}
+                  >
                     Reject
                   </button>
                   <button
                     onClick={() => handleDecision('approved')}
                     disabled={actioning}
-                    style={{ padding: '10px', backgroundColor: '#2563EB', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>
+                    style={{
+                      padding: '10px 14px',
+                      background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
+                      color: '#fff', border: 'none', borderRadius: '10px', fontSize: '12px', fontWeight: 700,
+                      boxShadow: '0 4px 12px rgba(37,99,235,0.2)',
+                      cursor: actioning ? 'not-allowed' : 'pointer', opacity: actioning ? 0.7 : 1,
+                      transition: 'all 0.15s'
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(37,99,235,0.3)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(37,99,235,0.2)'; }}
+                  >
                     {actioning ? 'Processing...' : 'Approve'}
                   </button>
                 </div>
+
               </div>
             )}
 
@@ -869,7 +923,7 @@ export default function MigrationRecords() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                    Email <span style={{ color: '#94A3B8', fontWeight: 400 }}>(Optional)</span>
+                    Email <span style={{ color: '#EF4444' }}>*</span>
                   </label>
                   <input
                     type="email"
@@ -881,7 +935,7 @@ export default function MigrationRecords() {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                    Phone <span style={{ color: '#94A3B8', fontWeight: 400 }}>(Optional)</span>
+                    Phone <span style={{ color: '#EF4444' }}>*</span>
                   </label>
                   <input
                     type="text"

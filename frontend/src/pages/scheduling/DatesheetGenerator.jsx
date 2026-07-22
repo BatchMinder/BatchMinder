@@ -97,9 +97,12 @@ export default function DatesheetGenerator({ setActiveNav }) {
   const handleCompile = async () => {
     setGenerating(true);
     try {
+      const token = localStorage.getItem("token");
+      const authHeaders = { "Authorization": `Bearer ${token}` };
+      
       const [batchesRes, usersRes] = await Promise.all([
-        fetch("/api/batches"),
-        fetch("/api/users")
+        fetch("/api/batches", { headers: authHeaders }),
+        fetch("/api/users", { headers: authHeaders })
       ]);
 
       let allBatches = [];
@@ -125,7 +128,7 @@ export default function DatesheetGenerator({ setActiveNav }) {
       for (const batch of allBatches) {
         if(selectedBatchId && batch._id !== selectedBatchId) continue;
         
-        const currRes = await fetch(`/api/curriculum/batch/${batch._id}`);
+        const currRes = await fetch(`/api/curriculum/batch/${batch._id}`, { headers: authHeaders });
         let courses = [];
         if (currRes.ok) {
           const currData = await currRes.json();
@@ -155,7 +158,10 @@ export default function DatesheetGenerator({ setActiveNav }) {
 
       const saveRes = await fetch("/api/scheduling/datesheet", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...authHeaders
+        },
         body: JSON.stringify({ entries: generatedEntries })
       });
       
@@ -263,30 +269,10 @@ export default function DatesheetGenerator({ setActiveNav }) {
   return (
     <div className="bg-slate-50 min-h-screen text-slate-800 p-4 sm:p-6 pb-20 font-sans max-w-full overflow-x-hidden">
       
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-extrabold text-[#1B3A6B] font-display">Exam Management</h1>
-          <div className="text-xs text-slate-500 font-medium mt-1 flex flex-wrap items-center gap-1.5">
-            <span className="hover:text-brandAccent cursor-pointer transition-colors">BatchMinder ERP</span>
-            <span className="text-slate-300">/</span>
-            <span className="hover:text-brandAccent cursor-pointer transition-colors">Academic Management</span>
-            <span className="text-slate-300">/</span>
-            <span className="text-slate-700 font-bold">Exam Datesheet Compiler</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border border-slate-200 text-xs font-bold text-slate-600 shadow-sm">
-            <Calendar className="w-4 h-4 text-slate-400" />
-            Friday, May 22, 2026
-          </div>
-        </div>
-      </div>
-
       {/* Top Filter Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center gap-4 flex-1">
-          <div className="flex flex-col gap-1 w-full lg:w-40">
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
+          <div className="flex flex-col gap-1 w-full">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Department</label>
             <div className="relative">
               <select className="w-full appearance-none bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 py-2 px-3 rounded-lg outline-none cursor-pointer">
@@ -295,7 +281,7 @@ export default function DatesheetGenerator({ setActiveNav }) {
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
-          <div className="flex flex-col gap-1 w-full lg:w-44">
+          <div className="flex flex-col gap-1 w-full">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Program</label>
             <div className="relative">
               <select className="w-full appearance-none bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 py-2 px-3 rounded-lg outline-none cursor-pointer">
@@ -304,7 +290,7 @@ export default function DatesheetGenerator({ setActiveNav }) {
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
-          <div className="flex flex-col gap-1 w-full lg:w-40">
+          <div className="flex flex-col gap-1 w-full">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Batch (Year-Term)</label>
             <div className="relative">
               <select 
@@ -312,12 +298,13 @@ export default function DatesheetGenerator({ setActiveNav }) {
                 onChange={e => setSelectedBatchId(e.target.value)}
                 className="w-full appearance-none bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 py-2 px-3 rounded-lg outline-none cursor-pointer"
               >
-                {batches.map(b => <option key={b._id} value={b._id}>{b.code} (2023 Spring)</option>)}
+                {batches.map(b => <option key={b._id} value={b._id}>{b.code} ({b.startYear || 2024})</option>)}
+
               </select>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
-          <div className="flex flex-col gap-1 w-full lg:w-32">
+          <div className="flex flex-col gap-1 w-full">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Semester</label>
             <div className="relative">
               <select 
@@ -325,25 +312,52 @@ export default function DatesheetGenerator({ setActiveNav }) {
                 onChange={e => setSelectedSemester(e.target.value)}
                 className="w-full appearance-none bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 py-2 px-3 rounded-lg outline-none cursor-pointer"
               >
+                <option value="">All Semesters</option>
                 {[1,2,3,4,5,6,7,8].map(s => <option key={s} value={s}>Semester {s}</option>)}
               </select>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
         </div>
-        <div>
+        <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+          <button 
+            onClick={handleCompile}
+            disabled={generating}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '10px 18px',
+              background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)', color: '#fff',
+              border: 'none', borderRadius: '10px',
+              fontSize: '13px', fontWeight: 700, cursor: generating ? 'not-allowed' : 'pointer',
+              opacity: generating ? 0.7 : 1,
+              boxShadow: '0 4px 12px rgba(37,99,235,0.2)',
+              transition: 'all 0.15s ease'
+            }}
+            onMouseEnter={e => { if(!generating) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(37,99,235,0.3)'; } }}
+            onMouseLeave={e => { if(!generating) { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(37,99,235,0.2)'; } }}
+          >
+            <RefreshCw size={15} className={generating ? 'animate-spin' : ''} /> 
+            {generating ? 'Processing...' : 'Compile Datesheet'}
+          </button>
           <button 
             onClick={handleExportDatesheet}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-brandAccent/30 text-brandAccent text-xs font-bold rounded-lg shadow-sm hover:bg-blue-50 transition-colors"
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '10px 18px',
+              backgroundColor: '#EFF6FF', color: '#2563EB',
+              border: '1px solid #BFDBFE', borderRadius: '10px',
+              fontSize: '13px', fontWeight: 700, cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+            onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#2563EB'; e.currentTarget.style.color = '#fff'; }}
+            onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#EFF6FF'; e.currentTarget.style.color = '#2563EB'; }}
           >
-            <Download className="w-4 h-4" /> Export Datesheet
+            <Download size={15} /> Export Datesheet
           </button>
         </div>
       </div>
 
-      <div className="flex flex-col xl:flex-row gap-6 items-start">
-        {/* Left Column: Grid & Tables */}
-        <div className="flex-1 w-full space-y-6 overflow-hidden">
+      <div className="space-y-6">
           
           {/* Main Grid Card */}
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
@@ -353,7 +367,6 @@ export default function DatesheetGenerator({ setActiveNav }) {
                 <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase tracking-wider rounded border border-emerald-200">Published</span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-slate-500 font-medium">Effective From: July 13, 2026</span>
                 <button 
                   onClick={() => setActiveNav && setActiveNav('schedule_override')}
                   className="px-4 py-2 bg-brandAccent text-white text-xs font-bold rounded-lg shadow-sm hover:bg-blue-600 transition-colors"
@@ -404,9 +417,9 @@ export default function DatesheetGenerator({ setActiveNav }) {
             </div>
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-6">
+          <div className="flex flex-col gap-6">
             {/* Bottom Table: Exam Schedule Details */}
-            <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl shadow-sm p-5 overflow-hidden">
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 overflow-hidden min-w-0">
               <h3 className="text-sm font-bold text-slate-800 mb-4">Exam Schedule Details</h3>
               <div className="overflow-x-auto rounded-xl border border-slate-200">
                 <table className="w-full text-left text-xs min-w-[700px]">
@@ -463,7 +476,7 @@ export default function DatesheetGenerator({ setActiveNav }) {
             </div>
 
             {/* Bottom Panel: Clash Check */}
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 flex flex-col">
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 flex flex-col min-w-0">
               <h3 className="text-sm font-bold text-slate-800 mb-4">Datesheet Clash Check</h3>
               
               {conflicts.length === 0 ? (
@@ -514,10 +527,8 @@ export default function DatesheetGenerator({ setActiveNav }) {
             </div>
           </div>
 
-        </div>
-
-        {/* Right Sidebar */}
-        <div className="w-full xl:w-80 space-y-6 flex-shrink-0">
+          {/* Summary Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           {/* Exam Summary */}
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
@@ -594,32 +605,7 @@ export default function DatesheetGenerator({ setActiveNav }) {
             )}
           </div>
 
-          {/* Quick Actions */}
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
-            <h3 className="text-sm font-bold text-slate-800 mb-4">Quick Actions</h3>
-            <div className="space-y-2">
-              <button className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-brandAccent/30 hover:bg-blue-50 text-brandNavy text-xs font-bold transition-all text-left">
-                <Plus className="w-4 h-4" /> Add Exam
-              </button>
-              <button className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-brandAccent/30 hover:bg-blue-50 text-brandNavy text-xs font-bold transition-all text-left">
-                <UserPlus className="w-4 h-4" /> Assign Invigilator
-              </button>
-              <button className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-brandAccent/30 hover:bg-blue-50 text-brandNavy text-xs font-bold transition-all text-left">
-                <MapPin className="w-4 h-4" /> Assign Room
-              </button>
-              <button className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-amber-500/30 hover:bg-amber-50 text-amber-600 text-xs font-bold transition-all text-left">
-                <AlertCircle className="w-4 h-4" /> Check Clash
-              </button>
-              <button 
-                onClick={handleCompile}
-                disabled={generating}
-                className="w-full flex items-center gap-3 p-3 rounded-xl border border-transparent bg-brandNavy text-white hover:bg-blue-900 text-xs font-bold transition-all text-left disabled:opacity-50"
-              >
-                <RefreshCw className={`w-4 h-4 ${generating ? 'animate-spin' : ''}`} /> 
-                {generating ? 'Processing...' : 'Compile Datesheet'}
-              </button>
-            </div>
-          </div>
+
 
           {/* Exam Info */}
           <div className="bg-slate-50 border border-slate-200 rounded-2xl shadow-sm p-5">
@@ -643,7 +629,6 @@ export default function DatesheetGenerator({ setActiveNav }) {
               </div>
             </div>
           </div>
-
         </div>
       </div>
     </div>

@@ -5,14 +5,20 @@ import {
   CheckCircle, AlertTriangle, FileText, Bell, Edit3, Trash2, RefreshCw
 } from 'lucide-react';
 import { CircularProgress } from '@mui/material';
+
+
+
+
 import {
   ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip
 } from 'recharts';
+import { useAuth } from '../../contexts/AuthContext';
 import { useModal } from '../../contexts/ModalContext';
 import AcademicSummary from '../../pages/students/AcademicSummary';
 import DegreeProgress from '../../pages/students/DegreeProgress';
 
 export default function StudentRecords({ setActiveNav }) {
+  const { user } = useAuth();
   const { showConfirm, showAlert, showSuccess } = useModal();
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,7 +34,7 @@ export default function StudentRecords({ setActiveNav }) {
   const [selected, setSelected] = useState(null);
   const [detailTab, setDetailTab] = useState('profile');
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ rollNumber: '', name: '', email: '', departmentId: '', batchId: '', currentSemester: 1, cgpa: '', intakeSession: 'Fall' });
+  const [formData, setFormData] = useState({ rollNumber: '', name: '', email: '', phone: '', departmentId: '', batchId: '', currentSemester: 1, cgpa: '', intakeSession: 'Fall' });
   const [batches, setBatches] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -84,6 +90,7 @@ export default function StudentRecords({ setActiveNav }) {
       rollNumber: autoRoll,
       name: '',
       email: '',
+      phone: '',
       departmentId: defaultDept,
       batchId: defaultBatch,
       currentSemester: 1,
@@ -96,7 +103,7 @@ export default function StudentRecords({ setActiveNav }) {
   // Edit / Delete Student States
   const [editingStudent, setEditingStudent] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editForm, setEditForm] = useState({ rollNumber: '', name: '', email: '', departmentId: '', batchId: '', currentSemester: 1, cgpa: '', status: 'active', intakeSession: 'Fall' });
+  const [editForm, setEditForm] = useState({ rollNumber: '', name: '', email: '', phone: '', departmentId: '', batchId: '', currentSemester: 1, cgpa: '', status: 'active', intakeSession: 'Fall' });
 
   const handleEditClick = (s) => {
     setEditingStudent(s);
@@ -104,6 +111,7 @@ export default function StudentRecords({ setActiveNav }) {
       rollNumber: s.rollNumber,
       name: s.name,
       email: s.email || '',
+      phone: s.phone || '',
       departmentId: s.departmentId?._id || s.departmentId || '',
       batchId: s.batchId?._id || s.batchId || '',
       cgpa: s.cgpa || '',
@@ -258,7 +266,7 @@ export default function StudentRecords({ setActiveNav }) {
       const data = await res.json();
       if (res.ok) {
         setShowForm(false);
-        setFormData({ rollNumber: '', name: '', email: '', departmentId: '', batchId: '', cgpa: '' });
+        setFormData({ rollNumber: '', name: '', email: '', phone: '', departmentId: '', batchId: '', cgpa: '' });
         setPage(1);
         showSuccess('Student record created successfully.');
         fetchStudents();
@@ -329,13 +337,13 @@ export default function StudentRecords({ setActiveNav }) {
       const matchesStatus = !statusFilter || s.status === statusFilter;
       const deptName = s.departmentId?.name || '';
       const matchesDept = !deptFilter || deptName.toLowerCase().includes(deptFilter.toLowerCase());
-      
+
       const batchCode = s.batchId?.code || '';
       const matchesBatch = !batchFilter || batchCode.toLowerCase().includes(batchFilter.toLowerCase());
-      
+
       const sem = s.currentSemester || 1;
       const matchesSemester = !semesterFilter || sem === Number(semesterFilter);
-      
+
       return matchesSearch && matchesStatus && matchesDept && matchesBatch && matchesSemester;
     });
   }, [students, search, statusFilter, deptFilter, batchFilter, semesterFilter]);
@@ -757,38 +765,40 @@ export default function StudentRecords({ setActiveNav }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
           {/* Activities Card */}
-          <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>Recent Activities</h3>
-              <span
-                onClick={() => setActiveNav && setActiveNav('audit_logs')}
-                style={{ fontSize: '11px', fontWeight: 700, color: '#2563EB', cursor: 'pointer' }}
-              >
-                View All
-              </span>
-            </div>
+          {(user?.role === 'dean' || user?.role === 'admin') && (
+            <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>Recent Activities</h3>
+                <span
+                  onClick={() => setActiveNav && setActiveNav('audit_logs')}
+                  style={{ fontSize: '11px', fontWeight: 700, color: '#2563EB', cursor: 'pointer' }}
+                >
+                  View All
+                </span>
+              </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {auditLogs.length > 0 ? (
-                auditLogs.map((log, i) => (
-                  <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                    <div style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: log.action.includes('FAILED') ? '#FEE2E2' : '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: log.action.includes('FAILED') ? '#EF4444' : '#2563EB' }}>
-                      {log.action.includes('INGESTED') ? <FileText size={12} /> : <UserPlus size={12} />}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {auditLogs.length > 0 ? (
+                  auditLogs.map((log, i) => (
+                    <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                      <div style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: log.action.includes('FAILED') ? '#FEE2E2' : '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: log.action.includes('FAILED') ? '#EF4444' : '#2563EB' }}>
+                        {log.action.includes('INGESTED') ? <FileText size={12} /> : <UserPlus size={12} />}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#334155', lineHeight: 1.2 }}>{log.action.replace(/_/g, ' ')}</span>
+                        <span style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.2 }}>{log.metadata?.description || log.description || 'System Audit Log'}</span>
+                        <span style={{ fontSize: '9px', fontWeight: 700, color: '#94A3B8', marginTop: '2px', textTransform: 'uppercase' }}>
+                          {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#334155', lineHeight: 1.2 }}>{log.action.replace(/_/g, ' ')}</span>
-                      <span style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.2 }}>{log.metadata?.description || log.description || 'System Audit Log'}</span>
-                      <span style={{ fontSize: '9px', fontWeight: 700, color: '#94A3B8', marginTop: '2px', textTransform: 'uppercase' }}>
-                        {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div style={{ padding: '24px', textAlign: 'center', color: '#94A3B8', fontSize: '12px' }}>No recent activities.</div>
-              )}
+                  ))
+                ) : (
+                  <div style={{ padding: '24px', textAlign: 'center', color: '#94A3B8', fontSize: '12px' }}>No recent activities.</div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* System Status Panel */}
           <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
@@ -991,8 +1001,8 @@ export default function StudentRecords({ setActiveNav }) {
       {/* ── Add Student Form Modal ── */}
       {showForm && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', padding: '16px' }}>
-          <div style={{ backgroundColor: '#ffffff', borderRadius: '24px', padding: '28px', maxWidth: '520px', width: '100%', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', border: '1px solid #E2E8F0' }}>
-            
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '24px', padding: '28px', maxWidth: '520px', width: '100%', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', border: '1px solid #E2E8F0', maxHeight: '90vh', overflowY: 'auto' }}>
+
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -1011,7 +1021,7 @@ export default function StudentRecords({ setActiveNav }) {
 
             <form onSubmit={handleSave}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                
+
                 {/* Roll Number with Auto-Generate Badge */}
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
@@ -1052,18 +1062,33 @@ export default function StudentRecords({ setActiveNav }) {
                   />
                 </div>
 
-                {/* Email */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
-                    Institutional Email Address
-                  </label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={e => setFormData(f => ({ ...f, email: e.target.value }))}
-                    placeholder="e.g. ahmed@stmu.edu.pk"
-                    style={{ width: '100%', padding: '10px 14px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }}
-                  />
+                {/* Email & Phone */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                      Institutional Email
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={e => setFormData(f => ({ ...f, email: e.target.value }))}
+                      placeholder="e.g. ahmed@stmu.edu.pk"
+                      style={{ width: '100%', padding: '10px 14px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                      Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={e => setFormData(f => ({ ...f, phone: e.target.value }))}
+                      placeholder="e.g. +92 300 1234567"
+                      style={{ width: '100%', padding: '10px 14px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }}
+                    />
+                  </div>
                 </div>
 
                 {/* Department, Batch & Intake Term Row */}
@@ -1188,7 +1213,7 @@ export default function StudentRecords({ setActiveNav }) {
       {/* ── Edit Student Form Modal ── */}
       {showEditModal && editingStudent && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', padding: '16px' }}>
-          <div style={{ backgroundColor: '#fff', borderRadius: '24px', padding: '28px', maxWidth: '520px', width: '100%', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', border: '1px solid #E2E8F0' }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: '24px', padding: '28px', maxWidth: '520px', width: '100%', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', border: '1px solid #E2E8F0', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>Edit Student Record</h3>
               <button onClick={() => { setShowEditModal(false); setEditingStudent(null); }} style={{ padding: '6px', border: 'none', backgroundColor: '#F1F5F9', borderRadius: '50%', cursor: 'pointer', color: '#64748B' }}><X size={18} /></button>
@@ -1205,10 +1230,17 @@ export default function StudentRecords({ setActiveNav }) {
                   <input required value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
                     style={{ width: '100%', padding: '10px 14px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
                 </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Email</label>
-                  <input type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
-                    style={{ width: '100%', padding: '10px 14px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Email</label>
+                    <input type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
+                      style={{ width: '100%', padding: '10px 14px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Phone</label>
+                    <input type="tel" value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))}
+                      style={{ width: '100%', padding: '10px 14px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
+                  </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>

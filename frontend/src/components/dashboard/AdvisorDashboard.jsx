@@ -151,14 +151,14 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
     : `conic-gradient(#E2E8F0 0% 100%)`;
 
   // Degree Progress Indicators
-  const onTrackCount = students.filter(s => s.cgpa >= 3.0).length;
-  const degreeAtRiskCount = students.filter(s => s.cgpa >= 2.0 && s.cgpa < 3.0).length;
-  const behindCount = students.filter(s => s.cgpa < 2.0).length;
+  const onTrackCount = students.filter(s => (s.cgpa || 0) >= 3.0).length;
+  const satisfactoryCount = students.filter(s => (s.cgpa || 0) >= 2.2 && (s.cgpa || 0) < 3.0).length;
+  const degreeAtRiskCount = students.filter(s => (s.cgpa || 0) < 2.2).length;
   const graduatedCount = students.filter(s => s.currentSemester >= 8).length;
 
   const onTrackPct = totalCount > 0 ? ((onTrackCount / totalCount) * 100).toFixed(1) : '0.0';
+  const satisfactoryPct = totalCount > 0 ? ((satisfactoryCount / totalCount) * 100).toFixed(1) : '0.0';
   const degreeAtRiskPct = totalCount > 0 ? ((degreeAtRiskCount / totalCount) * 100).toFixed(1) : '0.0';
-  const behindPct = totalCount > 0 ? ((behindCount / totalCount) * 100).toFixed(1) : '0.0';
   const graduatedPct = totalCount > 0 ? ((graduatedCount / totalCount) * 100).toFixed(1) : '0.0';
 
   // Real DB data only — no fallbacks
@@ -168,19 +168,102 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
   const pendingRequests = requests.filter(r => r.status === 'pending' || r.status === 'Pending' || r.status === 'Pending Advisor');
   const displayRequests = pendingRequests.slice(0, 5);
 
-  // Semester Trend — real data derived from students (grouped by semester)
-  const semesterMap = {};
+  // Semester Trend — real data derived from student courses
+  const GRADE_POINTS = {
+    'A+': 4.0, 'A': 4.0, 'A-': 3.67,
+    'B+': 3.33, 'B': 3.0, 'B-': 2.67,
+    'C+': 2.33, 'C': 2.0, 'C-': 1.67,
+    'D+': 1.33, 'D': 1.0, 'F': 0.0
+  };
+
+  const semAggregator = {}; 
+
   students.forEach(s => {
-    const sem = s.currentSemester || 1;
-    if (!semesterMap[sem]) semesterMap[sem] = [];
-    semesterMap[sem].push(s.cgpa || 0);
+    if (s.courses && s.courses.length > 0) {
+      const maxSem = Math.max(...s.courses.map(c => c.semester || 1));
+      
+      for (let sem = 1; sem <= maxSem; sem++) {
+        const coursesUpTo = s.courses.filter(c => (c.semester || 1) <= sem && c.grade && GRADE_POINTS[c.grade] !== undefined);
+        let pts = 0;
+        let cr = 0;
+        coursesUpTo.forEach(c => {
+          const ch = c.creditHours || 3;
+          pts += GRADE_POINTS[c.grade] * ch;
+          cr += ch;
+        });
+        if (cr > 0) {
+          if (!semAggregator[sem]) semAggregator[sem] = [];
+          semAggregator[sem].push(pts / cr);
+        }
+      }
+    }
   });
-  const semesterKeys = Object.keys(semesterMap).sort((a, b) => Number(a) - Number(b));
-  const semesterAvgGpas = semesterKeys.map(k => {
-    const vals = semesterMap[k];
-    return parseFloat((vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2));
-  });
-  const semesterLabels = semesterKeys.map(k => `Semester ${k}`);
+
+  const availableSems = Object.keys(semAggregator).map(Number).sort((a,b) => a - b);
+  const recentSems = availableSems; // Show all available semesters
+  
+  let finalTrendSems = [];
+  let finalTrendGpas = [];
+  
+  if (recentSems.length > 0) {
+    recentSems.forEach(sem => {
+      const gpas = semAggregator[sem];
+      const avg = gpas.reduce((a, b) => a + b, 0) / gpas.length;
+      finalTrendSems.push(sem);
+      finalTrendGpas.push(parseFloat(avg.toFixed(2)));
+    });
+  } else {
+    finalTrendSems = [];
+    finalTrendGpas = [];
+  }
+
+  const renderTrendSvg = () => {
+    const n = finalTrendGpas.length;
+    if (n === 0) return (
+      <div style={{ padding: '30px', textAlign: 'center', color: '#94A3B8', fontSize: '12px' }}>
+        No course records available yet.
+      </div>
+    );
+    
+    const xCoords = finalTrendGpas.map((_, i) => n === 1 ? 200 : 20 + (i * (360 / (n - 1))));
+    
+    const minGpa = Math.max(0, Math.min(...finalTrendGpas) - 0.2);
+    const maxGpa = Math.min(4.0, Math.max(...finalTrendGpas) + 0.2);
+    const range = maxGpa - minGpa || 1;
+    
+    const getY = (gpa) => 95 - ((gpa - minGpa) / range) * 75;
+    
+    const points = finalTrendGpas.map((gpa, i) => ({ x: xCoords[i], y: getY(gpa), gpa }));
+    
+    let pathD = "";
+    if (points.length > 1) {
+      pathD = `M ${points[0].x} ${points[0].y} `;
+      for (let i = 1; i < points.length; i++) {
+         pathD += `L ${points[i].x} ${points[i].y} `;
+      }
+    }
+    
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <svg viewBox="0 0 400 135" style={{ width: '100%', maxHeight: '160px', overflow: 'visible' }}>
+          <line x1="0" y1="20" x2="400" y2="20" stroke="#F1F5F9" strokeWidth="1" />
+          <line x1="0" y1="50" x2="400" y2="50" stroke="#F1F5F9" strokeWidth="1" />
+          <line x1="0" y1="80" x2="400" y2="80" stroke="#F1F5F9" strokeWidth="1" />
+          <line x1="0" y1="110" x2="400" y2="110" stroke="#E2E8F0" strokeWidth="1" />
+          
+          {pathD && <path d={pathD} fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />}
+          
+          {points.map((pt, i) => (
+            <React.Fragment key={i}>
+              <circle cx={pt.x} cy={pt.y} r="3.5" fill="#2563EB" />
+              <text x={pt.x} y={pt.y - 8} fontSize="9" fontWeight="bold" fill="#0F172A" textAnchor="middle">{pt.gpa.toFixed(2)}</text>
+              <text x={pt.x} y={128} fontSize="8" fontWeight="700" fill="#94A3B8" textAnchor="middle">Sem {finalTrendSems[i]}</text>
+            </React.Fragment>
+          ))}
+        </svg>
+      </div>
+    );
+  };
 
   // Submit mock meeting schedule
   const submitMeeting = (e) => {
@@ -212,7 +295,7 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
       {/* Dynamic Toast Alert */}
       {toastMessage && (
         <div style={{
-          position: 'fixed', top: '24px', right: '24px', zIndex: 1100,
+          position: 'fixed', bottom: '24px', right: '24px', zIndex: 1100,
           backgroundColor: '#0F172A', color: '#F8FAFC', border: '1px solid #334155',
           borderRadius: '12px', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '10px',
           boxShadow: '0 10px 25px rgba(0,0,0,0.2)', fontSize: '13px', fontWeight: 600
@@ -225,8 +308,8 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
         </div>
       )}
 
-      {/* ── FIVE METRIC CARDS ROW ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      {/* ── FOUR METRIC CARDS ROW ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Card 1: Total Students */}
         <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
@@ -299,9 +382,6 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
             <div style={{ width: '36px', height: '36px', borderRadius: '9px', backgroundColor: '#F5F3FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <BarChart2 size={17} color="#7C3AED" />
             </div>
-            <button onClick={() => setSelectedModal('prereq')} style={{ border: 'none', backgroundColor: 'transparent', fontSize: '10px', fontWeight: 700, color: '#94A3B8', cursor: 'pointer', fontFamily: 'inherit' }} onMouseEnter={e => e.currentTarget.style.color = '#7C3AED'} onMouseLeave={e => e.currentTarget.style.color = '#94A3B8'}>
-              Performance &rarr;
-            </button>
           </div>
           <div>
             <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.6px' }}>My Batch Avg CGPA</p>
@@ -442,42 +522,45 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
             Batch CGPA Distribution
           </h3>
 
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '20px' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '28px', padding: '10px 0' }}>
             {/* Custom conic-gradient donut chart */}
             <div style={{
-              width: '120px', height: '120px', borderRadius: '50%',
+              width: '140px', height: '140px', borderRadius: '50%',
               background: donutGradient, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: 'inset 0 0 0 20px #FFFFFF, 0 4px 10px rgba(0,0,0,0.05)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
               position: 'relative'
             }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <span style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>{totalCount}</span>
-                <span style={{ fontSize: '10px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase' }}>Students</span>
+              {/* Inner white circle to create the donut hole */}
+              <div style={{ 
+                width: '100px', height: '100px', borderRadius: '50%', backgroundColor: '#FFFFFF',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.04)'
+              }}>
+                <span style={{ fontSize: '26px', fontWeight: 800, color: '#0F172A', lineHeight: '1' }}>{totalCount}</span>
+                <span style={{ fontSize: '9px', fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', marginTop: '4px', letterSpacing: '0.5px' }}>Students</span>
               </div>
             </div>
 
             {/* Legends */}
-            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px', padding: '0 8px' }}>
               {[
                 { label: '3.50 - 4.00', val: range35Plus, pct: p1, color: '#10B981' },
                 { label: '2.50 - 3.49', val: range25_34, pct: p2, color: '#3B82F6' },
                 { label: '2.00 - 2.49', val: range20_24, pct: p3, color: '#F59E0B' },
                 { label: 'Below 1.99', val: rangeUnder2, pct: p4, color: '#EF4444' }
               ].map((l, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: l.color }} />
+                <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ width: '10px', height: '10px', borderRadius: '3px', backgroundColor: l.color }} />
                     <span style={{ color: '#475569', fontWeight: 600 }}>{l.label}</span>
                   </div>
-                  <span style={{ color: '#0F172A', fontWeight: 700 }}>{l.val} ({l.pct}%)</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ color: '#0F172A', fontWeight: 700 }}>{l.val}</span>
+                    <span style={{ color: '#94A3B8', fontWeight: 600, fontSize: '11px', width: '36px', textAlign: 'right' }}>({l.pct}%)</span>
+                  </div>
                 </div>
               ))}
             </div>
-          </div>
-          <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: '12px', marginTop: '12px' }}>
-            <button onClick={() => triggerToast('Detailed analytics data sync pending.')} style={{ border: 'none', backgroundColor: 'transparent', color: '#2563EB', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-              View Detailed Analytics &rarr;
-            </button>
           </div>
         </div>
 
@@ -485,17 +568,14 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
         <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #F1F5F9' }}>
             <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Degree Progress Overview</h3>
-            <button onClick={() => triggerToast('Academic profiles mapped.')} style={{ border: 'none', backgroundColor: 'transparent', fontSize: '12px', fontWeight: 700, color: '#2563EB', cursor: 'pointer', fontFamily: 'inherit' }}>
-              View All
-            </button>
           </div>
 
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px', justifyContent: 'center' }}>
             {[
-              { label: 'On Track', count: onTrackCount, pct: onTrackPct, color: '#10B981', subtext: 'CGPA >= 3.00' },
-              { label: 'At-Risk', count: degreeAtRiskCount, pct: degreeAtRiskPct, color: '#F59E0B', subtext: 'CGPA 2.00 - 2.99' },
-              { label: 'Behind', count: behindCount, pct: behindPct, color: '#EF4444', subtext: 'CGPA < 2.00' },
-              { label: 'Graduated', count: graduatedCount, pct: graduatedPct, color: '#6366F1', subtext: 'Semester >= 8' }
+              { label: 'On Track', count: onTrackCount, pct: onTrackPct, color: '#10B981', subtext: '≥ 3.00' },
+              { label: 'Satisfactory', count: satisfactoryCount, pct: satisfactoryPct, color: '#3B82F6', subtext: '2.20 - 2.99' },
+              { label: 'At-Risk', count: degreeAtRiskCount, pct: degreeAtRiskPct, color: '#EF4444', subtext: '< 2.20' },
+              { label: 'Graduated', count: graduatedCount, pct: graduatedPct, color: '#6366F1', subtext: 'Sem 8+' }
             ].map((bar, i) => (
               <div key={i}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', fontSize: '12px' }}>
@@ -508,17 +588,12 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
               </div>
             ))}
           </div>
-          <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: '12px', marginTop: '12px' }}>
-            <button onClick={() => triggerToast('Degree mapping recalculating...')} style={{ border: 'none', backgroundColor: 'transparent', color: '#2563EB', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-              View Degree Progress &rarr;
-            </button>
-          </div>
         </div>
 
       </div>
 
       {/* ── BOTTOM ROW: Pending Approvals, Performance Trend ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-4 mb-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] xl:grid-cols-[1fr_450px] gap-4 mb-4">
         
         {/* Widget 4: Pending Approvals Table */}
         <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -590,49 +665,10 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
         <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #F1F5F9' }}>
             <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Student Performance Trend [My Batch]</h3>
-            <span style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>Last 5 Semesters</span>
+            <span style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>All Semesters</span>
           </div>
 
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            {/* curved line trend graph using premium SVG */}
-            <svg viewBox="0 0 240 120" style={{ width: '100%', height: '110px' }}>
-              {/* grid lines */}
-              <line x1="0" y1="20" x2="240" y2="20" stroke="#F1F5F9" strokeWidth="1" />
-              <line x1="0" y1="50" x2="240" y2="50" stroke="#F1F5F9" strokeWidth="1" />
-              <line x1="0" y1="80" x2="240" y2="80" stroke="#F1F5F9" strokeWidth="1" />
-              <line x1="0" y1="110" x2="240" y2="110" stroke="#E2E8F0" strokeWidth="1" />
-              
-              {/* Curved trend path */}
-              <path d="M 20 85 Q 65 80 110 78 T 200 35" fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round" />
-              
-              {/* Data points */}
-              <circle cx="20" cy="85" r="3.5" fill="#2563EB" />
-              <circle cx="75" cy="81" r="3.5" fill="#2563EB" />
-              <circle cx="130" cy="77" r="3.5" fill="#2563EB" />
-              <circle cx="185" cy="40" r="3.5" fill="#2563EB" />
-              
-              {/* Values labels */}
-              <text x="20" y="73" fontSize="8" fontWeight="bold" fill="#0F172A" textAnchor="middle">2.85</text>
-              <text x="75" y="69" fontSize="8" fontWeight="bold" fill="#0F172A" textAnchor="middle">2.92</text>
-              <text x="130" y="65" fontSize="8" fontWeight="bold" fill="#0F172A" textAnchor="middle">2.95</text>
-              <text x="185" y="28" fontSize="8" fontWeight="bold" fill="#0F172A" textAnchor="middle">3.28</text>
-            </svg>
-            
-            {/* Semester Labels */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', fontWeight: 700, color: '#94A3B8', marginTop: '8px' }}>
-              <span>F-23</span>
-              <span>S-24</span>
-              <span>F-24</span>
-              <span>S-25</span>
-              <span>F-25</span>
-            </div>
-          </div>
-          
-          <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: '12px', marginTop: '12px' }}>
-            <button onClick={() => triggerToast('Performance report compiling...')} style={{ border: 'none', backgroundColor: 'transparent', color: '#2563EB', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-              View Performance Report &rarr;
-            </button>
-          </div>
+          {renderTrendSvg()}
         </div>
 
 
@@ -643,7 +679,7 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
         <h3 style={{ margin: '0 0 16px', fontSize: '15px', fontWeight: 700, color: '#0F172A', paddingBottom: '16px', borderBottom: '1px solid #F1F5F9' }}>
           Quick Advisory Actions
         </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
             { title: 'Advise Courses', icon: BookOpen, iconColor: '#16A34A', bg: '#F0FDF4', action: () => setActiveNav('workflowQueue') },
             { title: 'Generate Report', icon: FileText, iconColor: '#2563EB', bg: '#EFF6FF', action: () => triggerToast('Generating academic report compilation...') },

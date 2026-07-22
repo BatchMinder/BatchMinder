@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Users, BookOpen, Layers, CheckSquare, Calendar, UploadCloud, AlertTriangle, Info, CheckCircle2, XCircle, Plus, FileSpreadsheet, Settings, FileText, CalendarDays, RefreshCw, Clock } from 'lucide-react';
 import { format } from 'date-fns';
@@ -20,6 +21,8 @@ export default function Dashboard({ departments, selectedDept, setActiveNav }) {
   const [cgpaDist, setCgpaDist] = useState(null);
   const [loading, setLoading] = useState(true);
   const [uploadPage, setUploadPage] = useState(1);
+  const { user } = useAuth();
+  const isDeanOrHOD = user?.role === 'dean' || user?.role === 'admin' || user?.role === 'academic_admin';
 
   const fetchData = async () => {
     setLoading(true);
@@ -65,11 +68,11 @@ export default function Dashboard({ departments, selectedDept, setActiveNav }) {
   } = stats;
 
   const statCards = [
-    { label: 'Total Students', value: totalStudents, subtitle: 'Total enrolled', icon: Users, color: '#2563EB', bg: '#EFF6FF' },
-    { label: 'Total Courses', value: totalCourses, subtitle: 'In active curriculums', icon: BookOpen, color: '#10B981', bg: '#F0FDF4' },
-    { label: 'Active Batches', value: batches.allocated, subtitle: `Out of ${batches.total} total`, icon: Layers, color: '#F59E0B', bg: '#FFFBEB' },
-    { label: 'Pending Approvals', value: pendingMigrations, subtitle: 'Require attention', icon: CheckSquare, color: '#EF4444', bg: '#FEF2F2' },
-    { label: 'Scheduled Classes', value: scheduledClasses, subtitle: 'Timetable slots', icon: Calendar, color: '#8B5CF6', bg: '#F5F3FF' },
+    { label: 'Total Students', value: totalStudents, subtitle: 'Total enrolled', icon: Users, color: '#2563EB', bg: '#EFF6FF', nav: 'students' },
+    { label: 'Total Courses', value: totalCourses, subtitle: 'In active curriculums', icon: BookOpen, color: '#10B981', bg: '#F0FDF4', nav: 'curriculum' },
+    { label: 'Active Batches', value: batches.allocated, subtitle: `Out of ${batches.total} total`, icon: Layers, color: '#F59E0B', bg: '#FFFBEB', nav: 'batches' },
+    { label: 'Pending Approvals', value: pendingMigrations, subtitle: 'Require attention', icon: CheckSquare, color: '#EF4444', bg: '#FEF2F2', nav: 'migrations' },
+    { label: 'Scheduled Classes', value: scheduledClasses, subtitle: 'Timetable slots', icon: Calendar, color: '#8B5CF6', bg: '#F5F3FF', nav: 'timetable_generator' },
   ];
 
   // Overview Donut Data
@@ -124,7 +127,25 @@ export default function Dashboard({ departments, selectedDept, setActiveNav }) {
         {statCards.map((card, i) => {
           const Icon = card.icon;
           return (
-            <div key={i} style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '20px', border: '1px solid #E2E8F0', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
+            <button
+              key={i}
+              onClick={() => setActiveNav && card.nav && setActiveNav(card.nav)}
+              style={{
+                backgroundColor: '#fff', borderRadius: '16px', padding: '20px',
+                border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+                cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.borderColor = '#CBD5E1';
+                e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.06)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.transform = 'none';
+                e.currentTarget.style.borderColor = '#E2E8F0';
+                e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.02)';
+              }}
+            >
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px' }}>
                 <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Icon size={20} color={card.color} />
@@ -133,33 +154,49 @@ export default function Dashboard({ departments, selectedDept, setActiveNav }) {
               <p style={{ margin: '0 0 4px', fontSize: '13px', fontWeight: 600, color: '#64748B' }}>{card.label}</p>
               <h3 style={{ margin: '0 0 8px', fontSize: '28px', fontWeight: 800, color: '#0F172A', lineHeight: 1 }}>{card.value.toLocaleString()}</h3>
               <p style={{ margin: 0, fontSize: '12px', fontWeight: 500, color: '#94A3B8' }}>{card.subtitle}</p>
-            </div>
+            </button>
           );
         })}
       </div>
 
-      {/* 2. UPLOADS & ALERTS ROW */}
-      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr_380px] gap-5 mb-6">
+
+      {/* 2. UPLOADS ROW */}
+      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-5 mb-6">
 
         {/* Upload Zone */}
         <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
           <h3 style={{ margin: '0 0 16px', fontSize: '15px', fontWeight: 700, color: '#0F172A', alignSelf: 'flex-start' }}>Upload Student Data</h3>
-          <UploadCloud size={48} color="#94A3B8" style={{ marginBottom: '16px' }} />
-          <p style={{ margin: '0 0 8px', fontSize: '13px', color: '#64748B' }}>Upload CSV or Excel file to add or update student records</p>
-          <p style={{ margin: '0 0 20px', fontSize: '12px', color: '#94A3B8' }}>Supported formats: .csv, .xlsx</p>
+          <UploadCloud size={44} color="#3B82F6" style={{ marginBottom: '14px' }} />
+          <p style={{ margin: '0 0 6px', fontSize: '13px', color: '#64748B', fontWeight: 500 }}>Upload CSV or Excel file to add or update student records</p>
+          <p style={{ margin: '0 0 18px', fontSize: '12px', color: '#94A3B8' }}>Supported formats: .csv, .xlsx</p>
           <button
             onClick={handleUploadClick}
-            style={{ width: '100%', padding: '10px', backgroundColor: '#2563EB', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', marginBottom: '12px' }}
+            style={{
+              width: '100%', padding: '10px 16px',
+              background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
+              color: '#fff', border: 'none', borderRadius: '10px',
+              fontSize: '13px', fontWeight: 700, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+              boxShadow: '0 4px 12px rgba(37,99,235,0.2)',
+              transition: 'all 0.15s ease', marginBottom: '10px'
+            }}
+            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(37,99,235,0.3)'; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(37,99,235,0.2)'; }}
           >
-            Choose File to Upload
+            <UploadCloud size={16} /> Choose File to Upload
           </button>
           <button
             onClick={handleDownloadTemplate}
             style={{
-              background: 'none', border: 'none', padding: 0, fontSize: '13px',
-              color: '#2563EB', fontWeight: 500, display: 'flex',
-              alignItems: 'center', gap: '4px', cursor: 'pointer', fontFamily: 'inherit'
+              width: '100%', padding: '8px 14px',
+              backgroundColor: '#F8FAFC', color: '#2563EB',
+              border: '1px solid #E2E8F0', borderRadius: '8px',
+              fontSize: '12px', fontWeight: 600, display: 'flex',
+              alignItems: 'center', justifyContent: 'center', gap: '6px',
+              cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s ease'
             }}
+            onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#EFF6FF'; e.currentTarget.style.borderColor = '#BFDBFE'; }}
+            onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#F8FAFC'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
           >
             <FileSpreadsheet size={14} /> Download Sample Template
           </button>
@@ -169,7 +206,18 @@ export default function Dashboard({ departments, selectedDept, setActiveNav }) {
         <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Recent Uploads</h3>
-            <button onClick={handleUploadClick} style={{ fontSize: '13px', color: '#2563EB', border: 'none', background: 'none', fontWeight: 600, cursor: 'pointer' }}>View All</button>
+            <button
+              onClick={handleUploadClick}
+              style={{
+                fontSize: '12px', color: '#2563EB', border: '1px solid #DBEAFE',
+                backgroundColor: '#EFF6FF', padding: '4px 12px', borderRadius: '6px',
+                fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s'
+              }}
+              onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#2563EB'; e.currentTarget.style.color = '#fff'; }}
+              onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#EFF6FF'; e.currentTarget.style.color = '#2563EB'; }}
+            >
+              View All
+            </button>
           </div>
           <div style={{ overflowX: 'auto', flex: 1 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
@@ -195,7 +243,7 @@ export default function Dashboard({ departments, selectedDept, setActiveNav }) {
                         <td style={{ padding: '12px 8px', color: '#64748B' }}>{u.uploadedBy}</td>
                         <td style={{ padding: '12px 8px', color: '#64748B' }}>{u.records}</td>
                         <td style={{ padding: '12px 8px' }}>
-                          <span style={{ padding: '4px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 600, backgroundColor: u.status === 'complete' ? '#D1FAE5' : (u.status === 'failed' ? '#FEE2E2' : '#FEF3C7'), color: u.status === 'complete' ? '#059669' : (u.status === 'failed' ? '#DC2626' : '#D97706') }}>
+                          <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 600, backgroundColor: u.status === 'complete' ? '#D1FAE5' : (u.status === 'failed' ? '#FEE2E2' : '#FEF3C7'), color: u.status === 'complete' ? '#059669' : (u.status === 'failed' ? '#DC2626' : '#D97706') }}>
                             {u.status.charAt(0).toUpperCase() + u.status.slice(1)}
                           </span>
                         </td>
@@ -216,27 +264,27 @@ export default function Dashboard({ departments, selectedDept, setActiveNav }) {
                   disabled={uploadPage === 1}
                   onClick={() => setUploadPage(p => Math.max(1, p - 1))}
                   style={{
-                    padding: '6px 12px', fontSize: '12px', fontWeight: 600,
-                    borderRadius: '6px', border: '1px solid #E2E8F0',
+                    padding: '6px 14px', fontSize: '12px', fontWeight: 600,
+                    borderRadius: '8px', border: '1px solid #E2E8F0',
                     backgroundColor: uploadPage === 1 ? '#F8FAFC' : '#fff',
-                    color: uploadPage === 1 ? '#94A3B8' : '#334155',
+                    color: uploadPage === 1 ? '#CBD5E1' : '#334155',
                     cursor: uploadPage === 1 ? 'not-allowed' : 'pointer',
                     transition: 'all 0.15s'
                   }}
                 >
                   Previous
                 </button>
-                <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 500 }}>
+                <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 600 }}>
                   Page {uploadPage} of {totalUploadPages}
                 </span>
                 <button
                   disabled={uploadPage === totalUploadPages}
                   onClick={() => setUploadPage(p => Math.min(totalUploadPages, p + 1))}
                   style={{
-                    padding: '6px 12px', fontSize: '12px', fontWeight: 600,
-                    borderRadius: '6px', border: '1px solid #E2E8F0',
+                    padding: '6px 14px', fontSize: '12px', fontWeight: 600,
+                    borderRadius: '8px', border: '1px solid #E2E8F0',
                     backgroundColor: uploadPage === totalUploadPages ? '#F8FAFC' : '#fff',
-                    color: uploadPage === totalUploadPages ? '#94A3B8' : '#334155',
+                    color: uploadPage === totalUploadPages ? '#CBD5E1' : '#334155',
                     cursor: uploadPage === totalUploadPages ? 'not-allowed' : 'pointer',
                     transition: 'all 0.15s'
                   }}
@@ -248,45 +296,9 @@ export default function Dashboard({ departments, selectedDept, setActiveNav }) {
           })()}
         </div>
 
-        {/* System Alerts */}
-        <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>System Alerts</h3>
-            <button
-              onClick={() => setActiveNav('audit_logs')}
-              style={{ fontSize: '13px', color: '#2563EB', border: 'none', background: 'none', fontWeight: 600, cursor: 'pointer' }}
-            >
-              View All
-            </button>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto', flex: 1 }}>
-            {activityLogs.length === 0 ? (
-              <p style={{ color: '#94A3B8', fontSize: '13px', textAlign: 'center' }}>No recent alerts.</p>
-            ) : (
-              activityLogs.slice(0, 5).map(log => {
-                let icon = <Info size={18} color="#3B82F6" />;
-                if (log.action.includes('CLASH') || log.action.includes('CRITICAL')) icon = <AlertTriangle size={18} color="#EF4444" />;
-                else if (log.action.includes('MIGRATION') || log.action.includes('APPROVAL')) icon = <AlertTriangle size={18} color="#F59E0B" />;
-                else if (log.action.includes('SAVED') || log.action.includes('CREATED')) icon = <CheckCircle2 size={18} color="#10B981" />;
-
-                return (
-                  <div key={log.id} style={{ display: 'flex', gap: '12px' }}>
-                    <div style={{ marginTop: '2px' }}>{icon}</div>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ margin: '0 0 2px', fontSize: '13px', fontWeight: 600, color: '#0F172A' }}>{log.action.replace(/_/g, ' ')}</p>
-                      <p style={{ margin: 0, fontSize: '12px', color: '#64748B' }}>{log.details.length > 50 ? log.details.slice(0, 50) + '...' : log.details}</p>
-                    </div>
-                    <span style={{ fontSize: '11px', color: '#94A3B8', whiteSpace: 'nowrap' }}>
-                      {format(new Date(log.time), 'MMM d, ha')}
-                    </span>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-
       </div>
+
+
 
       {/* 3. CHARTS & DEPARTMENTS ROW */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
@@ -392,10 +404,11 @@ export default function Dashboard({ departments, selectedDept, setActiveNav }) {
       {/* 4. QUICK ACTIONS ROW */}
       <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0' }}>
         <h3 style={{ margin: '0 0 16px', fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Quick Actions</h3>
-        <div style={{ display: 'flex', gap: '16px', overflowX: 'auto', paddingBottom: '8px' }}>
+        <div style={{ display: 'flex', gap: '14px', overflowX: 'auto', paddingBottom: '4px' }}>
           {[
             { label: 'Student Records', icon: Users, id: 'students' },
             { label: 'CSV/Excel Ingestion', icon: UploadCloud, id: 'upload' },
+            { label: 'Batch Allocation', icon: Layers, id: 'batches' },
             { label: 'Migration Records', icon: RefreshCw, id: 'migrations' },
             { label: 'Curriculum Setup', icon: BookOpen, id: 'curriculum' },
             { label: 'Timetable Setup', icon: Calendar, id: 'timetable_generator' },
@@ -406,24 +419,37 @@ export default function Dashboard({ departments, selectedDept, setActiveNav }) {
             return (
               <button
                 key={i}
-                onClick={() => {
-                  if (setActiveNav && action.id) {
-                    setActiveNav(action.id);
-                  } else {
-                    alert('Feature coming soon!');
-                  }
+                onClick={() => setActiveNav && action.id && setActiveNav(action.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '12px',
+                  minWidth: '170px', padding: '12px 16px',
+                  backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0',
+                  borderRadius: '12px', cursor: 'pointer', transition: 'all 0.15s ease',
+                  flexShrink: 0
                 }}
-                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', minWidth: '110px', padding: '16px 12px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '12px', cursor: 'pointer', transition: 'all 0.15s' }}
-                onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#EFF6FF'; e.currentTarget.style.borderColor = '#BFDBFE'; }}
-                onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#F8FAFC'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.backgroundColor = '#EFF6FF';
+                  e.currentTarget.style.borderColor = '#BFDBFE';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(37,99,235,0.08)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.backgroundColor = '#F8FAFC';
+                  e.currentTarget.style.borderColor = '#E2E8F0';
+                  e.currentTarget.style.transform = 'none';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
               >
-                <Icon size={24} color="#64748B" />
-                <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569', textAlign: 'center' }}>{action.label}</span>
+                <div style={{ width: '38px', height: '38px', borderRadius: '10px', backgroundColor: '#fff', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon size={18} color="#2563EB" />
+                </div>
+                <span style={{ fontSize: '13px', fontWeight: 600, color: '#1E293B', textAlign: 'left' }}>{action.label}</span>
               </button>
             );
           })}
         </div>
       </div>
+
 
     </div>
   );
