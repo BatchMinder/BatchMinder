@@ -1,5 +1,6 @@
 import Migration from '../models/migration.js';
 import Student from '../models/student.js';
+import Curriculum from '../models/curriculum.js';
 import { scopeToUserDepartments } from '../middleware/scopeMiddleware.js';
 import { logAudit, logNotification } from '../utils/logger.js';
 import { recalculateProgress } from '../services/progressRecalculationService.js';
@@ -126,6 +127,19 @@ export const decideMigration = async (req, res) => {
       return res.status(404).json({ message: 'Migration record not found' });
     }
 
+    // Curriculum-alignment check for electives (Scope Doc FE-12 / Dev Blueprint §5.3):
+    // electives are only accepted if they map to a real course in the target
+    // curriculum — content similarity alone is not sufficient. Core/Lab/General
+    // courses are not subject to this restriction.
+    const studentForValidation = await Student.findById(migration.studentId);
+    let curriculumCourseCodes = new Set();
+    if (studentForValidation?.batchId) {
+      const targetCurriculum = await Curriculum.findOne({ batchId: studentForValidation.batchId });
+      if (targetCurriculum?.courses) {
+        curriculumCourseCodes = new Set(targetCurriculum.courses.map(c => c.code));
+      }
+    }
+
     for (const decision of courseDecisions) {
       const { courseName, equivalencyStatus } = decision;
       if (!['accepted', 'rejected'].includes(equivalencyStatus)) {
@@ -141,6 +155,16 @@ export const decideMigration = async (req, res) => {
 
       if (equivalencyStatus === 'rejected' && !remarks) {
         return res.status(400).json({ message: 'Remarks are required when rejecting courses' });
+      }
+
+      if (
+        equivalencyStatus === 'accepted' &&
+        course.courseType === 'ELECTIVE' &&
+        (!course.mappedCourseName || !curriculumCourseCodes.has(course.mappedCourseName))
+      ) {
+        return res.status(400).json({
+          message: `Elective "${courseName}" cannot be accepted: it must be mapped to an official course offered in the target curriculum (curriculum alignment required, not content similarity). Set a valid mappedCourseName before accepting.`
+        });
       }
 
       course.equivalencyStatus = equivalencyStatus;
@@ -177,119 +201,123 @@ export const decideMigration = async (req, res) => {
     // Only update student if migration is approved
     let student = null;
     let oldCgpaStatus = null;
-    
+
     if (targetStatus === 'approved') {
       student = await Student.findById(migration.studentId);
       if (student) {
         oldCgpaStatus = student.cgpaStatus;
 
-      // Fetch target curriculums to resolve course titles
-      const mongoose = (await import('mongoose')).default;
-      const Curriculum = mongoose.model('Curriculum');
-      let allTargetCourses = [];
-      if (student.batchId) {
-        const deptCurr = await Curriculum.findOne({ batchId: student.batchId });
-        if (deptCurr && deptCurr.courses) allTargetCourses = [...allTargetCourses, ...deptCurr.courses];
-      }
-
-      // Recalculate degree progress & synchronize transferred courses to student profile
-      for (const c of migration.transferredCourses) {
-        let targetCode = c.mappedCourseName || c.courseName;
-        let targetTitle = c.mappedCourseName || c.courseName;
-        
-        const matchedCourse = allTargetCourses.find(tc => tc.code === c.mappedCourseName);
-        if (matchedCourse) {
-          targetCode = matchedCourse.code;
-          targetTitle = matchedCourse.title;
+        // Fetch target curriculums to resolve course titles
+        const mongoose = (await import('mongoose')).default;
+        const Curriculum = mongoose.model('Curriculum');
+        let allTargetCourses = [];
+        if (student.batchId) {
+          const deptCurr = await Curriculum.findOne({ batchId: student.batchId });
+          if (deptCurr && deptCurr.courses) allTargetCourses = [...allTargetCourses, ...deptCurr.courses];
         }
 
-        const existingIdx = student.courses.findIndex(sc => sc.courseCode === targetCode);
-        if (existingIdx !== -1) {
-          if (c.equivalencyStatus === 'accepted') {
-            student.courses[existingIdx].grade = c.grade || 'A';
-            student.courses[existingIdx].enrollmentStatus = 'completed';
-            student.courses[existingIdx].status = 'completed';
-            student.courses[existingIdx].creditHours = c.credits;
-          } else if (c.equivalencyStatus === 'rejected') {
-            student.courses[existingIdx].grade = 'F'; // Credit Loss
-            student.courses[existingIdx].enrollmentStatus = 'failed';
-            student.courses[existingIdx].status = 'failed';
-            student.courses[existingIdx].creditHours = c.credits;
-          }
-        } else {
-          if (c.equivalencyStatus === 'accepted') {
-            student.courses.push({
-              courseCode: targetCode,
-              courseTitle: targetTitle,
-              creditHours: c.credits,
-              grade: c.grade || 'A',
-              enrollmentStatus: 'completed',
-              status: 'completed',
-              semester: c.semester || 1
-            });
-          } else if (c.equivalencyStatus === 'rejected') {
-            student.courses.push({
-              courseCode: targetCode,
-              courseTitle: targetTitle,
-              creditHours: c.credits,
-              grade: 'F', // Credit Loss
-              enrollmentStatus: 'failed',
-              status: 'failed',
-              semester: c.semester || 1
-            });
-          }
-        }
-      }
+        // Recalculate degree progress & synchronize transferred courses to student profile
+        for (const c of migration.transferredCourses) {
+          let targetCode = c.mappedCourseName || c.courseName;
+          let targetTitle = c.mappedCourseName || c.courseName;
 
-      // Assign target semester (use provided targetSemester or keep current semester)
-      const assignedSemester = targetSemester || student.currentSemester || 1;
-      student.currentSemester = assignedSemester;
+          const matchedCourse = allTargetCourses.find(tc => tc.code === c.mappedCourseName);
+          if (matchedCourse) {
+            targetCode = matchedCourse.code;
+            targetTitle = matchedCourse.title;
+          }
 
-      // Auto-enroll migrated student in HEC curriculum courses for their assigned semester
-      const batchCurriculum = await Curriculum.findOne({ batchId: student.batchId });
-      
-      if (batchCurriculum && batchCurriculum.courses) {
-        const semesterCourses = batchCurriculum.courses.filter(c => c.semester === assignedSemester);
-        for (const hecCourse of semesterCourses) {
-          const existingCourse = student.courses.find(sc => sc.courseCode === hecCourse.code);
-          if (!existingCourse) {
-            student.courses.push({
-              courseCode: hecCourse.code,
-              courseTitle: hecCourse.title,
-              creditHours: hecCourse.creditHours,
-              grade: 'IP',
-              enrollmentStatus: 'enrolled',
-              status: 'enrolled',
-              semester: assignedSemester
-            });
+          const existingIdx = student.courses.findIndex(sc => sc.courseCode === targetCode);
+          if (existingIdx !== -1) {
+            if (c.equivalencyStatus === 'accepted') {
+              student.courses[existingIdx].grade = c.grade || 'A';
+              student.courses[existingIdx].enrollmentStatus = 'completed';
+              student.courses[existingIdx].status = 'completed';
+              student.courses[existingIdx].creditHours = c.credits;
+            } else if (c.equivalencyStatus === 'rejected') {
+              student.courses[existingIdx].grade = 'F'; // Credit Loss
+              student.courses[existingIdx].enrollmentStatus = 'failed';
+              student.courses[existingIdx].status = 'failed';
+              student.courses[existingIdx].creditHours = c.credits;
+            }
+          } else {
+            if (c.equivalencyStatus === 'accepted') {
+              student.courses.push({
+                courseCode: targetCode,
+                courseTitle: targetTitle,
+                creditHours: c.credits,
+                grade: c.grade || 'A',
+                enrollmentStatus: 'completed',
+                status: 'completed',
+                semester: c.semester || 1
+              });
+            } else if (c.equivalencyStatus === 'rejected') {
+              student.courses.push({
+                courseCode: targetCode,
+                courseTitle: targetTitle,
+                creditHours: c.credits,
+                grade: 'F', // Credit Loss
+                enrollmentStatus: 'failed',
+                status: 'failed',
+                semester: c.semester || 1
+              });
+            }
           }
         }
-      }
 
-      // Calculate True CGPA using STMU GPA formula: Sum(Points * CH) / Sum(CH)
-      student.cgpa = calculateSTMU_CGPA(student.courses);
-      
-      await student.save();
+        // Assign target semester (use provided targetSemester or keep current semester)
+        const assignedSemester = targetSemester || student.currentSemester || 1;
+        student.currentSemester = assignedSemester;
 
-      // Trigger recalculation engine
-      await recalculateProgress(student._id);
+        // Auto-enroll migrated student in HEC curriculum courses for their assigned semester
+        const batchCurriculum = await Curriculum.findOne({ batchId: student.batchId });
 
-      // Track Credit Loss
-      let creditLoss = 0;
-      for (const c of migration.transferredCourses) {
-        if (c.equivalencyStatus === 'rejected') {
-          creditLoss += c.credits;
+        if (batchCurriculum) {
+          student.curriculumID = batchCurriculum._id;
+        }
+
+        if (batchCurriculum && batchCurriculum.courses) {
+          const semesterCourses = batchCurriculum.courses.filter(c => c.semester === assignedSemester);
+          for (const hecCourse of semesterCourses) {
+            const existingCourse = student.courses.find(sc => sc.courseCode === hecCourse.code);
+            if (!existingCourse) {
+              student.courses.push({
+                courseCode: hecCourse.code,
+                courseTitle: hecCourse.title,
+                creditHours: hecCourse.creditHours,
+                grade: 'IP',
+                enrollmentStatus: 'enrolled',
+                status: 'enrolled',
+                semester: assignedSemester
+              });
+            }
+          }
+        }
+
+        // Calculate True CGPA using STMU GPA formula: Sum(Points * CH) / Sum(CH)
+        student.cgpa = calculateSTMU_CGPA(student.courses);
+
+        await student.save();
+
+        // Trigger recalculation engine
+        await recalculateProgress(student._id);
+
+        // Track Credit Loss
+        let creditLoss = 0;
+        for (const c of migration.transferredCourses) {
+          if (c.equivalencyStatus === 'rejected') {
+            creditLoss += c.credits;
+          }
+        }
+        if (creditLoss > 0) {
+          const DegreeProgress = (await import('../models/degreeProgress.js')).default;
+          await DegreeProgress.findOneAndUpdate(
+            { studentId: student._id },
+            { $inc: { creditLoss: creditLoss } },
+            { upsert: true }
+          );
         }
       }
-      if (creditLoss > 0) {
-        const DegreeProgress = (await import('../models/degreeProgress.js')).default;
-        await DegreeProgress.findOneAndUpdate(
-          { studentId: student._id },
-          { $inc: { creditLoss: creditLoss } },
-          { upsert: true }
-        );
-      }
-    }
     }
 
     // 1. Log Audit
@@ -386,7 +414,8 @@ export const uploadTranscript = async (req, res) => {
     }
 
     // Upload to Cloudinary
-    const cloudResult = await uploadToCloudinary(req.file.buffer, 'transcripts', { resource_type: 'auto' });
+    const resourceType = req.file.mimetype === 'application/pdf' ? 'raw' : 'auto';
+    const cloudResult = await uploadToCloudinary(req.file.buffer, 'transcripts', { resource_type: resourceType });
 
     const transcriptUrl = cloudResult.secure_url || cloudResult.url;
     migration.transcriptUrl = transcriptUrl;
@@ -432,13 +461,16 @@ export const parseTranscript = async (req, res) => {
     let pdfBuffer;
     if (migration.transcriptUrl.startsWith('http://') || migration.transcriptUrl.startsWith('https://')) {
       try {
+        console.log(`[parseTranscript] Attempting to fetch from: ${migration.transcriptUrl}`);
         const response = await fetch(migration.transcriptUrl);
         if (!response.ok) {
-          return res.status(404).json({ message: 'Failed to download transcript file from Cloudinary.' });
+          console.error(`[parseTranscript] Fetch failed: ${response.status} ${response.statusText}`);
+          return res.status(404).json({ message: `Failed to download transcript file from Cloudinary. Status: ${response.status}` });
         }
         const arrayBuffer = await response.arrayBuffer();
         pdfBuffer = new Uint8Array(arrayBuffer);
       } catch (fetchErr) {
+        console.error(`[parseTranscript] Fetch exception: ${fetchErr.message}`);
         return res.status(500).json({ message: `Error fetching transcript from Cloudinary: ${fetchErr.message}` });
       }
     } else {
@@ -495,7 +527,7 @@ export const parseTranscript = async (req, res) => {
         if (semMatch) {
           currentSemester = parseInt(semMatch[1]);
         }
-        
+
         // Pattern: CODE TITLE CREDITS GRADE [GRADEPOINTS] [REMARKS]
         const p = line.match(/([A-Z]{2,4}-\d{3}[A-Z]?)\s+(.+?)\s+(\d)\s+([A-F][+-]?|IP)/);
         if (p) {
@@ -515,42 +547,7 @@ export const parseTranscript = async (req, res) => {
       }
     }
 
-    // Fallback: if PDF text extraction returned too few courses (common with browser Save-as-PDF),
-    // use the source institution to provide a known template of courses
-    const src = (migration.sourceInstitution || '').toLowerCase();
-    if (courses.length < 10 && src.includes('nust')) {
-      // Clear partial results and use the full NUST template
-      courses.length = 0;
-      const nustCourses = [
-        // Semester 1
-        { courseName: 'CS-101 Programming Fundamentals', credits: 4, grade: 'A', semester: 1 },
-        { courseName: 'MT-101 Calculus & Analytical Geometry', credits: 3, grade: 'B+', semester: 1 },
-        { courseName: 'PH-101 Applied Physics', credits: 3, grade: 'B', semester: 1 },
-        { courseName: 'HU-101 English Composition & Comprehension', credits: 2, grade: 'A-', semester: 1 },
-        { courseName: 'IS-101 Islamic Studies / Ethics', credits: 2, grade: 'B+', semester: 1 },
-        // Semester 2
-        { courseName: 'CS-102 Object Oriented Programming', credits: 4, grade: 'A', semester: 2 },
-        { courseName: 'CS-103 Digital Logic Design', credits: 4, grade: 'B+', semester: 2 },
-        { courseName: 'MT-102 Linear Algebra', credits: 3, grade: 'B+', semester: 2 },
-        { courseName: 'MT-103 Discrete Structures', credits: 3, grade: 'A-', semester: 2 },
-        { courseName: 'HU-102 Pakistan Studies', credits: 2, grade: 'A', semester: 2 },
-        // Semester 3
-        { courseName: 'CS-104 Data Structures & Algorithms', credits: 4, grade: 'A', semester: 3 },
-        { courseName: 'CS-105 Computer Organization & Architecture', credits: 3, grade: 'B+', semester: 3 },
-        { courseName: 'MT-201 Probability & Statistics', credits: 3, grade: 'A-', semester: 3 },
-        { courseName: 'EE-201 Signals & Systems', credits: 3, grade: 'B+', semester: 3 },
-        { courseName: 'HU-201 Technical & Business Writing', credits: 2, grade: 'A', semester: 3 },
-        // Semester 4
-        { courseName: 'CS-201 Database Systems', credits: 4, grade: 'A', semester: 4 },
-        { courseName: 'CS-202 Operating Systems', credits: 4, grade: 'A-', semester: 4 },
-        { courseName: 'CS-203 Software Engineering', credits: 3, grade: 'B+', semester: 4 },
-        { courseName: 'CS-204 Computer Networks', credits: 3, grade: 'B+', semester: 4 },
-        { courseName: 'HU-202 Professional Ethics', credits: 2, grade: 'A', semester: 4 },
-      ];
-      nustCourses.forEach(c => {
-        courses.push({ ...c, equivalencyStatus: 'pending', mappedCourseName: '' });
-      });
-    }
+
 
     if (courses.length === 0) {
       return res.status(200).json({
@@ -575,7 +572,7 @@ export const parseTranscript = async (req, res) => {
             allTargetCourses = [...allTargetCourses, ...deptCurr.courses];
           }
         }
-        
+
         // Get batch curriculum as fallback
         const batchCurr = await Curriculum.findOne({ batchId: student.batchId });
         if (batchCurr && batchCurr.courses) {
@@ -586,14 +583,13 @@ export const parseTranscript = async (req, res) => {
           for (let c of courses) {
             // Remove typical course codes (e.g. CS-101) to get clean title
             const cleanSourceTitle = c.courseName.replace(/^[A-Z]{2,4}-\d{3}[A-Z]?\s+/, '').trim().toLowerCase();
-            
+
             for (const tc of allTargetCourses) {
               const targetTitle = tc.title.toLowerCase();
               // Check for strong title overlap
               if (cleanSourceTitle.includes(targetTitle) || targetTitle.includes(cleanSourceTitle)) {
                 c.mappedCourseName = tc.code;
                 c.credits = tc.creditHours; // Auto-update credits to match the curriculum
-                c.equivalencyStatus = 'accepted';
                 break;
               }
             }

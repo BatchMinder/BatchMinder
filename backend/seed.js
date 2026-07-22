@@ -304,8 +304,7 @@ async function seed() {
               semester: currCourse.semester,
               grade,
               enrollmentStatus: 'completed',
-              status: 'completed',
-              attendance: Math.floor(Math.random() * 20) + 80
+              status: 'completed'
             });
           } else if (currCourse.semester === student.currentSemester) {
             // Currently enrolled courses for the active semester
@@ -316,8 +315,7 @@ async function seed() {
               semester: currCourse.semester,
               grade: 'IP',
               enrollmentStatus: 'enrolled',
-              status: 'enrolled',
-              attendance: Math.floor(Math.random() * 15) + 85
+              status: 'enrolled'
             });
           }
         });

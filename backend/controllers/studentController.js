@@ -43,7 +43,6 @@ const autoEnrollHECCourses = async (student) => {
         grade: isPast ? (student.cgpa >= 3.5 ? 'A' : student.cgpa >= 3.0 ? 'B+' : student.cgpa >= 2.0 ? 'C+' : 'C') : 'IP',
         enrollmentStatus: isPast ? 'completed' : 'enrolled',
         status: isPast ? 'completed' : 'enrolled',
-        attendance: 95,
         semester: c.semester
       });
     }
@@ -329,9 +328,10 @@ export const bulkUploadStudents = async (req, res, next) => {
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    const targetSemester = parseInt(req.body.semester) || 1;
-    const selectedDeptName = req.body.department || 'Computer Science';
-    const selectedBatchCode = req.body.batch || '2022';
+    const body = req.body || {};
+    const targetSemester = parseInt(body.semester) || 1;
+    const selectedDeptName = body.department || 'Computer Science';
+    const selectedBatchCode = body.batch || '2022';
 
 
 
@@ -536,13 +536,13 @@ export const bulkUploadStudents = async (req, res, next) => {
 
     // Save only valid student records to the database
     for (const data of validStudentsData) {
-      let deptName = req.body.department || data.department || selectedDeptName;
+      let deptName = body.department || data.department || selectedDeptName;
       let dept = await Department.findOne({ name: { $regex: new RegExp(`^${deptName}$`, 'i') } });
       if (!dept) {
         dept = await Department.findOne({ code: 'CS' }) || await Department.create({ name: deptName, code: 'CS', color: '#6366F1' });
       }
 
-      let batchCode = req.body.batch || data.batch || selectedBatchCode;
+      let batchCode = body.batch || data.batch || selectedBatchCode;
       let batch = await Batch.findOne({ code: { $regex: new RegExp(batchCode, 'i') } });
       if (!batch) {
         batch = await Batch.create({
@@ -570,8 +570,7 @@ export const bulkUploadStudents = async (req, res, next) => {
               semester: currCourse.semester,
               grade: chosen.name,
               enrollmentStatus: 'completed',
-              status: 'completed',
-              attendance: Math.floor(Math.random() * 10) + 90
+              status: 'completed'
             });
           } else if (currCourse.semester === targetSemester) {
             studentCourses.push({
@@ -581,8 +580,7 @@ export const bulkUploadStudents = async (req, res, next) => {
               semester: currCourse.semester,
               grade: 'IP',
               enrollmentStatus: 'enrolled',
-              status: 'enrolled',
-              attendance: 100
+              status: 'enrolled'
             });
           }
         });

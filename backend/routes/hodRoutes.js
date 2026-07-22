@@ -12,7 +12,7 @@ import { restrictTo } from '../middleware/roleMiddleware.js';
 const router = express.Router();
 
 router.use(protect);
-router.use(restrictTo('admin', 'dean')); // HOD roles
+router.use(restrictTo('admin')); // Strictly HOD role (admin)
 
 router.get('/requests', listHODPendingRequests);
 router.get('/history', listHODHistory);

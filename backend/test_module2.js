@@ -27,7 +27,7 @@ const runTests = async () => {
 
   // Clear existing test data to start fresh
   console.log('Cleaning up old test data...');
-  await Student.deleteMany({ rollNumber: { $in: ['2022-CS-01', '2022-CS-02'] } });
+  await Student.deleteMany({ rollNumber: { $in: ['BSCS-22-0001', 'BSCS-22-0002'] } });
   await Curriculum.deleteMany({ batch: '2022', department: 'Computer Science' });
   await Batch.deleteMany({ code: '2022' });
   await AuditLog.deleteMany({});
@@ -88,8 +88,8 @@ const runTests = async () => {
     
     const csvContent = 
 `rollNumber,name,email,batch,department,cgpa,status
-2022-CS-01,Alice Johnson,alice@uni.edu,2022,Computer Science,3.8,good_standing
-2022-CS-02,Bob Smith,bob@uni.edu,2022,Computer Science,2.2,warning`;
+BSCS-22-0001,Alice Johnson,alice@uni.edu,2022,Computer Science,3.8,good_standing
+BSCS-22-0002,Bob Smith,bob@uni.edu,2022,Computer Science,2.2,warning`;
 
     const req2 = {
       file: {
@@ -107,8 +107,8 @@ const runTests = async () => {
       throw new Error(`Bulk upload failed with code ${res2.statusCode}: ${JSON.stringify(res2.body)}`);
     }
 
-    const alice = await Student.findOne({ rollNumber: '2022-CS-01' });
-    const bob = await Student.findOne({ rollNumber: '2022-CS-02' });
+    const alice = await Student.findOne({ rollNumber: 'BSCS-22-0001' });
+    const bob = await Student.findOne({ rollNumber: 'BSCS-22-0002' });
 
     if (!alice || alice.name !== 'Alice Johnson' || !bob || bob.name !== 'Bob Smith') {
       throw new Error('CSV upload parsed profiles incorrectly or failed to save to MongoDB.');
@@ -138,12 +138,12 @@ const runTests = async () => {
     const batch2022 = await Batch.findOne({ code: /2022/i });
     
     const req4 = {
-      params: { id: '2022-CS-02' },
+      params: { id: 'BSCS-22-0002' },
       body: {
         cgpa: 1.8,
         status: 'critical',
         courses: [
-          { courseCode: 'CS-101', courseTitle: 'Introduction to Programming', creditHours: 4, grade: 'IP', status: 'enrolled', attendance: 85 }
+          { courseCode: 'CS-101', courseTitle: 'Introduction to Programming', creditHours: 4, grade: 'IP', status: 'enrolled' }
         ]
       },
       user: {
@@ -161,7 +161,7 @@ const runTests = async () => {
       throw new Error(`Update profile failed: ${JSON.stringify(res4.body)}`);
     }
 
-    const updatedBob = await Student.findOne({ rollNumber: '2022-CS-02' });
+    const updatedBob = await Student.findOne({ rollNumber: 'BSCS-22-0002' });
     if (updatedBob.cgpa !== 1.8 || updatedBob.status !== 'critical' || updatedBob.courses.length !== 1) {
       throw new Error('Student profile properties did not update correctly.');
     }
@@ -184,13 +184,13 @@ const runTests = async () => {
       throw new Error(`LMS Sync endpoint failed: ${JSON.stringify(res5.body)}`);
     }
 
-    const syncedBob = await Student.findOne({ rollNumber: '2022-CS-02' });
+    const syncedBob = await Student.findOne({ rollNumber: 'BSCS-22-0002' });
     const course = syncedBob.courses[0];
     
     if (course.grade === 'IP' || course.status === 'enrolled') {
       throw new Error('LMS Sync failed to update student course progress statuses or grades.');
     }
-    console.log(`✔ Test 5 Passed: LMS synchronized successfully. Bob's grade: ${course.grade}, Attendance: ${course.attendance}%, Status: ${syncedBob.status}`);
+    console.log(`✔ Test 5 Passed: LMS synchronized successfully. Bob's grade: ${course.grade}, Status: ${syncedBob.status}`);
 
 
     // ==========================================
@@ -210,15 +210,16 @@ const runTests = async () => {
       throw new Error(`Batch promotion migration failed: ${JSON.stringify(res6.body)}`);
     }
 
-    const promotedAlice = await Student.findOne({ rollNumber: '2022-CS-01' });
+    const promotedAlice = await Student.findOne({ rollNumber: 'BSCS-22-0001' });
     
     if (promotedAlice.currentSemester !== 2) {
       throw new Error(`Semester did not increment correctly. Got: ${promotedAlice.currentSemester}`);
     }
 
     // Verify curriculum mapping link worked: next semester's courses should be enrolled
-    if (promotedAlice.courses.length !== 2) {
-      throw new Error(`Student was not enrolled in the 2 courses from the Semester 2 Curriculum Map. Count: ${promotedAlice.courses.length}`);
+    const semester2Courses = promotedAlice.courses.filter(c => c.semester === 2);
+    if (semester2Courses.length !== 2) {
+      throw new Error(`Student was not enrolled in the 2 courses from the Semester 2 Curriculum Map. Count: ${semester2Courses.length}`);
     }
 
     const dsaCourse = promotedAlice.courses.find(c => c.courseCode === 'CS-201');

@@ -550,30 +550,34 @@ export default function SpecialPermissionForm({ onClose, onSuccess }) {
                   {filteredCourses.length === 0 ? (
                     <div style={{ padding: '12px', fontSize: '12px', color: '#94A3B8', textAlign: 'center' }}>No courses found</div>
                   ) : (
-                    filteredCourses.map(c => (
-                      <div
-                        key={c.code || c._id}
-                        onClick={() => {
-                          setCourseCode(c.code);
-                          setCourseTitle(c.title);
-                          setCreditHours(c.creditHours || 3);
-                          setShowCourseDropdown(false);
-                        }}
-                        style={{
-                          padding: '10px 14px',
-                          borderBottom: '1px solid #F1F5F9',
-                          cursor: 'pointer',
-                          textAlign: 'left'
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#EFF6FF')}
-                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#FFFFFF')}
-                      >
-                        <p style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#1E293B' }}>{c.code} – {c.title}</p>
-                        <p style={{ margin: '2px 0 0', fontSize: '11px', fontWeight: 600, color: '#2563EB' }}>
-                          Semester {c.semester || selectedSemester} &bull; {c.creditHours || 3} Credit Hours
-                        </p>
-                      </div>
-                    ))
+                    filteredCourses.map(c => {
+                      const displayCode = c.code || c.courseCode;
+                      const displayTitle = c.title || c.courseTitle;
+                      return (
+                        <div
+                          key={displayCode || c._id}
+                          onClick={() => {
+                            setCourseCode(displayCode);
+                            setCourseTitle(displayTitle);
+                            setCreditHours(c.creditHours || 3);
+                            setShowCourseDropdown(false);
+                          }}
+                          style={{
+                            padding: '10px 14px',
+                            borderBottom: '1px solid #F1F5F9',
+                            cursor: 'pointer',
+                            textAlign: 'left'
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#EFF6FF')}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#FFFFFF')}
+                        >
+                          <p style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#1E293B' }}>{displayCode} – {displayTitle}</p>
+                          <p style={{ margin: '2px 0 0', fontSize: '11px', fontWeight: 600, color: '#2563EB' }}>
+                            Semester {c.semester || selectedSemester} &bull; {c.creditHours || 3} Credit Hours
+                          </p>
+                        </div>
+                      );
+                    })
                   )}
                 </div>
               )}

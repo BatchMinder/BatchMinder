@@ -38,6 +38,22 @@ export default function RequestDetail({ request, userRole = 'hod', onClose, onAc
             >
               {request.requestType}
             </span>
+            {request.isBacklog && (
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 800,
+                  color: '#EA580C',
+                  backgroundColor: '#FFEDD5',
+                  padding: '3px 8px',
+                  borderRadius: '6px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                }}
+              >
+                Repeat / Backlog
+              </span>
+            )}
             <StatusBadge status={request.status} />
           </div>
           <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>

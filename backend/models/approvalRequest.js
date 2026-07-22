@@ -81,7 +81,9 @@ const approvalRequestSchema = new mongoose.Schema({
   advisorRemarks: { type: String, default: '' },
   hodRemarks: { type: String, default: '' },
   prereqCheck: { type: String, default: '' },
-  duplicateWarning: { type: String, default: '' }
+  duplicateWarning: { type: String, default: '' },
+  overrideJustification: { type: String, default: '' },
+  isBacklog: { type: Boolean, default: false }
 }, {
   timestamps: true,
 });

@@ -5,11 +5,11 @@ import { useModal } from "../../contexts/ModalContext";
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const TIMESLOTS = [
-  '08:30 AM - 10:00 AM',
-  '10:00 AM - 11:30 AM',
-  '11:30 AM - 01:00 PM',
-  '01:30 PM - 03:00 PM',
-  '03:00 PM - 04:30 PM'
+  '08:00 AM - 09:00 AM',
+  '09:00 AM - 10:00 AM',
+  '10:00 AM - 11:00 AM',
+  '11:00 AM - 12:00 PM',
+  '12:00 PM - 01:00 PM'
 ];
 const EXAMSLOTS = [
   '09:00 AM - 12:00 PM',
@@ -81,10 +81,10 @@ function detectTimetableConflicts(entries, batchSizes = {}) {
         }
 
         // Cohort/Batch Overlap
-        if (e1.batch === e2.batch) {
+        if (e1.batch === e2.batch && e1.semester === e2.semester) {
           conflicts.push({
             type: 'COHORT_OVERLAP',
-            description: `Cohort clash: Batch ${e1.batch} is scheduled for both ${e1.courseCode} and ${e2.courseCode} simultaneously.`,
+            description: `Cohort clash: Batch ${e1.batch} (Sem ${e1.semester}) is scheduled for both ${e1.courseCode} and ${e2.courseCode} simultaneously.`,
             cellIds: [id1, id2]
           });
         }
@@ -461,8 +461,20 @@ function ScheduleOverride({ initialTab = "timetable" }) {
             <AlertTriangle className="h-5 w-5 text-rose-500 shrink-0 mt-0.5" />
             <div>
               <h4 className="font-bold text-rose-950">Schedule Conflict Alert ({conflicts.length} Clashes)</h4>
-              <p className="mt-0.5">Resolve overlaps manually below.</p>
+              <p className="mt-0.5 text-rose-700">The following overlaps exist in the schedule. Click any slot in the grid below to resolve or edit:</p>
             </div>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-2 mt-1">
+            {conflicts.map((c, idx) => (
+              <div key={idx} className="p-2.5 bg-white border border-rose-200 rounded-lg shadow-sm flex flex-col justify-between">
+                <div>
+                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100 mb-1 inline-block">
+                    {c.type}
+                  </span>
+                  <p className="text-[11px] font-semibold text-slate-700 leading-snug">{c.description}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

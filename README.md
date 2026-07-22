@@ -11,8 +11,11 @@ This codebase covers **Module 1**: setting up authentication, role-based access,
 * **Same Email, Multiple Roles (Hat-Switching)**: Advisors often wear multiple hats (like being a Batch Advisor but also an HOD/Admin). Instead of forcing you to sign up with three different email addresses, BatchMinder lets you register the *same* email under different roles. They act as completely independent accounts.
 * **Instant Email Checks**: No one likes filling out a long form only to find out their email is already registered after hitting submit. The signup form checks if your email/role combination is taken the moment you click away from the field.
 * **Database Audit Logs**: Every login, failed attempt, registration, and logout writes an audit log to MongoDB. It helps administrators track system access without manual monitoring.
+* **Multi-Level Course Approval Workflow (FE-19 to FE-24)**: Full request lifecycle management (`pending`, `advisor_approved`, `approved`, `rejected`, `special_granted`, `returned_for_edit`). Strictly enforced **Advisor → HOD chain only**, where Level-1 is handled by Batch Advisors and Level-2 is strictly restricted to the Head of Department (`restrictTo('admin')` in `hodRoutes.js`).
 * **Organic SaaS Design**: Built with a clean, premium light mode that uses **Plus Jakarta Sans** for body texts and **Outfit** for headers. No harsh default colors—just soft gradients, clean focus outlines, and drop shadows.
 * **Logout Safety Net**: Clicking log out triggers a prompt modal so you don't accidentally close an active advising session.
+
+> 📄 Detailed requirements and approval chain specifications can be found in [REQUIREMENTS.md](file:///c:/Users/HP/Desktop/BatchMinders/REQUIREMENTS.md).
 
 ---
 

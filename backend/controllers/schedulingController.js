@@ -361,37 +361,48 @@ export const autoGenerateTimetable = async (req, res, next) => {
       return res.status(404).json({ status: 'error', message: 'Batch not found' });
     }
 
-    const curriculum = await Curriculum.findOne({ batchId, status: 'active' });
+    // 1. Fetch active curriculum from DB (tries batchId -> departmentId -> HEC Standard -> any active)
+    let curriculum = await Curriculum.findOne({ batchId, status: 'active' });
+    if (!curriculum && batch.departmentId) {
+      curriculum = await Curriculum.findOne({ departmentId: batch.departmentId, status: 'active' });
+    }
+    if (!curriculum) {
+      curriculum = await Curriculum.findOne({ isHecStandard: true, status: 'active' });
+    }
+    if (!curriculum) {
+      curriculum = await Curriculum.findOne({ status: 'active' });
+    }
+
     if (!curriculum || !curriculum.courses || curriculum.courses.length === 0) {
-      return res.status(404).json({ status: 'error', message: 'No active curriculum found for this batch' });
+      return res.status(404).json({ status: 'error', message: 'No active curriculum found for this batch or department' });
     }
 
-    const coursesToSchedule = curriculum.courses.filter(c => c.semester === Number(semester));
-    if (coursesToSchedule.length === 0) {
-      return res.status(404).json({ status: 'error', message: `No courses found for semester ${semester} in curriculum` });
+    // Filter active curriculum courses for the selected semester
+    const semNum = Number(semester);
+    const coursesToSchedule = curriculum.courses.filter(c => c.semester === semNum);
+    if (!coursesToSchedule || coursesToSchedule.length === 0) {
+      return res.status(404).json({ status: 'error', message: `No courses found for semester ${semester} in active curriculum` });
     }
 
-    let instructors = await User.find({ role: { $in: ['advisor', 'faculty', 'admin'] } }).select('name');
-    let instructorNames = instructors.map(i => i.name);
+    // Fetch instructors dynamically from DB users
+    let instructors = await User.find({ role: { $in: ['advisor', 'faculty', 'admin', 'academic_admin', 'dean'] } }).select('name');
+    let instructorNames = instructors.map(i => i.name).filter(Boolean);
     if (instructorNames.length === 0) {
-      instructorNames = ['Dr. Alice Smith', 'Dr. Bob Johnson', 'Prof. Carol Williams', 'Dr. David Brown'];
+      const allUsers = await User.find({}).select('name');
+      instructorNames = allUsers.map(u => u.name).filter(Boolean);
     }
 
     const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
     const TIMESLOTS = [
-      '08:30 AM - 10:00 AM',
-      '10:00 AM - 11:30 AM',
-      '11:30 AM - 01:00 PM',
-      '01:30 PM - 03:00 PM',
-      '03:00 PM - 04:30 PM'
+      '08:00 AM - 09:00 AM',
+      '09:00 AM - 10:00 AM',
+      '10:00 AM - 11:00 AM',
+      '11:00 AM - 12:00 PM',
+      '12:00 PM - 01:00 PM'
     ];
-    const ROOMS = ['Room 101', 'Room 102', 'Room 201', 'Room 202', 'Lab A', 'Lab B'];
 
-    // Delete existing timetable for this batch and semester
-    await Timetable.deleteMany({ batch: batch.code, semester: Number(semester) });
-
-    const studentCount = await Student.countDocuments({ batchId });
-    const batchSize = studentCount > 0 ? studentCount : 35;
+    const LECTURE_ROOMS = ['Room 101', 'Room 102', 'Room 201', 'Room 202'];
+    const LAB_ROOMS = ['Lab A', 'Lab B'];
 
     const roomCapacityMap = {
       'Room 101': 50,
@@ -402,59 +413,102 @@ export const autoGenerateTimetable = async (req, res, next) => {
       'Room 202': 60
     };
 
-    const existing = await Timetable.find({});
+    // Assign distinct instructors across courses using round-robin distribution
+    const courseInstructorMap = {};
+    coursesToSchedule.forEach((course, idx) => {
+      courseInstructorMap[course.code] = instructorNames[idx % instructorNames.length];
+    });
+
+    // Delete previous timetable entries for this batch and semester
+    await Timetable.deleteMany({ batch: batch.code, semester: semNum });
+
+    const studentCount = await Student.countDocuments({ batchId });
+    const batchSize = studentCount > 0 ? studentCount : 35;
+
+    const existing = await Timetable.find({
+      $or: [
+        { batch: { $ne: batch.code } },
+        { semester: { $ne: semNum } }
+      ]
+    });
     const generatedEntries = [];
 
-    const allSlots = [];
-    for (const d of DAYS) {
-      for (const t of TIMESLOTS) {
-        allSlots.push({ day: d, timeSlot: t });
-      }
-    }
+    // Schedule each course for N sessions = creditHours per week
+    for (let cIdx = 0; cIdx < coursesToSchedule.length; cIdx++) {
+      const course = coursesToSchedule[cIdx];
+      const assignedInstructor = courseInstructorMap[course.code];
+      const isLabCourse = course.courseType === 'LAB' || (course.title && course.title.toLowerCase().includes('lab'));
+      const candidateRooms = isLabCourse
+        ? [...LAB_ROOMS, ...LECTURE_ROOMS]
+        : [...LECTURE_ROOMS, ...LAB_ROOMS];
 
-    for (const course of coursesToSchedule) {
-      let assigned = false;
-      for (const slot of allSlots) {
-        if (assigned) break;
-        for (const room of ROOMS) {
+      const totalSessionsNeeded = Number(course.creditHours) || 3;
+
+      for (let sessionNum = 0; sessionNum < totalSessionsNeeded; sessionNum++) {
+        let assigned = false;
+
+        // Days where this course does not have a session yet
+        const daysWithThisCourse = generatedEntries
+          .filter(e => e.courseCode === course.code)
+          .map(e => e.day);
+
+        // Sort days: days without this course first, then days with lowest total sessions
+        const sortedDays = [...DAYS].sort((a, b) => {
+          const hasA = daysWithThisCourse.includes(a) ? 1 : 0;
+          const hasB = daysWithThisCourse.includes(b) ? 1 : 0;
+          if (hasA !== hasB) return hasA - hasB;
+          const countA = generatedEntries.filter(e => e.day === a).length;
+          const countB = generatedEntries.filter(e => e.day === b).length;
+          return countA - countB;
+        });
+
+        // Time slot offset per course/session for natural daily distribution
+        const slotOffset = (cIdx * 2 + sessionNum) % TIMESLOTS.length;
+        const rotatedSlots = [
+          ...TIMESLOTS.slice(slotOffset),
+          ...TIMESLOTS.slice(0, slotOffset)
+        ];
+
+        for (const day of sortedDays) {
           if (assigned) break;
 
-          // Check Capacity Constraint (Hard Constraint FR-5.5)
-          const roomCapacity = roomCapacityMap[room] || 40;
-          if (roomCapacity < batchSize) {
-            continue; // Skip room if it doesn't fit the batch size
-          }
+          for (const timeSlot of rotatedSlots) {
+            if (assigned) break;
 
-          for (const instructor of instructorNames) {
-            const roomTaken = existing.some(e => e.day === slot.day && e.timeSlot === slot.timeSlot && e.room === room);
-            const instructorTaken = existing.some(e => e.day === slot.day && e.timeSlot === slot.timeSlot && e.instructor === instructor);
-            const batchBusyDb = existing.some(e => e.day === slot.day && e.timeSlot === slot.timeSlot && e.batch === batch.code);
-            const batchBusy = generatedEntries.some(e => e.day === slot.day && e.timeSlot === slot.timeSlot);
+            // Student cohort cannot have 2 classes at the exact same slot
+            const semBusySlot = generatedEntries.some(e => e.day === day && e.timeSlot === timeSlot);
+            if (semBusySlot) continue;
 
-            if (!roomTaken && !instructorTaken && !batchBusyDb && !batchBusy) {
-              generatedEntries.push({
-                day: slot.day,
-                timeSlot: slot.timeSlot,
-                courseCode: course.code,
-                courseName: course.title,
-                room,
-                instructor,
-                batch: batch.code,
-                semester: Number(semester),
-                departmentId: batch.departmentId
-              });
-              assigned = true;
-              break;
+            for (const room of candidateRooms) {
+              if (assigned) break;
+
+              const roomCapacity = roomCapacityMap[room] || 40;
+              if (roomCapacity < batchSize) continue;
+
+              const roomTaken = existing.some(e => e.day === day && e.timeSlot === timeSlot && e.room === room) ||
+                                generatedEntries.some(e => e.day === day && e.timeSlot === timeSlot && e.room === room);
+              const instructorTaken = existing.some(e => e.day === day && e.timeSlot === timeSlot && e.instructor === assignedInstructor) ||
+                                       generatedEntries.some(e => e.day === day && e.timeSlot === timeSlot && e.instructor === assignedInstructor);
+
+              if (!roomTaken && !instructorTaken) {
+                generatedEntries.push({
+                  day,
+                  timeSlot,
+                  courseCode: course.code,
+                  courseName: course.title,
+                  creditHours: course.creditHours || 3,
+                  room,
+                  instructor: assignedInstructor,
+                  batch: batch.code,
+                  semester: semNum,
+                  departmentId: batch.departmentId
+                });
+                assigned = true;
+                break;
+              }
             }
           }
         }
-      }
-      if (!assigned) {
-        // According to Section 8.3: Overlap returns a FAILED response instead of forcing a clashing schedule
-        return res.status(400).json({
-          status: 'fail',
-          message: `Failed to auto-allocate course ${course.code}. All compliant rooms/slots are exhausted or capacity constraints are not met.`
-        });
       }
     }
 

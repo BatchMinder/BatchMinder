@@ -7,19 +7,19 @@ import {
   MapPin, Clock, Users, BookOpen, Plus, UserPlus, Home, AlertCircle, FileBarChart, Calendar
 } from "lucide-react";
 
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const TIMESLOTS = [
-  '08:30 AM - 10:00 AM',
-  '10:00 AM - 11:30 AM',
-  '11:30 AM - 01:00 PM',
-  '01:30 PM - 03:00 PM',
-  '03:00 PM - 04:30 PM'
+  '08:00 AM - 09:00 AM',
+  '09:00 AM - 10:00 AM',
+  '10:00 AM - 11:00 AM',
+  '11:00 AM - 12:00 PM',
+  '12:00 PM - 01:00 PM'
 ];
 
 function detectTimetableConflicts(entries, batchSizes = {}) {
   const conflicts = [];
   const roomCapacities = {
-    'Room 101': 40, 'Room 102': 50, 'Room 201': 40, 'Room 202': 40, 'Room 204': 60,
+    'Room 101': 50, 'Room 102': 45, 'Room 201': 60, 'Room 202': 60, 'Room 204': 60,
     'Lab A': 30, 'Lab B': 30, 'Lab 3 (Block B)': 50, 'Exam Hall': 120, 'Main Auditorium': 150
   };
 
@@ -37,7 +37,7 @@ function detectTimetableConflicts(entries, batchSizes = {}) {
       if (e1.day === e2.day && e1.timeSlot === e2.timeSlot) {
         if (e1.room === e2.room) conflicts.push({ type: 'ROOM_OVERLAP', description: `Room clash in ${e1.room}: ${e1.courseCode} & ${e2.courseCode}` });
         if (e1.instructor && e1.instructor === e2.instructor) conflicts.push({ type: 'INSTRUCTOR_OVERLAP', description: `Faculty double booking: ${e1.instructor}` });
-        if (e1.batch === e2.batch) conflicts.push({ type: 'COHORT_OVERLAP', description: `Cohort clash: Batch ${e1.batch} scheduled for ${e1.courseCode} & ${e2.courseCode}` });
+        if (e1.batch === e2.batch && e1.semester === e2.semester) conflicts.push({ type: 'COHORT_OVERLAP', description: `Cohort clash: Batch ${e1.batch} (Sem ${e1.semester}) scheduled for ${e1.courseCode} & ${e2.courseCode}` });
       }
     }
   }
@@ -49,7 +49,6 @@ const COLORS = ['#3B82F6', '#8B5CF6', '#F59E0B', '#10B981', '#EC4899', '#6366F1'
 export default function TimetableGenerator({ setActiveNav }) {
   const { user } = useAuth();
   const [entries, setEntries] = useState([]);
-  const [conflicts, setConflicts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [batchSizes, setBatchSizes] = useState({});
@@ -59,7 +58,7 @@ export default function TimetableGenerator({ setActiveNav }) {
   const [selectedDept, setSelectedDept] = useState("Computer Science");
   const [selectedProgram, setSelectedProgram] = useState("BS Computer Science");
   const [selectedBatchId, setSelectedBatchId] = useState("");
-  const [selectedSemester, setSelectedSemester] = useState("");
+  const [selectedSemester, setSelectedSemester] = useState("1");
   const [selectedSection, setSelectedSection] = useState("Section A");
   const [viewMode, setViewMode] = useState("Weekly");
   const [timingPage, setTimingPage] = useState(1);
@@ -100,7 +99,6 @@ export default function TimetableGenerator({ setActiveNav }) {
         const timeData = await timeRes.json();
         const data = timeData.data?.entries || [];
         setEntries(data);
-        setConflicts(detectTimetableConflicts(data, sizeMap));
       }
     } catch (err) {
       console.error("Failed to fetch:", err);
@@ -110,13 +108,16 @@ export default function TimetableGenerator({ setActiveNav }) {
   };
 
   const handleGenerate = async () => {
-    if (!selectedBatchId || !selectedSemester) return;
+    if (!selectedBatchId) return;
     setGenerating(true);
     try {
+      const payload = { batchId: selectedBatchId };
+      if (selectedSemester) payload.semester = selectedSemester;
+
       const saveRes = await fetch("/api/scheduling/auto-generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ batchId: selectedBatchId, semester: selectedSemester })
+        body: JSON.stringify(payload)
       });
       if (saveRes.ok) {
         const timeRes = await fetch("/api/scheduling/timetable");
@@ -124,7 +125,6 @@ export default function TimetableGenerator({ setActiveNav }) {
           const timeData = await timeRes.json();
           const allEntries = timeData.data?.entries || [];
           setEntries(allEntries);
-          setConflicts(detectTimetableConflicts(allEntries, batchSizes));
         }
       }
     } catch (err) {
@@ -171,16 +171,20 @@ export default function TimetableGenerator({ setActiveNav }) {
     document.body.removeChild(link);
   };
 
-  // --- Dynamic Metrics ---
-  const totalClasses = entries.length;
-  const totalCourses = new Set(entries.map(e => e.courseCode)).size;
-  const totalInstructors = new Set(entries.filter(e => e.instructor).map(e => e.instructor)).size;
-  const totalRooms = new Set(entries.filter(e => e.room).map(e => e.room)).size;
-  const totalLabSessions = entries.filter(e => e.room?.toLowerCase().includes('lab') || e.courseName?.toLowerCase().includes('lab')).length;
+  // --- Dynamic Metrics (Scoped to Selected Semester) ---
+  const semFilterNum = selectedSemester ? Number(selectedSemester) : null;
+  const filteredEntries = entries.filter(e => !semFilterNum || e.semester === semFilterNum);
+
+  const conflicts = detectTimetableConflicts(filteredEntries, batchSizes);
+  const totalClasses = filteredEntries.length;
+  const totalCourses = new Set(filteredEntries.map(e => e.courseCode)).size;
+  const totalInstructors = new Set(filteredEntries.filter(e => e.instructor).map(e => e.instructor)).size;
+  const totalRooms = new Set(filteredEntries.filter(e => e.room).map(e => e.room)).size;
+  const totalLabSessions = filteredEntries.filter(e => e.room?.toLowerCase().includes('lab') || e.courseName?.toLowerCase().includes('lab')).length;
 
   // --- Room Utilization Donut Chart Data ---
   const roomCounts = {};
-  entries.forEach(e => {
+  filteredEntries.forEach(e => {
     if (e.room) roomCounts[e.room] = (roomCounts[e.room] || 0) + 1;
   });
   const roomData = Object.entries(roomCounts)
@@ -190,13 +194,13 @@ export default function TimetableGenerator({ setActiveNav }) {
   // --- Class Timing Details Aggregation ---
   const timingDetails = [];
   const courseGroups = {};
-  entries.forEach(e => {
+  filteredEntries.forEach(e => {
     if (!courseGroups[e.courseCode]) {
       courseGroups[e.courseCode] = {
         code: e.courseCode,
         title: e.courseName,
         type: (e.room?.toLowerCase().includes('lab') || e.courseName?.toLowerCase().includes('lab')) ? 'Lab' : 'Theory',
-        credits: 3,
+        credits: e.creditHours || 3,
         instructor: e.instructor,
         room: e.room,
         sessions: 0
@@ -287,7 +291,7 @@ export default function TimetableGenerator({ setActiveNav }) {
                 onChange={e => setSelectedSemester(e.target.value)}
                 className="w-full appearance-none bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 py-2 px-3 rounded-lg outline-none cursor-pointer"
               >
-                {[1,2,3,4,5,6,7,8].map(s => <option key={s} value={s}>Semester {s}</option>)}
+                {[1,2,3,4,5,6,7,8].map(s => <option key={s} value={String(s)}>Semester {s}</option>)}
               </select>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
@@ -318,7 +322,9 @@ export default function TimetableGenerator({ setActiveNav }) {
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
             <div className="px-5 py-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white">
               <div className="flex items-center gap-3">
-                <h3 className="text-sm font-extrabold text-slate-800">Weekly Timetable - BSCS {batchLabel} - Semester {selectedSemester || 6}</h3>
+                <h3 className="text-sm font-extrabold text-slate-800">
+                  Weekly Timetable — {selectedBatchObj?.code || 'All Batches'} {selectedSemester ? `- Semester ${selectedSemester}` : '- All Semesters'}
+                </h3>
                 <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase tracking-wider rounded border border-emerald-200">Published</span>
               </div>
               <div className="flex items-center gap-3">
@@ -348,28 +354,30 @@ export default function TimetableGenerator({ setActiveNav }) {
                           {slot}
                         </td>
                         {DAYS.map(day => {
-                          const cellEntries = entries.filter(e => e.day === day && e.timeSlot === slot);
+                          const cellEntries = filteredEntries.filter(e => e.day === day && e.timeSlot === slot);
                           return (
-                            <td key={day} className="p-2 border-r border-slate-100 align-top h-auto min-h-[7rem]">
-                              {cellEntries.map((entry, i) => (
-                                <div key={i} className={`p-2.5 rounded-lg border border-l-4 ${getSlotColor(entry.courseName, entry.room)} mb-2 flex flex-col text-left shadow-sm transition-all hover:shadow-md h-full min-h-[5rem]`}>
-                                  <span className="font-bold text-[11px] leading-tight mb-1">{entry.courseCode} - {entry.courseName}</span>
-                                  <div className="mt-auto flex flex-col gap-0.5">
-                                    <span className="font-semibold text-[10px] opacity-80">{entry.instructor}</span>
-                                    <span className="font-bold text-[10px]">{entry.room}</span>
-                                  </div>
+                            <td key={day} className="p-2 border-r border-slate-100 align-top h-auto min-h-[6.5rem]">
+                              {cellEntries.length === 0 ? (
+                                <div className="h-full min-h-[5.5rem] flex items-center justify-center p-1.5">
+                                  <span className="text-[9px] font-extrabold text-slate-300 tracking-wider uppercase bg-slate-50 border border-slate-200/50 px-2 py-1 rounded border-dashed select-none">
+                                    FREE SLOT
+                                  </span>
                                 </div>
-                              ))}
+                              ) : (
+                                cellEntries.map((entry, i) => (
+                                  <div key={i} className={`p-2.5 rounded-lg border border-l-4 ${getSlotColor(entry.courseName, entry.room)} mb-2 flex flex-col text-left shadow-sm transition-all hover:shadow-md h-full min-h-[5.5rem]`}>
+                                    <span className="font-bold text-[11px] leading-tight mb-1">{entry.courseCode} - {entry.courseName}</span>
+                                    <div className="mt-auto flex flex-col gap-0.5 pt-1 border-t border-slate-200/50">
+                                      <span className="font-bold text-[10px] text-amber-800">{entry.room}</span>
+                                      <span className="font-semibold text-[10px] text-slate-600">{entry.instructor}</span>
+                                    </div>
+                                  </div>
+                                ))
+                              )}
                             </td>
                           );
                         })}
                       </tr>
-                      {/* Insert aesthetic break rows */}
-                      {index === 1 && (
-                        <tr>
-                          <td colSpan={7} className="py-1.5 bg-slate-100/50 text-center text-[9px] font-bold text-slate-400 tracking-widest uppercase border-y border-slate-200">Break</td>
-                        </tr>
-                      )}
                     </React.Fragment>
                   ))}
                 </tbody>
@@ -611,16 +619,16 @@ export default function TimetableGenerator({ setActiveNav }) {
             <h3 className="text-sm font-bold text-slate-800 mb-4">Timetable Info</h3>
             <div className="space-y-3 text-xs">
               <div className="flex justify-between">
-                <span className="text-slate-500 font-medium">Batch (Year-Term):</span>
-                <span className="font-bold text-slate-800">{selectedBatchObj?.code || '23S'} (2023 Spring)</span>
+                <span className="text-slate-500 font-medium">Batch:</span>
+                <span className="font-bold text-slate-800">{selectedBatchObj?.code || 'All Batches'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 font-medium">Program:</span>
-                <span className="font-bold text-slate-800">BS Computer Science</span>
+                <span className="font-bold text-slate-800">{selectedProgram}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 font-medium">Semester:</span>
-                <span className="font-bold text-slate-800">Semester {selectedSemester || 6}</span>
+                <span className="font-bold text-slate-800">{selectedSemester ? `Semester ${selectedSemester}` : 'All Semesters'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 font-medium">Section:</span>

@@ -76,9 +76,19 @@ export const validateApprovalRequest = async (studentId, courseCode, courseTitle
       c => c.code.toUpperCase() === courseCode.toUpperCase()
     );
 
+    if (curriculumCourse) {
+      if (curriculumCourse.semester > student.currentSemester) {
+        return {
+          isValid: false,
+          isFutureSemester: true,
+          reason: `Invalid request: Cannot request course ${courseCode.toUpperCase()} from a future semester (${curriculumCourse.semester} > current ${student.currentSemester}).`
+        };
+      }
+    }
+
     if (curriculumCourse && curriculumCourse.prerequisiteCourseIds && curriculumCourse.prerequisiteCourseIds.length > 0) {
       const deficientPrereqs = [];
-      
+
       for (const prereqId of curriculumCourse.prerequisiteCourseIds) {
         // Resolve prerequisite course details in curriculum
         const prereqCourse = curriculum.courses.id(prereqId);
@@ -154,11 +164,43 @@ export const createAdvisorRequest = async (req, res, next) => {
 
     // Run business validations
     const validation = await validateApprovalRequest(studentId, courseCode, courseTitle, creditHours, requestType);
+    let prereqCheck = 'Passed';
+    let validationFailureReason = '';
+
     if (!validation.isValid) {
-      return res.status(400).json({
-        status: 'error',
-        message: validation.reason
+      if (validation.isFutureSemester) {
+        // Hard block: requesting a course from a future semester is a data-integrity
+        // issue, not a waivable academic rule — no HOD override applies here.
+        return res.status(400).json({
+          status: 'error',
+          message: validation.reason
+        });
+      }
+
+      // Prerequisite / credit-hour / duplicate failures are NOT blocked here.
+      // Override authority belongs to the HOD at final approval (FR-4, Module 4
+      // workflow) — the request is flagged and still routed through the normal
+      // Advisor (Level-1) -> HOD (Level-2) chain so the HOD can review and decide
+      // whether to override, with mandatory justification, at resolveHODDecision.
+      prereqCheck = 'Failed';
+      validationFailureReason = validation.reason;
+    }
+
+    let isBacklog = false;
+    if (requestType === 'add' || requestType === 'special_permission') {
+      const curriculum = await Curriculum.findOne({
+        departmentId: student.departmentId,
+        batchId: student.batchId,
+        status: 'active'
       });
+      if (curriculum) {
+        const curriculumCourse = curriculum.courses.find(
+          c => c.code.toUpperCase() === courseCode.toUpperCase()
+        );
+        if (curriculumCourse && curriculumCourse.semester < student.currentSemester) {
+          isBacklog = true;
+        }
+      }
     }
 
     const request = await ApprovalRequest.create({
@@ -174,8 +216,11 @@ export const createAdvisorRequest = async (req, res, next) => {
       status: 'pending',
       currentApproverRole: 'advisor',
       submittedBy: req.user._id,
-      prereqCheck: 'Passed',
-      duplicateWarning: ''
+      prereqCheck,
+      duplicateWarning: '',
+      validationFailureReason,
+      overrideJustification: '',
+      isBacklog
     });
 
     // Log audit
@@ -189,6 +234,19 @@ export const createAdvisorRequest = async (req, res, next) => {
       batchId: student.batchId.toString(),
       metadata: { description: `Advisor created request for student ${student.rollNumber}` }
     });
+
+    if (prereqCheck === 'Failed') {
+      await logAudit({
+        actorId: req.user._id,
+        actorRole: req.user.role,
+        action: 'REQUEST_FLAGGED_VALIDATION_FAILED',
+        targetType: 'ApprovalRequest',
+        targetId: request._id.toString(),
+        departmentId: student.departmentId.toString(),
+        batchId: student.batchId.toString(),
+        metadata: { reason: validationFailureReason }
+      });
+    }
 
     // Populate and send response
     const populated = await ApprovalRequest.findById(request._id)
@@ -267,7 +325,7 @@ export const resolveAdvisorDecision = async (req, res, next) => {
     await request.save();
 
     const student = await Student.findById(request.studentId);
-    
+
     // Log audit
     const isReturned = remarks && remarks.trim().startsWith('[Returned for Edit]');
     await logAudit({
@@ -322,7 +380,7 @@ export const listAdvisorRequests = async (req, res, next) => {
     }
 
     const filter = { batchId: { $in: assignedBatches } };
-    
+
     const { status, requestType, search } = req.query;
     if (status) filter.status = status;
     if (requestType) filter.requestType = requestType;
@@ -353,7 +411,7 @@ export const listAdvisorRequests = async (req, res, next) => {
       const currentCredits = student ? student.courses
         .filter(c => c.enrollmentStatus === 'enrolled')
         .reduce((sum, c) => sum + c.creditHours, 0) : 0;
-      
+
       let prerequisites = [];
       if (student) {
         const curriculum = await Curriculum.findOne({
@@ -453,11 +511,47 @@ export const createHODSpecialPermission = async (req, res, next) => {
 
     // Run business validations
     const validation = await validateApprovalRequest(studentId, courseCode, courseTitle, creditHours, 'special_permission');
+    let prereqCheck = 'Passed';
+    let isOverridden = false;
+
     if (!validation.isValid) {
-      return res.status(400).json({
-        status: 'error',
-        message: validation.reason
-      });
+      if (validation.isFutureSemester) {
+        return res.status(400).json({
+          status: 'error',
+          message: validation.reason
+        });
+      }
+
+      const { overrideJustification } = req.body;
+      // This route is HOD-only (restrictTo('admin', 'dean')), so override authority
+      // here is exactly the doc's "HOD overrides with justification" — Dean (Super
+      // Admin) is included since it can act as HOD for any department.
+      const canOverride = req.user.role === 'admin' || req.user.role === 'dean';
+
+      if (canOverride && overrideJustification && overrideJustification.trim() !== '') {
+        prereqCheck = 'Overridden';
+        isOverridden = true;
+      } else {
+        return res.status(400).json({
+          status: 'error',
+          message: validation.reason
+        });
+      }
+    }
+
+    let isBacklog = false;
+    const curriculum = await Curriculum.findOne({
+      departmentId: student.departmentId,
+      batchId: student.batchId,
+      status: 'active'
+    });
+    if (curriculum) {
+      const curriculumCourse = curriculum.courses.find(
+        c => c.code.toUpperCase() === courseCode.toUpperCase()
+      );
+      if (curriculumCourse && curriculumCourse.semester < student.currentSemester) {
+        isBacklog = true;
+      }
     }
 
     // Lookup advisor of the batch
@@ -483,8 +577,10 @@ export const createHODSpecialPermission = async (req, res, next) => {
         remarks: remarks ? remarks.trim() : 'Directly granted by HOD.'
       },
       hodRemarks: remarks ? remarks.trim() : 'Directly granted by HOD.',
-      prereqCheck: 'Passed',
-      duplicateWarning: ''
+      prereqCheck,
+      duplicateWarning: '',
+      overrideJustification: isOverridden ? req.body.overrideJustification.trim() : '',
+      isBacklog
     });
 
     // Execute core action: Add course to student registration immediately
@@ -494,7 +590,6 @@ export const createHODSpecialPermission = async (req, res, next) => {
       creditHours,
       grade: 'IP',
       enrollmentStatus: 'enrolled',
-      attendance: 100,
       semester: student.currentSemester
     });
     await student.save();
@@ -510,6 +605,23 @@ export const createHODSpecialPermission = async (req, res, next) => {
       batchId: student.batchId.toString(),
       metadata: { justification, remarks }
     });
+
+    if (isOverridden) {
+      await logAudit({
+        actorId: req.user._id,
+        actorRole: req.user.role,
+        action: 'PREREQ_OVERRIDDEN',
+        targetType: 'ApprovalRequest',
+        targetId: request._id.toString(),
+        departmentId: student.departmentId.toString(),
+        batchId: student.batchId.toString(),
+        metadata: {
+          justification: req.body.overrideJustification.trim(),
+          actor: req.user.name,
+          timestamp: new Date()
+        }
+      });
+    }
 
     // Notify Advisor
     if (advisorId && advisorId.toString() !== req.user._id.toString()) {
@@ -645,6 +757,18 @@ export const resolveHODDecision = async (req, res, next) => {
       });
     }
 
+    // Override authority (FR-4 / Module 4): if the request was flagged at submission
+    // for a failed prerequisite/credit-hour/duplicate check, only the HOD (or Dean)
+    // can approve it through, and only with a mandatory override justification.
+    const { overrideJustification } = req.body;
+    const isOverrideCase = isApprove && request.prereqCheck === 'Failed';
+    if (isOverrideCase && (!overrideJustification || overrideJustification.trim() === '')) {
+      return res.status(400).json({
+        status: 'error',
+        message: `This request failed automated validation (${request.validationFailureReason}). An override justification is required to approve it.`
+      });
+    }
+
     const student = await Student.findById(request.studentId);
     if (!student) {
       return res.status(404).json({
@@ -657,6 +781,11 @@ export const resolveHODDecision = async (req, res, next) => {
       request.status = 'approved';
       request.currentApproverRole = 'none';
 
+      if (isOverrideCase) {
+        request.prereqCheck = 'Overridden';
+        request.overrideJustification = overrideJustification.trim();
+      }
+
       // Perform course action adjustments based on request type
       if (request.requestType === 'add') {
         student.courses.push({
@@ -665,7 +794,6 @@ export const resolveHODDecision = async (req, res, next) => {
           creditHours: request.creditHours,
           grade: 'IP',
           enrollmentStatus: 'enrolled',
-          attendance: 100,
           semester: student.currentSemester
         });
       } else if (request.requestType === 'drop') {
@@ -682,7 +810,7 @@ export const resolveHODDecision = async (req, res, next) => {
           // We keep enrollmentStatus standard, but the grade represents withdrawal
         }
       }
-      
+
       await student.save();
     } else {
       request.status = 'rejected';
@@ -709,6 +837,24 @@ export const resolveHODDecision = async (req, res, next) => {
       batchId: request.batchId.toString(),
       metadata: { remarks }
     });
+
+    if (isOverrideCase) {
+      await logAudit({
+        actorId: req.user._id,
+        actorRole: req.user.role,
+        action: 'PREREQ_OVERRIDDEN',
+        targetType: 'ApprovalRequest',
+        targetId: request._id.toString(),
+        departmentId: request.departmentId.toString(),
+        batchId: request.batchId.toString(),
+        metadata: {
+          justification: overrideJustification.trim(),
+          originalFailureReason: request.validationFailureReason,
+          actor: req.user.name,
+          timestamp: new Date()
+        }
+      });
+    }
 
     // Notify Advisor
     if (request.advisorId) {

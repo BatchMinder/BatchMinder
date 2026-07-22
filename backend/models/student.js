@@ -29,12 +29,6 @@ const courseEnrollmentSchema = new mongoose.Schema({
     type: String,
     default: 'enrolled',
   },
-  attendance: {
-    type: Number,
-    min: 0,
-    max: 100,
-    default: 100,
-  },
   semester: {
     type: Number,
     required: true,
@@ -153,9 +147,16 @@ studentSchema.pre('findOneAndUpdate', function (next) {
 
 // Recalculate Degree Progress and Backlog list (FR-2.6 & FR-5.3)
 async function recalculateDegreeProgress(doc) {
-  const completedCredits = (doc.courses || [])
-    .filter(c => c.enrollmentStatus === 'completed' || c.status === 'completed')
-    .reduce((sum, c) => sum + (c.creditHours || 0), 0);
+  const completedCoursesList = (doc.courses || []).filter(c => c.enrollmentStatus === 'completed' || c.status === 'completed');
+  const seenCodes = new Set();
+  const uniqueCompleted = completedCoursesList.filter(c => {
+    const code = c.courseCode.toUpperCase();
+    if (seenCodes.has(code)) return false;
+    seenCodes.add(code);
+    return true;
+  });
+  
+  const completedCredits = uniqueCompleted.reduce((sum, c) => sum + (c.creditHours || 0), 0);
   const totalRequiredCredits = 130;
   const remainingCredits = Math.max(totalRequiredCredits - completedCredits, 0);
   const completionPercentage = parseFloat(((completedCredits / totalRequiredCredits) * 100).toFixed(2));

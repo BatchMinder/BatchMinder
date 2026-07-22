@@ -6,6 +6,15 @@ const transferredCourseSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
+  // CORE/LAB/GENERAL courses may be accepted on content-similarity grounds.
+  // ELECTIVE courses are held to a stricter rule (see decideMigration): they
+  // may only be accepted if mappedCourseName matches an actual course code
+  // in the target curriculum — curriculum alignment, not content similarity.
+  courseType: {
+    type: String,
+    enum: ['CORE', 'ELECTIVE', 'LAB', 'GENERAL'],
+    default: 'CORE',
+  },
   mappedCourseName: {
     type: String,
     default: '',

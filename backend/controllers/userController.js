@@ -28,7 +28,7 @@ const toFeUser = (user) => {
   // initials
   const nameParts = user.name.split(' ');
   const initials = nameParts.map(p => p[0]).join('').substring(0, 2).toUpperCase() || 'US';
-  
+
   // colors mapping based on role
   const colors = {
     'dean': '#E11D48',
@@ -60,7 +60,7 @@ const toLoggedInUserFe = (user) => {
   if (!user) return null;
   const nameParts = user.name.split(' ');
   const initials = nameParts.map(p => p[0]).join('').substring(0, 2).toUpperCase() || 'US';
-  
+
   const colors = {
     'dean': '#E11D48',
     'academic_admin': '#10B981',
@@ -107,7 +107,31 @@ export const getAllUsers = async (req, res, next) => {
 export const createUser = async (req, res, next) => {
   try {
     const { name, email, role, dept, status, phone, employeeId, password } = req.body;
-    
+
+    const dbRole = toDbRole(role);
+
+    // Only a Dean (Super Admin) may create another Dean account. Without this,
+    // an Administrator (academic_admin) — who is also allowed to hit this
+    // endpoint — could mint themselves or anyone else a Super Admin account.
+    if (dbRole === 'dean' && req.user?.role !== 'dean') {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Only a Dean can create another Dean account'
+      });
+    }
+
+    // BatchMinder only ever has one Dean account. Block creating a second
+    // one outright, even when the request is coming from the existing Dean.
+    if (dbRole === 'dean') {
+      const existingDean = await User.findOne({ role: 'dean' });
+      if (existingDean) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'A Dean account already exists. Only one Dean is allowed.'
+        });
+      }
+    }
+
     // Check if user already exists
     const existing = await User.findOne({ email });
     if (existing) {
@@ -119,8 +143,6 @@ export const createUser = async (req, res, next) => {
 
     // Set default password if none provided
     const defaultPassword = password || 'STMU12345';
-
-    const dbRole = toDbRole(role);
 
     const newUser = await User.create({
       name,
@@ -166,9 +188,34 @@ export const updateUser = async (req, res, next) => {
       });
     }
 
+    if (role) {
+      const newDbRole = toDbRole(role);
+      // Only a Dean may promote a user to Dean, or edit an existing Dean's
+      // role — otherwise an Administrator could promote themselves or
+      // someone else to Super Admin.
+      if ((newDbRole === 'dean' || user.role === 'dean') && req.user?.role !== 'dean') {
+        return res.status(403).json({
+          status: 'error',
+          message: 'Only a Dean can assign or modify a Dean account'
+        });
+      }
+      // BatchMinder only ever has one Dean account. Promoting someone else
+      // to Dean would create a second one, so block it unless this user is
+      // already the Dean (no-op).
+      if (newDbRole === 'dean' && user.role !== 'dean') {
+        const existingDean = await User.findOne({ role: 'dean' });
+        if (existingDean) {
+          return res.status(400).json({
+            status: 'error',
+            message: 'A Dean account already exists. Only one Dean is allowed.'
+          });
+        }
+      }
+      user.role = newDbRole;
+    }
+
     if (name) user.name = name;
     if (email) user.email = email;
-    if (role) user.role = toDbRole(role);
     if (dept) user.dept = dept;
     if (status) user.status = status;
     if (phone !== undefined) user.phone = phone;
@@ -233,7 +280,7 @@ export const deleteUser = async (req, res, next) => {
 export const updateCurrentUserProfile = async (req, res, next) => {
   try {
     const { name, email, phone, currentPassword, newPassword } = req.body;
-    
+
     const user = await User.findById(req.user._id).select('+password');
     if (!user) {
       return res.status(404).json({ status: 'error', message: 'User not found' });
@@ -275,10 +322,10 @@ export const updateCurrentUserProfile = async (req, res, next) => {
       targetType: 'User',
       targetId: user._id.toString(),
       departmentId: user.departmentIds && user.departmentIds.length > 0 ? user.departmentIds[0].toString() : undefined,
-      metadata: { 
-        description: newPassword 
-          ? 'Administrator updated their profile and changed password' 
-          : 'Administrator updated their profile' 
+      metadata: {
+        description: newPassword
+          ? 'Administrator updated their profile and changed password'
+          : 'Administrator updated their profile'
       }
     });
 

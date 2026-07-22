@@ -29,7 +29,7 @@ export default function MigrationRecords() {
   const [isSubmittingNew, setIsSubmittingNew] = useState(false);
   const [newReqError, setNewReqError] = useState('');
   const [activeTab, setActiveTab] = useState('requests');
-  
+
   // Custom Modal & Pagination States
   const [showCoursesModal, setShowCoursesModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -261,12 +261,12 @@ export default function MigrationRecords() {
 
     setActioning(true);
     setActionError('');
-    
+
     const courseDecisions = status === 'approved'
       ? (tempCourses.length > 0 ? tempCourses : selected.transferredCourses).map(c => ({
-          courseName: c.courseName,
-          equivalencyStatus: c.equivalencyStatus === 'accepted' ? 'accepted' : (c.equivalencyStatus === 'rejected' ? 'rejected' : 'accepted')
-        }))
+        courseName: c.courseName,
+        equivalencyStatus: c.equivalencyStatus === 'accepted' ? 'accepted' : (c.equivalencyStatus === 'rejected' ? 'rejected' : 'accepted')
+      }))
       : selected.transferredCourses.map(c => ({ courseName: c.courseName, equivalencyStatus: 'rejected' }));
 
     const decisionPayload = {
@@ -328,8 +328,8 @@ export default function MigrationRecords() {
   ];
 
   const filteredMigrations = migrations.filter(m => {
-    const sMatch = m.studentId?.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                   m.studentId?.rollNumber?.toLowerCase().includes(searchQuery.toLowerCase());
+    const sMatch = m.studentId?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      m.studentId?.rollNumber?.toLowerCase().includes(searchQuery.toLowerCase());
     const statusMatch = statusFilter === 'all' || m.status === statusFilter;
     const deptMatch = deptFilter === 'all' || m.departmentId?.code === deptFilter;
     return sMatch && statusMatch && deptMatch;
@@ -378,7 +378,7 @@ export default function MigrationRecords() {
 
   return (
     <div style={{ padding: '0 0 40px', maxWidth: '1400px', margin: '0 auto' }}>
-      
+
       {/* 1. TOP STATS ROW */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
         {statCards.map((card, i) => {
@@ -428,397 +428,397 @@ export default function MigrationRecords() {
 
       {activeTab === 'requests' ? (
         <div className="flex flex-col xl:grid xl:grid-cols-[1.5fr_1fr] gap-5">
-        
-        {/* LEFT COLUMN */}
-        <div className="contents xl:flex xl:flex-col" style={{ gap: '20px' }}>
-          
-          {/* Main List Table */}
-          <div className="order-1 xl:order-none" style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0', overflow: 'hidden' }}>
-            <div className="flex flex-col xl:flex-row justify-between xl:items-center gap-4 mb-5">
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0F172A' }}>Migrated Students List</h3>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                  <Search size={16} color="#64748B" style={{ position: 'absolute', left: '14px', pointerEvents: 'none' }} />
-                  <input 
-                    type="text" 
-                    placeholder="Search by name or ID..." 
-                    value={searchQuery} 
-                    onChange={(e) => setSearchQuery(e.target.value)} 
-                    style={{ 
-                      padding: '10px 16px 10px 40px', 
-                      borderRadius: '12px', 
-                      border: '1px solid #E2E8F0', 
-                      fontSize: '13px', 
-                      fontWeight: 500,
-                      outline: 'none', 
-                      width: '260px',
-                      backgroundColor: '#F8FAFC',
-                      color: '#0F172A',
-                      transition: 'all 0.2s ease',
-                      boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.02)'
-                    }} 
-                    onFocus={(e) => {
-                      e.target.style.borderColor = '#2563EB';
-                      e.target.style.backgroundColor = '#FFF';
-                      e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)';
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = '#E2E8F0';
-                      e.target.style.backgroundColor = '#F8FAFC';
-                      e.target.style.boxShadow = 'none';
-                    }}
-                  />
-                </div>
-                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '13px', outline: 'none', backgroundColor: '#fff' }}>
-                  <option value="all">All Status</option>
-                  <option value="pending">Pending</option>
-                  <option value="approved">Approved</option>
-                  <option value="rejected">Rejected</option>
-                </select>
-                <button onClick={openNewRequestModal} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', backgroundColor: '#2563EB', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
-                  <Plus size={14} /> New Migration Request
-                </button>
-              </div>
-            </div>
-            
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid #E2E8F0', color: '#64748B', fontWeight: 600 }}>
-                    <th style={{ padding: '12px 8px' }}>STUDENT ID (Formal)</th>
-                    <th style={{ padding: '12px 8px' }}>STUDENT NAME</th>
-                    <th style={{ padding: '12px 8px' }}>FROM INSTITUTION</th>
-                    <th style={{ padding: '12px 8px' }}>DEPARTMENT</th>
-                    <th style={{ padding: '12px 8px' }}>BATCH</th>
-                    <th style={{ padding: '12px 8px' }}>REQUEST DATE</th>
-                    <th style={{ padding: '12px 8px' }}>STATUS</th>
-                    <th style={{ padding: '12px 8px', textAlign: 'right' }}>ACTIONS</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedMigrations.map(m => {
-                    const isSelected = selected && selected._id === m._id;
-                    let sColor = '#F59E0B'; let sBg = '#FFFBEB';
-                    if (m.status === 'approved') { sColor = '#059669'; sBg = '#D1FAE5'; }
-                    if (m.status === 'rejected') { sColor = '#DC2626'; sBg = '#FEE2E2'; }
-                    
-                    return (
-                      <tr key={m._id} onClick={() => { setSelected(m); setTargetSemester(''); }} style={{ borderBottom: '1px solid #F8FAFC', cursor: 'pointer', backgroundColor: isSelected ? '#EFF6FF' : 'transparent', transition: 'all 0.2s' }}>
-                        <td style={{ padding: '12px 8px', color: '#2563EB', fontWeight: 600 }}>{m.studentId?.rollNumber}</td>
-                        <td style={{ padding: '12px 8px', color: '#0F172A', fontWeight: 500 }}>{m.studentId?.name}</td>
-                        <td style={{ padding: '12px 8px', color: '#64748B' }}>{m.sourceInstitution}</td>
-                        <td style={{ padding: '12px 8px', color: '#64748B' }}>{m.departmentId?.name}</td>
-                        <td style={{ padding: '12px 8px', color: '#64748B' }}>{m.studentId?.batchId?.code || 'N/A'}</td>
-                        <td style={{ padding: '12px 8px', color: '#64748B' }}>{format(new Date(m.createdAt), 'MMM d, yyyy')}</td>
-                        <td style={{ padding: '12px 8px' }}>
-                          <span style={{ padding: '4px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: 600, backgroundColor: sBg, color: sColor }}>
-                            {m.status.charAt(0).toUpperCase() + m.status.slice(1)}
-                          </span>
-                        </td>
-                        <td style={{ padding: '12px 8px', textAlign: 'right' }}>
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); openCoursesModal(m); }}
-                            style={{ background: 'none', border: 'none', color: '#2563EB', cursor: 'pointer', padding: '4px', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
-                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#EFF6FF'}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                          >
-                            <Eye size={16} />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {paginatedMigrations.length === 0 && (
-                    <tr><td colSpan="8" style={{ padding: '30px', textAlign: 'center', color: '#94A3B8' }}>No migration records found.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', color: '#64748B', fontSize: '12px' }}>
-              <span>Showing {paginatedMigrations.length} of {filteredMigrations.length} requests</span>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                {Array.from({ length: totalPages }, (_, idx) => idx + 1).map(p => (
-                  <span 
-                    key={p} 
-                    onClick={() => setCurrentPage(p)}
-                    style={{ 
-                      padding: '6px 12px', 
-                      backgroundColor: currentPage === p ? '#2563EB' : '#fff', 
-                      color: currentPage === p ? '#fff' : '#64748B', 
-                      border: currentPage === p ? 'none' : '1px solid #E2E8F0',
-                      borderRadius: '8px', 
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    {p}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
 
-          {/* Curriculum Comparison & Course Equivalency (Bottom Left area matching screenshot) */}
-          <div className="order-3 xl:order-none grid grid-cols-1 xl:grid-cols-[1fr_1.5fr] gap-5">
-            
-            {/* Curriculum Comparison */}
-            <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                <div style={{ width: '28px', height: '28px', borderRadius: '6px', backgroundColor: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Layers size={14} color="#2563EB" />
-                </div>
-                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Curriculum Comparison</h3>
-              </div>
-              <p style={{ margin: '0 0 16px', fontSize: '11px', color: '#64748B', textTransform: 'uppercase', fontWeight: 700 }}>
-                From: {selected?.sourceInstitution || 'N/A'} <br/> To: {selected?.studentId?.batchId?.code || 'Current Curriculum'}
-              </p>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '12px', marginBottom: '24px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#64748B' }}>Total Required Credits</span>
-                  <span style={{ fontWeight: 600, color: '#0F172A' }}>{totalRequiredCredits || '-'}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#64748B' }}>Completed Credits</span>
-                  <span style={{ fontWeight: 600, color: '#10B981' }}>{selectedSummary.creditsAccepted} <span style={{ color: '#94A3B8', fontSize: '10px', fontWeight: 400 }}>(Transferred)</span></span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#64748B' }}>Remaining Credits</span>
-                  <span style={{ fontWeight: 600, color: '#EF4444' }}>{remainingCredits || '-'}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #E2E8F0', paddingTop: '8px', marginTop: '4px' }}>
-                  <span style={{ color: '#2563EB', fontWeight: 700 }}>STMU Current Sem Placement</span>
-                  <span style={{ fontWeight: 800, color: '#2563EB', backgroundColor: '#EFF6FF', padding: '2px 8px', borderRadius: '12px' }}>
-                    Semester {selected?.studentId?.currentSemester || Math.min(8, Math.max(1, Math.floor((selectedSummary.creditsAccepted || 0) / 16) + 1))}
-                  </span>
-                </div>
-              </div>
+          {/* LEFT COLUMN */}
+          <div className="contents xl:flex xl:flex-col" style={{ gap: '20px' }}>
 
-              <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '16px', marginBottom: '16px' }}>
-                <p style={{ margin: '0 0 8px', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>Degree Progress After Transfer</p>
-                <div style={{ width: '100%', height: '8px', backgroundColor: '#F1F5F9', borderRadius: '4px', overflow: 'hidden', marginBottom: '8px' }}>
-                  <div style={{ height: '100%', width: `${degreeProgress}%`, backgroundColor: '#2563EB' }}></div>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 600, color: '#64748B' }}>
-                  <span>Expected Completion: Spring 2028</span>
-                  <span>{degreeProgress}% Completed</span>
-                </div>
-              </div>
-
-              {/* Official STMU Grading System & Formula Reference */}
-              <STMUGradingScaleTable compact={true} />
-            </div>
-
-            {/* Course Equivalency Mapping */}
-            <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{ width: '28px', height: '28px', borderRadius: '6px', backgroundColor: '#F0FDF4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <ArrowRightLeft size={14} color="#10B981" />
+            {/* Main List Table */}
+            <div className="order-1 xl:order-none" style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0', overflow: 'hidden' }}>
+              <div className="flex flex-col xl:flex-row justify-between xl:items-center gap-4 mb-5">
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0F172A' }}>Migrated Students List</h3>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <Search size={16} color="#64748B" style={{ position: 'absolute', left: '14px', pointerEvents: 'none' }} />
+                    <input
+                      type="text"
+                      placeholder="Search by name or ID..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      style={{
+                        padding: '10px 16px 10px 40px',
+                        borderRadius: '12px',
+                        border: '1px solid #E2E8F0',
+                        fontSize: '13px',
+                        fontWeight: 500,
+                        outline: 'none',
+                        width: '260px',
+                        backgroundColor: '#F8FAFC',
+                        color: '#0F172A',
+                        transition: 'all 0.2s ease',
+                        boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.02)'
+                      }}
+                      onFocus={(e) => {
+                        e.target.style.borderColor = '#2563EB';
+                        e.target.style.backgroundColor = '#FFF';
+                        e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)';
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = '#E2E8F0';
+                        e.target.style.backgroundColor = '#F8FAFC';
+                        e.target.style.boxShadow = 'none';
+                      }}
+                    />
                   </div>
-                  <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Course Equivalency Mapping</h3>
+                  <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '13px', outline: 'none', backgroundColor: '#fff' }}>
+                    <option value="all">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                  <button onClick={openNewRequestModal} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', backgroundColor: '#2563EB', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+                    <Plus size={14} /> New Migration Request
+                  </button>
                 </div>
-                <button onClick={() => openCoursesModal(selected)} style={{ fontSize: '12px', color: '#2563EB', border: 'none', background: 'none', fontWeight: 600, cursor: 'pointer' }}>View Full Mapping</button>
               </div>
 
-              <div style={{ display: 'flex', gap: '16px', fontSize: '11px', fontWeight: 600, marginBottom: '16px' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#10B981' }}><div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10B981' }}></div> Accepted ({selectedSummary.accepted})</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#F59E0B' }}><div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#F59E0B' }}></div> In Progress ({selectedSummary.inProgress})</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#EF4444' }}><div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#EF4444' }}></div> Credit Loss ({selectedSummary.rejected})</span>
-              </div>
-
-              <div style={{ overflowY: 'auto', flex: 1 }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', textAlign: 'left' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
                   <thead>
-                    <tr style={{ color: '#94A3B8', textTransform: 'uppercase' }}>
-                      <th style={{ padding: '8px 4px', fontWeight: 600 }}>FROM COURSE</th>
-                      <th style={{ padding: '8px 4px', fontWeight: 600 }}>TO COURSE (TARGET)</th>
-                      <th style={{ padding: '8px 4px', fontWeight: 600, textAlign: 'center' }}>CREDITS</th>
-                      <th style={{ padding: '8px 4px', fontWeight: 600 }}>STATUS</th>
+                    <tr style={{ borderBottom: '1px solid #E2E8F0', color: '#64748B', fontWeight: 600 }}>
+                      <th style={{ padding: '12px 8px' }}>STUDENT ID (Formal)</th>
+                      <th style={{ padding: '12px 8px' }}>STUDENT NAME</th>
+                      <th style={{ padding: '12px 8px' }}>FROM INSTITUTION</th>
+                      <th style={{ padding: '12px 8px' }}>DEPARTMENT</th>
+                      <th style={{ padding: '12px 8px' }}>BATCH</th>
+                      <th style={{ padding: '12px 8px' }}>REQUEST DATE</th>
+                      <th style={{ padding: '12px 8px' }}>STATUS</th>
+                      <th style={{ padding: '12px 8px', textAlign: 'right' }}>ACTIONS</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {selected?.transferredCourses?.map((c, i) => {
-                      let sColor = '#F59E0B'; let sText = 'In Progress';
-                      if (c.equivalencyStatus === 'accepted') { sColor = '#10B981'; sText = 'Accepted'; }
-                      if (c.equivalencyStatus === 'rejected') { sColor = '#EF4444'; sText = 'Credit Loss'; }
+                    {paginatedMigrations.map(m => {
+                      const isSelected = selected && selected._id === m._id;
+                      let sColor = '#F59E0B'; let sBg = '#FFFBEB';
+                      if (m.status === 'approved') { sColor = '#059669'; sBg = '#D1FAE5'; }
+                      if (m.status === 'rejected') { sColor = '#DC2626'; sBg = '#FEE2E2'; }
+
                       return (
-                        <tr key={i} style={{ borderBottom: '1px solid #F8FAFC' }}>
-                          <td style={{ padding: '10px 4px', color: '#475569' }}>{c.courseName}</td>
-                          <td style={{ padding: '10px 4px', color: '#475569' }}>{c.courseName}</td>
-                          <td style={{ padding: '10px 4px', color: '#475569', textAlign: 'center' }}>{c.credits}</td>
-                          <td style={{ padding: '10px 4px', color: sColor, fontWeight: 600 }}>{sText}</td>
+                        <tr key={m._id} onClick={() => { setSelected(m); setTargetSemester(''); }} style={{ borderBottom: '1px solid #F8FAFC', cursor: 'pointer', backgroundColor: isSelected ? '#EFF6FF' : 'transparent', transition: 'all 0.2s' }}>
+                          <td style={{ padding: '12px 8px', color: '#2563EB', fontWeight: 600 }}>{m.studentId?.rollNumber}</td>
+                          <td style={{ padding: '12px 8px', color: '#0F172A', fontWeight: 500 }}>{m.studentId?.name}</td>
+                          <td style={{ padding: '12px 8px', color: '#64748B' }}>{m.sourceInstitution}</td>
+                          <td style={{ padding: '12px 8px', color: '#64748B' }}>{m.departmentId?.name}</td>
+                          <td style={{ padding: '12px 8px', color: '#64748B' }}>{m.studentId?.batchId?.code || 'N/A'}</td>
+                          <td style={{ padding: '12px 8px', color: '#64748B' }}>{format(new Date(m.createdAt), 'MMM d, yyyy')}</td>
+                          <td style={{ padding: '12px 8px' }}>
+                            <span style={{ padding: '4px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: 600, backgroundColor: sBg, color: sColor }}>
+                              {m.status.charAt(0).toUpperCase() + m.status.slice(1)}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px 8px', textAlign: 'right' }}>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openCoursesModal(m); }}
+                              style={{ background: 'none', border: 'none', color: '#2563EB', cursor: 'pointer', padding: '4px', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#EFF6FF'}
+                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                            >
+                              <Eye size={16} />
+                            </button>
+                          </td>
                         </tr>
-                      )
+                      );
                     })}
-                    {(!selected?.transferredCourses || selected.transferredCourses.length === 0) && (
-                       <tr><td colSpan="4" style={{ padding: '20px', textAlign: 'center', color: '#94A3B8' }}>No courses attached.</td></tr>
+                    {paginatedMigrations.length === 0 && (
+                      <tr><td colSpan="8" style={{ padding: '30px', textAlign: 'center', color: '#94A3B8' }}>No migration records found.</td></tr>
                     )}
                   </tbody>
                 </table>
               </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', color: '#64748B', fontSize: '12px' }}>
+                <span>Showing {paginatedMigrations.length} of {filteredMigrations.length} requests</span>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {Array.from({ length: totalPages }, (_, idx) => idx + 1).map(p => (
+                    <span
+                      key={p}
+                      onClick={() => setCurrentPage(p)}
+                      style={{
+                        padding: '6px 12px',
+                        backgroundColor: currentPage === p ? '#2563EB' : '#fff',
+                        color: currentPage === p ? '#fff' : '#64748B',
+                        border: currentPage === p ? 'none' : '1px solid #E2E8F0',
+                        borderRadius: '8px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      {p}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
 
-          </div>
+            {/* Curriculum Comparison & Course Equivalency (Bottom Left area matching screenshot) */}
+            <div className="order-3 xl:order-none grid grid-cols-1 xl:grid-cols-[1fr_1.5fr] gap-5">
 
-        </div>
-
-        {/* RIGHT COLUMN */}
-        <div className="contents xl:flex xl:flex-col" style={{ gap: '20px' }}>
-          
-          {/* Selected Student Details */}
-          <div className="order-2 xl:order-none" style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
-              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Selected Student Details</h3>
-              <button onClick={() => setShowProfileModal(true)} style={{ fontSize: '12px', color: '#2563EB', border: 'none', background: 'none', fontWeight: 600, cursor: 'pointer' }}>View Full Profile</button>
-            </div>
-            
-            {selected ? (
-              <>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
-                  <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: '#6366F1', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: 700 }}>
-                    {selected.studentId?.name?.charAt(0) || 'U'}
+              {/* Curriculum Comparison */}
+              <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                  <div style={{ width: '28px', height: '28px', borderRadius: '6px', backgroundColor: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Layers size={14} color="#2563EB" />
                   </div>
-                  <div>
-                    <h4 style={{ margin: '0 0 4px', fontSize: '16px', fontWeight: 700, color: '#0F172A' }}>{selected.studentId?.name || 'Unknown'}</h4>
-                    <p style={{ margin: '0 0 4px', fontSize: '13px', color: '#64748B' }}>{selected.studentId?.rollNumber}</p>
-                    <span style={{ padding: '2px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: 600, backgroundColor: selected.status === 'approved' ? '#D1FAE5' : (selected.status === 'pending' ? '#FFFBEB' : '#FEE2E2'), color: selected.status === 'approved' ? '#059669' : (selected.status === 'pending' ? '#D97706' : '#DC2626') }}>
-                      {selected.status.toUpperCase()}
+                  <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Curriculum Comparison</h3>
+                </div>
+                <p style={{ margin: '0 0 16px', fontSize: '11px', color: '#64748B', textTransform: 'uppercase', fontWeight: 700 }}>
+                  From: {selected?.sourceInstitution || 'N/A'} <br /> To: {selected?.studentId?.batchId?.code || 'Current Curriculum'}
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '12px', marginBottom: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#64748B' }}>Total Required Credits</span>
+                    <span style={{ fontWeight: 600, color: '#0F172A' }}>{totalRequiredCredits || '-'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#64748B' }}>Completed Credits</span>
+                    <span style={{ fontWeight: 600, color: '#10B981' }}>{selectedSummary.creditsAccepted} <span style={{ color: '#94A3B8', fontSize: '10px', fontWeight: 400 }}>(Transferred)</span></span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#64748B' }}>Remaining Credits</span>
+                    <span style={{ fontWeight: 600, color: '#EF4444' }}>{remainingCredits || '-'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #E2E8F0', paddingTop: '8px', marginTop: '4px' }}>
+                    <span style={{ color: '#2563EB', fontWeight: 700 }}>STMU Current Sem Placement</span>
+                    <span style={{ fontWeight: 800, color: '#2563EB', backgroundColor: '#EFF6FF', padding: '2px 8px', borderRadius: '12px' }}>
+                      Semester {selected?.studentId?.currentSemester || Math.min(8, Math.max(1, Math.floor((selectedSummary.creditsAccepted || 0) / 16) + 1))}
                     </span>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '12px' }}>
-                  <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] items-start">
-                    <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}><Building2 size={12} /> From Institution</span>
-                    <span style={{ color: '#0F172A', fontWeight: 500 }}>{selected.sourceInstitution}</span>
+                <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '16px', marginBottom: '16px' }}>
+                  <p style={{ margin: '0 0 8px', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>Degree Progress After Transfer</p>
+                  <div style={{ width: '100%', height: '8px', backgroundColor: '#F1F5F9', borderRadius: '4px', overflow: 'hidden', marginBottom: '8px' }}>
+                    <div style={{ height: '100%', width: `${degreeProgress}%`, backgroundColor: '#2563EB' }}></div>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] items-start">
-                    <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}><BookOpen size={12} /> From Program</span>
-                    <span style={{ color: '#0F172A', fontWeight: 500 }}>{selected.sourceInstitution} (CS)</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 600, color: '#64748B' }}>
+                    <span>Expected Completion: Spring 2028</span>
+                    <span>{degreeProgress}% Completed</span>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] items-start">
-                    <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}><BookOpen size={12} /> To Program</span>
-                    <span style={{ color: '#0F172A', fontWeight: 500 }}>BS Computer Science (STMU)</span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] items-start">
-                    <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}><Clock size={12} /> Request Date</span>
-                    <span style={{ color: '#0F172A', fontWeight: 500 }}>{format(new Date(selected.createdAt), 'MMM d, yyyy')}</span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] items-start">
-                    <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}><User size={12} /> Reviewed By</span>
-                    <span style={{ color: '#0F172A', fontWeight: 500 }}>{selected.decidedBy?.name || 'Pending'}</span>
-                  </div>
-                  {selected.decidedAt && (
-                    <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] items-start">
-                      <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}><Clock size={12} /> Reviewed Date</span>
-                      <span style={{ color: '#0F172A', fontWeight: 500 }}>{format(new Date(selected.decidedAt), 'MMM d, yyyy')}</span>
-                    </div>
-                  )}
                 </div>
-              </>
-            ) : (
-              <div style={{ textAlign: 'center', padding: '40px 0', color: '#94A3B8', fontSize: '13px' }}>Select a student to view details</div>
+
+                {/* Official STMU Grading System & Formula Reference */}
+                <STMUGradingScaleTable compact={true} />
+              </div>
+
+              {/* Course Equivalency Mapping */}
+              <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '6px', backgroundColor: '#F0FDF4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <ArrowRightLeft size={14} color="#10B981" />
+                    </div>
+                    <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Course Equivalency Mapping</h3>
+                  </div>
+                  <button onClick={() => openCoursesModal(selected)} style={{ fontSize: '12px', color: '#2563EB', border: 'none', background: 'none', fontWeight: 600, cursor: 'pointer' }}>View Full Mapping</button>
+                </div>
+
+                <div style={{ display: 'flex', gap: '16px', fontSize: '11px', fontWeight: 600, marginBottom: '16px' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#10B981' }}><div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10B981' }}></div> Accepted ({selectedSummary.accepted})</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#F59E0B' }}><div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#F59E0B' }}></div> In Progress ({selectedSummary.inProgress})</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#EF4444' }}><div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#EF4444' }}></div> Credit Loss ({selectedSummary.rejected})</span>
+                </div>
+
+                <div style={{ overflowY: 'auto', flex: 1 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ color: '#94A3B8', textTransform: 'uppercase' }}>
+                        <th style={{ padding: '8px 4px', fontWeight: 600 }}>FROM COURSE</th>
+                        <th style={{ padding: '8px 4px', fontWeight: 600 }}>TO COURSE (TARGET)</th>
+                        <th style={{ padding: '8px 4px', fontWeight: 600, textAlign: 'center' }}>CREDITS</th>
+                        <th style={{ padding: '8px 4px', fontWeight: 600 }}>STATUS</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selected?.transferredCourses?.map((c, i) => {
+                        let sColor = '#F59E0B'; let sText = 'In Progress';
+                        if (c.equivalencyStatus === 'accepted') { sColor = '#10B981'; sText = 'Accepted'; }
+                        if (c.equivalencyStatus === 'rejected') { sColor = '#EF4444'; sText = 'Credit Loss'; }
+                        return (
+                          <tr key={i} style={{ borderBottom: '1px solid #F8FAFC' }}>
+                            <td style={{ padding: '10px 4px', color: '#475569' }}>{c.courseName}</td>
+                            <td style={{ padding: '10px 4px', color: '#475569' }}>{c.courseName}</td>
+                            <td style={{ padding: '10px 4px', color: '#475569', textAlign: 'center' }}>{c.credits}</td>
+                            <td style={{ padding: '10px 4px', color: sColor, fontWeight: 600 }}>{sText}</td>
+                          </tr>
+                        )
+                      })}
+                      {(!selected?.transferredCourses || selected.transferredCourses.length === 0) && (
+                        <tr><td colSpan="4" style={{ padding: '20px', textAlign: 'center', color: '#94A3B8' }}>No courses attached.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+          {/* RIGHT COLUMN */}
+          <div className="contents xl:flex xl:flex-col" style={{ gap: '20px' }}>
+
+            {/* Selected Student Details */}
+            <div className="order-2 xl:order-none" style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Selected Student Details</h3>
+                <button onClick={() => setShowProfileModal(true)} style={{ fontSize: '12px', color: '#2563EB', border: 'none', background: 'none', fontWeight: 600, cursor: 'pointer' }}>View Full Profile</button>
+              </div>
+
+              {selected ? (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
+                    <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: '#6366F1', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: 700 }}>
+                      {selected.studentId?.name?.charAt(0) || 'U'}
+                    </div>
+                    <div>
+                      <h4 style={{ margin: '0 0 4px', fontSize: '16px', fontWeight: 700, color: '#0F172A' }}>{selected.studentId?.name || 'Unknown'}</h4>
+                      <p style={{ margin: '0 0 4px', fontSize: '13px', color: '#64748B' }}>{selected.studentId?.rollNumber}</p>
+                      <span style={{ padding: '2px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: 600, backgroundColor: selected.status === 'approved' ? '#D1FAE5' : (selected.status === 'pending' ? '#FFFBEB' : '#FEE2E2'), color: selected.status === 'approved' ? '#059669' : (selected.status === 'pending' ? '#D97706' : '#DC2626') }}>
+                        {selected.status.toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '12px' }}>
+                    <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] items-start">
+                      <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}><Building2 size={12} /> From Institution</span>
+                      <span style={{ color: '#0F172A', fontWeight: 500 }}>{selected.sourceInstitution}</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] items-start">
+                      <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}><BookOpen size={12} /> From Program</span>
+                      <span style={{ color: '#0F172A', fontWeight: 500 }}>{selected.sourceInstitution} (CS)</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] items-start">
+                      <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}><BookOpen size={12} /> To Program</span>
+                      <span style={{ color: '#0F172A', fontWeight: 500 }}>BS Computer Science (STMU)</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] items-start">
+                      <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}><Clock size={12} /> Request Date</span>
+                      <span style={{ color: '#0F172A', fontWeight: 500 }}>{format(new Date(selected.createdAt), 'MMM d, yyyy')}</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] items-start">
+                      <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}><User size={12} /> Reviewed By</span>
+                      <span style={{ color: '#0F172A', fontWeight: 500 }}>{selected.decidedBy?.name || 'Pending'}</span>
+                    </div>
+                    {selected.decidedAt && (
+                      <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] items-start">
+                        <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}><Clock size={12} /> Reviewed Date</span>
+                        <span style={{ color: '#0F172A', fontWeight: 500 }}>{format(new Date(selected.decidedAt), 'MMM d, yyyy')}</span>
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: '#94A3B8', fontSize: '13px' }}>Select a student to view details</div>
+              )}
+            </div>
+
+            {/* Migration Summary */}
+            <div className="order-4 xl:order-none" style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0' }}>
+              <h3 style={{ margin: '0 0 20px', fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Migration Summary</h3>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '12px', marginBottom: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748B' }}>Total Courses Submitted</span>
+                  <span style={{ fontWeight: 600, color: '#2563EB' }}>{selectedSummary.totalSubmitted}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748B' }}>Courses Accepted</span>
+                  <span style={{ fontWeight: 600, color: '#10B981' }}>{selectedSummary.accepted}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748B' }}>Courses Rejected</span>
+                  <span style={{ fontWeight: 600, color: '#EF4444' }}>{selectedSummary.rejected}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748B' }}>Courses In-Progress</span>
+                  <span style={{ fontWeight: 600, color: '#F59E0B' }}>{selectedSummary.inProgress}</span>
+                </div>
+                <hr style={{ border: 'none', borderTop: '1px solid #E2E8F0', margin: '4px 0' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748B' }}>Total Credits Submitted</span>
+                  <span style={{ fontWeight: 600, color: '#0F172A' }}>{selectedSummary.creditsSubmitted}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748B' }}>Credits Accepted</span>
+                  <span style={{ fontWeight: 600, color: '#10B981' }}>{selectedSummary.creditsAccepted}</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', backgroundColor: '#F8FAFC', borderRadius: '12px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: '#475569' }}>Credit Transfer Percentage</span>
+                <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: '3px solid #2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 800, color: '#2563EB', backgroundColor: '#fff' }}>
+                  {transferPercentage}%
+                </div>
+              </div>
+            </div>
+
+            {/* Advisor Review Panel */}
+            {selected && selected.status === 'pending' && (
+              <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0' }}>
+                <h3 style={{ margin: '0 0 12px', fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Advisor Review Panel</h3>
+                <p style={{ margin: '0 0 8px', fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Advisor Remarks:</p>
+                <p style={{ margin: '0 0 20px', fontSize: '13px', color: '#0F172A', backgroundColor: '#F8FAFC', padding: '12px', borderRadius: '8px', border: '1px solid #E2E8F0', fontStyle: 'italic' }}>
+                  All accepted courses meet the curriculum equivalency criteria. Student is eligible for credit transfer.
+                </p>
+
+                {/* Target Semester Selection */}
+                <div style={{ marginBottom: '20px', padding: '12px', backgroundColor: '#F0F9FF', border: '1px solid #BFDBFE', borderRadius: '8px' }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#1E40AF', textTransform: 'uppercase', marginBottom: '8px' }}>
+                    Assign Target Semester:
+                  </label>
+                  <select
+                    value={targetSemester}
+                    onChange={(e) => setTargetSemester(e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #93C5FD', fontSize: '13px', fontWeight: 600, color: '#1E40AF', backgroundColor: '#fff' }}>
+                    <option value="">-- Select Target Semester --</option>
+                    <option value="1">Semester 1</option>
+                    <option value="2">Semester 2</option>
+                    <option value="3">Semester 3</option>
+                    <option value="4">Semester 4</option>
+                    <option value="5">Semester 5</option>
+                    <option value="6">Semester 6</option>
+                    <option value="7">Semester 7</option>
+                    <option value="8">Semester 8</option>
+                  </select>
+                </div>
+
+                {actionError && <p style={{ color: '#EF4444', fontSize: '12px', marginBottom: '12px' }}>{actionError}</p>}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <button
+                    onClick={() => handleDecision('rejected')}
+                    disabled={actioning}
+                    style={{ padding: '10px', backgroundColor: 'transparent', color: '#EF4444', border: '1px solid #EF4444', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>
+                    Return Request
+                  </button>
+                  <button
+                    onClick={() => handleDecision('rejected')}
+                    disabled={actioning}
+                    style={{ padding: '10px', backgroundColor: '#FEE2E2', color: '#DC2626', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>
+                    Reject
+                  </button>
+                  <button
+                    onClick={() => handleDecision('approved')}
+                    disabled={actioning}
+                    style={{ padding: '10px', backgroundColor: '#2563EB', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>
+                    {actioning ? 'Processing...' : 'Approve'}
+                  </button>
+                </div>
+              </div>
             )}
+
           </div>
-
-          {/* Migration Summary */}
-          <div className="order-4 xl:order-none" style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0' }}>
-            <h3 style={{ margin: '0 0 20px', fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Migration Summary</h3>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '12px', marginBottom: '24px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#64748B' }}>Total Courses Submitted</span>
-                <span style={{ fontWeight: 600, color: '#2563EB' }}>{selectedSummary.totalSubmitted}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#64748B' }}>Courses Accepted</span>
-                <span style={{ fontWeight: 600, color: '#10B981' }}>{selectedSummary.accepted}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#64748B' }}>Courses Rejected</span>
-                <span style={{ fontWeight: 600, color: '#EF4444' }}>{selectedSummary.rejected}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#64748B' }}>Courses In-Progress</span>
-                <span style={{ fontWeight: 600, color: '#F59E0B' }}>{selectedSummary.inProgress}</span>
-              </div>
-              <hr style={{ border: 'none', borderTop: '1px solid #E2E8F0', margin: '4px 0' }} />
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#64748B' }}>Total Credits Submitted</span>
-                <span style={{ fontWeight: 600, color: '#0F172A' }}>{selectedSummary.creditsSubmitted}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#64748B' }}>Credits Accepted</span>
-                <span style={{ fontWeight: 600, color: '#10B981' }}>{selectedSummary.creditsAccepted}</span>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', backgroundColor: '#F8FAFC', borderRadius: '12px' }}>
-              <span style={{ fontSize: '12px', fontWeight: 700, color: '#475569' }}>Credit Transfer Percentage</span>
-              <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: '3px solid #2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 800, color: '#2563EB', backgroundColor: '#fff' }}>
-                {transferPercentage}%
-              </div>
-            </div>
-          </div>
-
-          {/* Advisor Review Panel */}
-          {selected && selected.status === 'pending' && (
-            <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0' }}>
-              <h3 style={{ margin: '0 0 12px', fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Advisor Review Panel</h3>
-              <p style={{ margin: '0 0 8px', fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Advisor Remarks:</p>
-              <p style={{ margin: '0 0 20px', fontSize: '13px', color: '#0F172A', backgroundColor: '#F8FAFC', padding: '12px', borderRadius: '8px', border: '1px solid #E2E8F0', fontStyle: 'italic' }}>
-                All accepted courses meet the curriculum equivalency criteria. Student is eligible for credit transfer.
-              </p>
-
-              {/* Target Semester Selection */}
-              <div style={{ marginBottom: '20px', padding: '12px', backgroundColor: '#F0F9FF', border: '1px solid #BFDBFE', borderRadius: '8px' }}>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#1E40AF', textTransform: 'uppercase', marginBottom: '8px' }}>
-                  Assign Target Semester:
-                </label>
-                <select 
-                  value={targetSemester}
-                  onChange={(e) => setTargetSemester(e.target.value)}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #93C5FD', fontSize: '13px', fontWeight: 600, color: '#1E40AF', backgroundColor: '#fff' }}>
-                  <option value="">-- Select Target Semester --</option>
-                  <option value="1">Semester 1</option>
-                  <option value="2">Semester 2</option>
-                  <option value="3">Semester 3</option>
-                  <option value="4">Semester 4</option>
-                  <option value="5">Semester 5</option>
-                  <option value="6">Semester 6</option>
-                  <option value="7">Semester 7</option>
-                  <option value="8">Semester 8</option>
-                </select>
-              </div>
-
-              {actionError && <p style={{ color: '#EF4444', fontSize: '12px', marginBottom: '12px' }}>{actionError}</p>}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <button 
-                  onClick={() => handleDecision('rejected')} 
-                  disabled={actioning}
-                  style={{ padding: '10px', backgroundColor: 'transparent', color: '#EF4444', border: '1px solid #EF4444', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>
-                  Return Request
-                </button>
-                <button 
-                  onClick={() => handleDecision('rejected')} 
-                  disabled={actioning}
-                  style={{ padding: '10px', backgroundColor: '#FEE2E2', color: '#DC2626', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>
-                  Reject
-                </button>
-                <button 
-                  onClick={() => handleDecision('approved')} 
-                  disabled={actioning}
-                  style={{ padding: '10px', backgroundColor: '#2563EB', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>
-                  {actioning ? 'Processing...' : 'Approve'}
-                </button>
-              </div>
-            </div>
-          )}
-
         </div>
-      </div>
       ) : (
         <MigrationAudit />
       )}
@@ -827,7 +827,7 @@ export default function MigrationRecords() {
       {showNewModal && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '24px' }}>
           <div style={{ backgroundColor: '#fff', borderRadius: '24px', width: '100%', maxWidth: '560px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', padding: '24px' }}>
-            
+
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #E2E8F0' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -857,11 +857,11 @@ export default function MigrationRecords() {
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                   Student Full Name <span style={{ color: '#EF4444' }}>*</span>
                 </label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   placeholder="e.g. Muhammad Faisal Raza"
                   value={newReq.studentName}
-                  onChange={(e) => setNewReq({...newReq, studentName: e.target.value})}
+                  onChange={(e) => setNewReq({ ...newReq, studentName: e.target.value })}
                   style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13.5px', outline: 'none' }}
                 />
               </div>
@@ -871,11 +871,11 @@ export default function MigrationRecords() {
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                     Email <span style={{ color: '#94A3B8', fontWeight: 400 }}>(Optional)</span>
                   </label>
-                  <input 
-                    type="email" 
+                  <input
+                    type="email"
                     placeholder="e.g. name@example.com"
                     value={newReq.studentEmail}
-                    onChange={(e) => setNewReq({...newReq, studentEmail: e.target.value})}
+                    onChange={(e) => setNewReq({ ...newReq, studentEmail: e.target.value })}
                     style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13.5px', outline: 'none' }}
                   />
                 </div>
@@ -883,11 +883,11 @@ export default function MigrationRecords() {
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                     Phone <span style={{ color: '#94A3B8', fontWeight: 400 }}>(Optional)</span>
                   </label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="e.g. 0300-1234567"
                     value={newReq.studentPhone}
-                    onChange={(e) => setNewReq({...newReq, studentPhone: e.target.value})}
+                    onChange={(e) => setNewReq({ ...newReq, studentPhone: e.target.value })}
                     style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13.5px', outline: 'none' }}
                   />
                 </div>
@@ -898,9 +898,9 @@ export default function MigrationRecords() {
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                     Target Department <span style={{ color: '#EF4444' }}>*</span>
                   </label>
-                  <select 
+                  <select
                     value={newReq.departmentId}
-                    onChange={(e) => setNewReq({...newReq, departmentId: e.target.value, batchId: ''})}
+                    onChange={(e) => setNewReq({ ...newReq, departmentId: e.target.value, batchId: '' })}
                     style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13.5px', outline: 'none', backgroundColor: '#fff' }}
                   >
                     <option value="">Select Department</option>
@@ -913,9 +913,9 @@ export default function MigrationRecords() {
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                     Target Batch <span style={{ color: '#EF4444' }}>*</span>
                   </label>
-                  <select 
+                  <select
                     value={newReq.batchId}
-                    onChange={(e) => setNewReq({...newReq, batchId: e.target.value})}
+                    onChange={(e) => setNewReq({ ...newReq, batchId: e.target.value })}
                     style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13.5px', outline: 'none', backgroundColor: '#fff' }}
                   >
                     <option value="">Select Batch</option>
@@ -930,11 +930,11 @@ export default function MigrationRecords() {
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                   Source Institution <span style={{ color: '#EF4444' }}>*</span>
                 </label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   placeholder="e.g. NUST UNIVERSITY"
                   value={newReq.sourceInstitution}
-                  onChange={(e) => setNewReq({...newReq, sourceInstitution: e.target.value})}
+                  onChange={(e) => setNewReq({ ...newReq, sourceInstitution: e.target.value })}
                   style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13.5px', outline: 'none' }}
                 />
               </div>
@@ -946,11 +946,11 @@ export default function MigrationRecords() {
                   </label>
                   <select
                     value={newReq.fromSemester}
-                    onChange={(e) => setNewReq({...newReq, fromSemester: e.target.value})}
+                    onChange={(e) => setNewReq({ ...newReq, fromSemester: e.target.value })}
                     style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13.5px', outline: 'none', backgroundColor: '#fff' }}
                   >
                     <option value="">Select semester completed</option>
-                    {[1,2,3,4,5,6,7,8].map(s => (
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map(s => (
                       <option key={s} value={s}>Semester {s}</option>
                     ))}
                   </select>
@@ -961,7 +961,7 @@ export default function MigrationRecords() {
                   </label>
                   <select
                     value={newReq.intakeSession || 'Spring'}
-                    onChange={(e) => setNewReq({...newReq, intakeSession: e.target.value})}
+                    onChange={(e) => setNewReq({ ...newReq, intakeSession: e.target.value })}
                     style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13.5px', outline: 'none', backgroundColor: '#fff' }}
                   >
                     <option value="Spring">🌸 Spring Intake</option>
@@ -1017,13 +1017,13 @@ export default function MigrationRecords() {
 
             {/* Footer Buttons Inline */}
             <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #E2E8F0', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-              <button 
+              <button
                 onClick={() => setShowNewModal(false)}
                 style={{ padding: '10px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, color: '#64748B', backgroundColor: 'transparent', border: 'none', cursor: 'pointer' }}
               >
                 Cancel
               </button>
-              <button 
+              <button
                 onClick={submitNewRequest}
                 disabled={isSubmittingNew}
                 style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 22px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, color: '#fff', backgroundColor: '#2563EB', border: 'none', cursor: isSubmittingNew ? 'not-allowed' : 'pointer', opacity: isSubmittingNew ? 0.7 : 1, boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
@@ -1081,7 +1081,7 @@ export default function MigrationRecords() {
                 </button>
               </div>
             </div>
-            
+
             <div style={{ flex: 1, overflow: 'auto', padding: '24px', paddingBottom: '160px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
               {/* Parse error */}
@@ -1106,6 +1106,7 @@ export default function MigrationRecords() {
                       <th style={{ padding: '12px 16px', width: '35%' }}>SOURCE COURSE NAME</th>
                       <th style={{ padding: '12px 16px', width: '40%', minWidth: '240px' }}>TARGET EQUIVALENT COURSE</th>
                       <th style={{ padding: '12px 16px', textAlign: 'center', width: '10%' }}>CREDITS</th>
+                      <th style={{ padding: '12px 16px', textAlign: 'center', width: '10%' }}>TYPE</th>
                       <th style={{ padding: '12px 16px', width: '10%' }}>STATUS</th>
                       {selected.status === 'pending' && <th style={{ padding: '12px 16px', textAlign: 'right', width: '5%' }}>ACTION</th>}
                     </tr>
@@ -1119,7 +1120,7 @@ export default function MigrationRecords() {
                             (() => {
                               const deptCodes = new Set(curriculum?.courses?.map(course => course.code) || []);
                               const uniqueHec = (hecCurriculum?.courses || []).filter(course => !deptCodes.has(course.code));
-                              
+
                               const options = [];
                               if (uniqueHec.length > 0) {
                                 options.push({
@@ -1138,24 +1139,27 @@ export default function MigrationRecords() {
                               const selectedOption = allOpts.find(o => o.value === c.mappedCourseName) || null;
 
                               return (
-                                <Select 
+                                <Select
                                   options={options}
                                   value={selectedOption}
                                   onChange={(selectedOpt) => {
                                     const selectedCode = selectedOpt ? selectedOpt.value : '';
-                                    const updated = [...tempCourses];
-                                    updated[idx].mappedCourseName = selectedCode;
-                                    if (selectedOpt) {
-                                      updated[idx].credits = selectedOpt.credits;
-                                    }
-                                    setTempCourses(updated);
+                                    setTempCourses(prev => {
+                                      const updated = [...prev];
+                                      updated[idx] = {
+                                        ...updated[idx],
+                                        mappedCourseName: selectedCode,
+                                        credits: selectedOpt ? selectedOpt.credits : updated[idx].credits
+                                      };
+                                      return updated;
+                                    });
                                   }}
                                   isClearable
                                   placeholder="Select target course..."
-                                  closeMenuOnScroll={true}
+                                  closeMenuOnScroll={false}
                                   menuPlacement="auto"
                                   maxMenuHeight={220}
-                                  styles={{ 
+                                  styles={{
                                     control: (base, state) => ({
                                       ...base,
                                       borderRadius: '8px',
@@ -1166,10 +1170,10 @@ export default function MigrationRecords() {
                                       minWidth: '220px',
                                       cursor: 'pointer'
                                     }),
-                                    menu: base => ({ 
-                                      ...base, 
-                                      fontSize: '13px', 
-                                      zIndex: 9999 
+                                    menu: base => ({
+                                      ...base,
+                                      fontSize: '13px',
+                                      zIndex: 9999
                                     }),
                                     option: (base, state) => ({ ...base, cursor: 'pointer' })
                                   }}
@@ -1181,6 +1185,28 @@ export default function MigrationRecords() {
                           )}
                         </td>
                         <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 600, color: '#64748B' }}>{c.credits}</td>
+                        <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                          {selected.status === 'pending' ? (
+                            <select
+                              value={c.courseType || 'CORE'}
+                              onChange={e => {
+                                const updated = [...tempCourses];
+                                updated[idx].courseType = e.target.value;
+                                setTempCourses(updated);
+                              }}
+                              style={{
+                                padding: '6px 8px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '12px', outline: 'none', fontWeight: 600, fontFamily: 'inherit', color: '#334155', backgroundColor: '#F8FAFC'
+                              }}
+                            >
+                              <option value="CORE">Core</option>
+                              <option value="ELECTIVE">Elective</option>
+                              <option value="LAB">Lab</option>
+                              <option value="GENERAL">General</option>
+                            </select>
+                          ) : (
+                            <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748B' }}>{(c.courseType || 'CORE')}</span>
+                          )}
+                        </td>
                         <td style={{ padding: '12px 16px' }}>
                           {selected.status === 'pending' ? (
                             <select
@@ -1201,7 +1227,7 @@ export default function MigrationRecords() {
                               <option value="rejected">Credit Loss</option>
                             </select>
                           ) : (
-                            <span style={{ 
+                            <span style={{
                               padding: '4px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 600,
                               backgroundColor: c.equivalencyStatus === 'accepted' ? '#D1FAE5' : (c.equivalencyStatus === 'rejected' ? '#FEE2E2' : '#FFFBEB'),
                               color: c.equivalencyStatus === 'accepted' ? '#059669' : (c.equivalencyStatus === 'rejected' ? '#DC2626' : '#D97706')
@@ -1212,7 +1238,7 @@ export default function MigrationRecords() {
                         </td>
                         {selected.status === 'pending' && (
                           <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                            <button 
+                            <button
                               type="button"
                               onClick={() => setTempCourses(tempCourses.filter((_, i) => i !== idx))}
                               style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '4px' }}
@@ -1224,7 +1250,7 @@ export default function MigrationRecords() {
                       </tr>
                     ))}
                     {tempCourses.length === 0 && (
-                      <tr><td colSpan="5" style={{ padding: '24px', textAlign: 'center', color: '#94A3B8' }}>No transferred courses attached yet. Add a course below.</td></tr>
+                      <tr><td colSpan="6" style={{ padding: '24px', textAlign: 'center', color: '#94A3B8' }}>No transferred courses attached yet. Add a course below.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -1274,14 +1300,14 @@ export default function MigrationRecords() {
             </div>
 
             <div style={{ padding: '16px 24px', borderTop: '1px solid #E2E8F0', backgroundColor: '#F8FAFC', display: 'flex', justifyContent: 'flex-end', gap: '12px', flexWrap: 'wrap' }}>
-              <button 
+              <button
                 onClick={() => { setShowCoursesModal(false); setShowHecPanel(false); }}
                 style={{ padding: '10px 20px', borderRadius: '12px', border: '1px solid #E2E8F0', backgroundColor: '#fff', color: '#64748B', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
               >
                 Close
               </button>
               {selected.status === 'pending' && (
-                <button 
+                <button
                   onClick={() => saveTransferredCourses(false)}
                   disabled={isUpdatingCourses}
                   style={{ padding: '10px 20px', borderRadius: '12px', border: 'none', backgroundColor: '#2563EB', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: isUpdatingCourses ? 'not-allowed' : 'pointer', opacity: isUpdatingCourses ? 0.7 : 1 }}
@@ -1322,12 +1348,12 @@ export default function MigrationRecords() {
         return (
           <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', padding: '20px' }}>
             <div style={{ backgroundColor: '#fff', borderRadius: 24, maxWidth: 860, width: '100%', maxHeight: '90vh', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', display: 'flex', flexDirection: 'column' }}>
-              
+
               {/* Header */}
               <div style={{ padding: '20px 24px', borderBottom: '1px solid #E2E8F0', backgroundColor: '#F8FAFC', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: '250px' }}>
                   <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'linear-gradient(135deg, #6366F1, #2563EB)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 20, color: '#fff' }}>
-                    {stu.name?.split(' ').map(n => n[0]).join('').slice(0,2) || 'U'}
+                    {stu.name?.split(' ').map(n => n[0]).join('').slice(0, 2) || 'U'}
                   </div>
                   <div>
                     <div style={{ fontWeight: 800, fontSize: 18, color: '#0F172A' }}>{stu.name}</div>
