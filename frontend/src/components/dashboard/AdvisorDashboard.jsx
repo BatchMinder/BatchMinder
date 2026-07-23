@@ -1,51 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-  Users, AlertTriangle, ShieldCheck, ShieldAlert, Clock, BarChart2,
-  Calendar, Search, ChevronRight, CheckCircle2, AlertCircle, X, Plus,
-  TrendingUp, Lightbulb, Sparkles, BookOpen, Send, Check, RefreshCw, FileText
+  Users, AlertTriangle, Clock, BarChart2, AlertCircle
 } from 'lucide-react';
 
 export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
   const { user } = useAuth();
-  
+
   // Dashboard Metrics & Records States
   const [stats, setStats] = useState({ total: 0, good: 0, warning: 0, critical: 0 });
   const [students, setStudents] = useState([]);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedModal, setSelectedModal] = useState(null); // 'prereq', 'addStudent', 'meeting', 'notification', 'calendar'
-  
-
-  
-  const [meetingData, setMeetingData] = useState({
-    title: '',
-    date: '',
-    time: '',
-    type: 'On Campus'
-  });
-  
-  const [broadcastData, setBroadcastData] = useState({
-    target: 'Warning List',
-    alertType: 'warning',
-    message: ''
-  });
-
-  const [toastMessage, setToastMessage] = useState(null);
 
   const assignedBatches = user?.assignedBatchIds || [];
   const hasNoBatches = assignedBatches.length === 0;
-
-  const triggerToast = (msg) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 4000);
-  };
 
   const fetchDashboardData = async () => {
     if (hasNoBatches) return;
     setLoading(true);
     try {
-    const summaryUrl = selectedBatch && selectedBatch !== 'all'
+      const summaryUrl = selectedBatch && selectedBatch !== 'all'
         ? `/api/advisor/dashboard-summary?batchId=${selectedBatch}`
         : '/api/advisor/dashboard-summary';
       const studentsUrl = selectedBatch && selectedBatch !== 'all'
@@ -121,7 +96,7 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
   const warningStudents = students.filter(s => (s.cgpa || 0) >= 2.0 && (s.cgpa || 0) <= 2.1);
   const criticalCount = criticalStudents.length;
   const warningCount = warningStudents.length;
-  
+
   // Calculate average CGPA
   const avgCgpa = students.length > 0
     ? (students.reduce((acc, s) => acc + (s.cgpa || 0), 0) / students.length).toFixed(2)
@@ -176,12 +151,12 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
     'D+': 1.33, 'D': 1.0, 'F': 0.0
   };
 
-  const semAggregator = {}; 
+  const semAggregator = {};
 
   students.forEach(s => {
     if (s.courses && s.courses.length > 0) {
       const maxSem = Math.max(...s.courses.map(c => c.semester || 1));
-      
+
       for (let sem = 1; sem <= maxSem; sem++) {
         const coursesUpTo = s.courses.filter(c => (c.semester || 1) <= sem && c.grade && GRADE_POINTS[c.grade] !== undefined);
         let pts = 0;
@@ -199,12 +174,12 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
     }
   });
 
-  const availableSems = Object.keys(semAggregator).map(Number).sort((a,b) => a - b);
+  const availableSems = Object.keys(semAggregator).map(Number).sort((a, b) => a - b);
   const recentSems = availableSems; // Show all available semesters
-  
+
   let finalTrendSems = [];
   let finalTrendGpas = [];
-  
+
   if (recentSems.length > 0) {
     recentSems.forEach(sem => {
       const gpas = semAggregator[sem];
@@ -224,25 +199,25 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
         No course records available yet.
       </div>
     );
-    
+
     const xCoords = finalTrendGpas.map((_, i) => n === 1 ? 200 : 20 + (i * (360 / (n - 1))));
-    
+
     const minGpa = Math.max(0, Math.min(...finalTrendGpas) - 0.2);
     const maxGpa = Math.min(4.0, Math.max(...finalTrendGpas) + 0.2);
     const range = maxGpa - minGpa || 1;
-    
+
     const getY = (gpa) => 95 - ((gpa - minGpa) / range) * 75;
-    
+
     const points = finalTrendGpas.map((gpa, i) => ({ x: xCoords[i], y: getY(gpa), gpa }));
-    
+
     let pathD = "";
     if (points.length > 1) {
       pathD = `M ${points[0].x} ${points[0].y} `;
       for (let i = 1; i < points.length; i++) {
-         pathD += `L ${points[i].x} ${points[i].y} `;
+        pathD += `L ${points[i].x} ${points[i].y} `;
       }
     }
-    
+
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
         <svg viewBox="0 0 400 135" style={{ width: '100%', maxHeight: '160px', overflow: 'visible' }}>
@@ -250,9 +225,9 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
           <line x1="0" y1="50" x2="400" y2="50" stroke="#F1F5F9" strokeWidth="1" />
           <line x1="0" y1="80" x2="400" y2="80" stroke="#F1F5F9" strokeWidth="1" />
           <line x1="0" y1="110" x2="400" y2="110" stroke="#E2E8F0" strokeWidth="1" />
-          
+
           {pathD && <path d={pathD} fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />}
-          
+
           {points.map((pt, i) => (
             <React.Fragment key={i}>
               <circle cx={pt.x} cy={pt.y} r="3.5" fill="#2563EB" />
@@ -265,52 +240,12 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
     );
   };
 
-  // Submit mock meeting schedule
-  const submitMeeting = (e) => {
-    e.preventDefault();
-    if (!meetingData.title || !meetingData.date) {
-      triggerToast('Please specify a title and date.');
-      return;
-    }
-    triggerToast(`Meeting Scheduled successfully! Calendar notification broadcasted to students.`);
-    setSelectedModal(null);
-    setMeetingData({ title: '', date: '', time: '', type: 'On Campus' });
-  };
-
-  // Submit mock warning broadcast
-  const submitBroadcast = (e) => {
-    e.preventDefault();
-    if (!broadcastData.message) {
-      triggerToast('Alert message cannot be blank.');
-      return;
-    }
-    triggerToast(`Alert broadcast successfully sent to ${broadcastData.target}!`);
-    setSelectedModal(null);
-    setBroadcastData({ target: 'Warning List', alertType: 'warning', message: '' });
-  };
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', position: 'relative' }}>
-      
-      {/* Dynamic Toast Alert */}
-      {toastMessage && (
-        <div style={{
-          position: 'fixed', bottom: '24px', right: '24px', zIndex: 1100,
-          backgroundColor: '#0F172A', color: '#F8FAFC', border: '1px solid #334155',
-          borderRadius: '12px', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '10px',
-          boxShadow: '0 10px 25px rgba(0,0,0,0.2)', fontSize: '13px', fontWeight: 600
-        }}>
-          <CheckCircle2 size={16} color="#10B981" />
-          <span>{toastMessage}</span>
-          <button onClick={() => setToastMessage(null)} style={{ border: 'none', backgroundColor: 'transparent', color: '#94A3B8', cursor: 'pointer', display: 'flex' }}>
-            <X size={14} />
-          </button>
-        </div>
-      )}
 
       {/* ── FOUR METRIC CARDS ROW ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        
+
         {/* Card 1: Total Students */}
         <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -455,7 +390,7 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
 
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px_320px] gap-4 mb-4">
-        
+
         {/* Widget 1: At-Risk Students */}
         <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #F1F5F9' }}>
@@ -531,7 +466,7 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
               position: 'relative'
             }}>
               {/* Inner white circle to create the donut hole */}
-              <div style={{ 
+              <div style={{
                 width: '100px', height: '100px', borderRadius: '50%', backgroundColor: '#FFFFFF',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                 boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.04)'
@@ -594,7 +529,7 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
 
       {/* ── BOTTOM ROW: Pending Approvals, Performance Trend ── */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] xl:grid-cols-[1fr_450px] gap-4 mb-4">
-        
+
         {/* Widget 4: Pending Approvals Table */}
         <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #F1F5F9' }}>
@@ -674,205 +609,6 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
 
       </div>
 
-      {/* ── QUICK ADVISORY ACTIONS (BOTTOM ROW) ── */}
-      <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-        <h3 style={{ margin: '0 0 16px', fontSize: '15px', fontWeight: 700, color: '#0F172A', paddingBottom: '16px', borderBottom: '1px solid #F1F5F9' }}>
-          Quick Advisory Actions
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          {[
-            { title: 'Advise Courses', icon: BookOpen, iconColor: '#16A34A', bg: '#F0FDF4', action: () => setActiveNav('workflowQueue') },
-            { title: 'Generate Report', icon: FileText, iconColor: '#2563EB', bg: '#EFF6FF', action: () => triggerToast('Generating academic report compilation...') },
-            { title: 'Send Notification', icon: Send, iconColor: '#EC4899', bg: '#FDF2F8', action: () => setSelectedModal('notification') },
-            { title: 'Schedule Meeting', icon: Clock, iconColor: '#0D9488', bg: '#F0FDFA', action: () => setSelectedModal('meeting') },
-            { title: 'View My Calendar', icon: Calendar, iconColor: '#E11D48', bg: '#FFF1F2', action: () => setSelectedModal('calendar') },
-            { title: 'Export Data', icon: BarChart2, iconColor: '#0F172A', bg: '#F8FAFC', action: () => triggerToast('Exporting student batch rosters as CSV...') }
-          ].map((action, i) => {
-            const ActionIcon = action.icon;
-            return (
-              <button
-                key={i}
-                onClick={action.action}
-                style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                  padding: '14px 8px', borderRadius: '12px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0',
-                  cursor: 'pointer', transition: 'all 0.15s', textAlign: 'center'
-                }}
-                onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#F1F5F9'; e.currentTarget.style.borderColor = '#CBD5E1'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-                onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#F8FAFC'; e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.transform = 'none'; }}
-              >
-                <div style={{ width: '38px', height: '38px', borderRadius: '10px', backgroundColor: action.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <ActionIcon size={18} color={action.iconColor} />
-                </div>
-                <span style={{ fontSize: '10px', fontWeight: 700, color: '#374151', whiteSpace: 'nowrap' }}>
-                  {action.title}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── INTERACTIVE MODALS ── */}
-
-
-
-
-
-      {/* Modal 3: Schedule Meeting */}
-      {selectedModal === 'meeting' && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <form onSubmit={submitMeeting} style={{ backgroundColor: '#fff', borderRadius: 24, padding: 24, maxWidth: 400, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)', textAlign: 'left' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#1B3A6B' }}>Schedule Advisory Meeting</h3>
-              <button type="button" onClick={() => setSelectedModal(null)} style={{ border: 'none', backgroundColor: 'transparent', cursor: 'pointer', color: '#94A3B8' }}><X size={18} /></button>
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
-              <div>
-                <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Meeting Subject</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Academic standing counseling"
-                  value={meetingData.title}
-                  onChange={e => setMeetingData({ ...meetingData, title: e.target.value })}
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none' }}
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div>
-                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Date</label>
-                  <input
-                    type="date"
-                    value={meetingData.date}
-                    onChange={e => setMeetingData({ ...meetingData, date: e.target.value })}
-                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none' }}
-                    required
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Time</label>
-                  <input
-                    type="time"
-                    value={meetingData.time}
-                    onChange={e => setMeetingData({ ...meetingData, time: e.target.value })}
-                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none' }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Location/Medium</label>
-                <select
-                  value={meetingData.type}
-                  onChange={e => setMeetingData({ ...meetingData, type: e.target.value })}
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }}
-                >
-                  <option value="On Campus">On Campus (Advisor Office)</option>
-                  <option value="Online">Online Teams/Zoom Session</option>
-                </select>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <button type="button" onClick={() => setSelectedModal(null)} style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #E2E8F0', backgroundColor: '#fff', color: '#64748B', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
-              <button type="submit" style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', backgroundColor: '#0D9488', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>Schedule & Invite</button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* Modal 4: Broadcast warning alerts */}
-      {selectedModal === 'notification' && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <form onSubmit={submitBroadcast} style={{ backgroundColor: '#fff', borderRadius: 24, padding: 24, maxWidth: 420, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)', textAlign: 'left' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#1B3A6B' }}>Send Broadcast Notification</h3>
-              <button type="button" onClick={() => setSelectedModal(null)} style={{ border: 'none', backgroundColor: 'transparent', cursor: 'pointer', color: '#94A3B8' }}><X size={18} /></button>
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
-              <div>
-                <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Target Audience</label>
-                <select
-                  value={broadcastData.target}
-                  onChange={e => setBroadcastData({ ...broadcastData, target: e.target.value })}
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }}
-                >
-                  <option value="Warning List">All At-Risk Students (Warning + Critical)</option>
-                  <option value="Critical Only">Critical Standing List Only</option>
-                  <option value="Complete Batch">Entire Assigned Batches</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Alert Type</label>
-                <select
-                  value={broadcastData.alertType}
-                  onChange={e => setBroadcastData({ ...broadcastData, alertType: e.target.value })}
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }}
-                >
-                  <option value="critical">Critical (Red Flag Warning)</option>
-                  <option value="warning">Warning (Amber Alert)</option>
-                  <option value="info">General Info Broadcast</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Message Body</label>
-                <textarea
-                  placeholder="Write alert content here..."
-                  value={broadcastData.message}
-                  onChange={e => setBroadcastData({ ...broadcastData, message: e.target.value })}
-                  style={{ width: '100%', height: '80px', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none', fontFamily: 'inherit', resize: 'none' }}
-                  required
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <button type="button" onClick={() => setSelectedModal(null)} style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #E2E8F0', backgroundColor: '#fff', color: '#64748B', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
-              <button type="submit" style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', backgroundColor: '#EC4899', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>Broadcast Alerts</button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* Modal 5: Calendar Schedule View */}
-      {selectedModal === 'calendar' && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div style={{ backgroundColor: '#fff', borderRadius: 24, padding: 24, maxWidth: 540, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)', textAlign: 'left' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#1B3A6B' }}>Advisory Calendar</h3>
-              <button onClick={() => setSelectedModal(null)} style={{ border: 'none', backgroundColor: 'transparent', cursor: 'pointer', color: '#94A3B8' }}><X size={18} /></button>
-            </div>
-            
-            <div style={{ border: '1px solid #F1F5F9', borderRadius: '12px', padding: '16px', backgroundColor: '#FAFAFA' }}>
-              <h4 style={{ margin: '0 0 10px', fontSize: '13px', fontWeight: 800, color: '#1E293B', textTransform: 'uppercase' }}>This Week's Engagements</h4>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '8px', borderBottom: '1px solid #E2E8F0' }}>
-                  <span>📅 Monday &bull; 10:00 AM</span>
-                  <span style={{ fontWeight: 600, color: '#EF4444' }}>Batch CS-23 Warning Advisory</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '8px', borderBottom: '1px solid #E2E8F0' }}>
-                  <span>📅 Wednesday &bull; 02:00 PM</span>
-                  <span style={{ fontWeight: 600, color: '#2563EB' }}>HOD Departmental Sync</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '8px' }}>
-                  <span>📅 Thursday &bull; 11:30 AM</span>
-                  <span style={{ fontWeight: 600, color: '#16A34A' }}>Student Transfer Equivalency Review</span>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
-              <button onClick={() => setSelectedModal(null)} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', backgroundColor: '#0F172A', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>Close</button>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );

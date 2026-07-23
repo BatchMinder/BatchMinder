@@ -164,7 +164,13 @@ async function seed() {
       const introYear = 2000 + parseInt(info.year.slice(0, 2), 10);
       const isSpringIntake = info.year.endsWith('S');
       const elapsedSemesters = (seedNow.getFullYear() - introYear) * 2 + (isSpringIntake ? 0 : 1);
-      const variance = (i % 3) - 1; // -1, 0, or +1
+      // NOTE: previously `(i % 3) - 1`. Since batchInfoPool has 12 entries and
+      // i % 12 picks the batch/pool slot, i % 3 was fully determined by i % 12
+      // (12 is a multiple of 3) — every student landing on a given pool slot
+      // always got the exact same variance, so an entire intake tag (e.g. all
+      // '23F' students) was hard-locked to one semester with zero real spread.
+      // Randomizing breaks that aliasing and gives genuine per-student spread.
+      const variance = Math.floor(Math.random() * 3) - 1; // -1, 0, or +1
       const currentSemester = Math.min(8, Math.max(1, elapsedSemesters + variance));
 
       students.push({
