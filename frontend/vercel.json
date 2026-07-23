@@ -2,7 +2,7 @@
     "rewrites": [
         {
             "source": "/api/:path*",
-            "destination": "https://batchminder-backend.vercel.app/api/:path*"
+            "destination": "https://batchminder-backend-three.vercel.app/api/:path*"
         },
         {
             "source": "/(.*)",
