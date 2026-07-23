@@ -19,11 +19,13 @@ import {
 } from 'lucide-react';
 import { CircularProgress } from '@mui/material';
 import { useModal } from '../../contexts/ModalContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Real dynamic data states are initialized as empty to prevent dummy data leak
 
 export default function DataIngestionHub({ onUploadSuccess }) {
   const { showAlert, showSuccess } = useModal();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('upload'); // 'upload' or 'sync'
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
@@ -617,7 +619,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
               <div>
                 <span style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>Uploaded by</span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700, color: '#334155', marginTop: '4px' }}>
-                  <User size={14} color="#64748B" /> Dr. Adrian Vance
+                  <User size={14} color="#64748B" /> {user?.name || 'Academic Admin'}
                 </span>
               </div>
               <div>
@@ -762,8 +764,9 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                   Validation Errors {validationErrors.length > 0 && `(${validationErrors.length})`}
                 </h3>
                 <button
+                  disabled={validationErrors.length === 0}
                   onClick={handleDownloadValidationReport}
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid #E2E8F0', padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: 700, color: '#334155', backgroundColor: '#fff', cursor: 'pointer' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid #E2E8F0', padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: 700, color: validationErrors.length === 0 ? '#94A3B8' : '#334155', backgroundColor: validationErrors.length === 0 ? '#F1F5F9' : '#fff', cursor: validationErrors.length === 0 ? 'not-allowed' : 'pointer' }}
                 >
                   <Download size={12} /> Download Report
                 </button>
@@ -865,7 +868,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                 <RefreshCw size={14} /> Validate Again
               </button>
               <button
-                disabled={!uploadId || uploadSuccess || (uploadStats && uploadStats.valid === 0)}
+                disabled={!uploadId || uploadSuccess || !uploadStats || uploadStats.valid === 0}
                 onClick={async () => {
                   if (uploadId && !uploadSuccess && uploadStats?.valid > 0) {
                     try {
@@ -899,11 +902,10 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                   fontSize: '13px',
                   fontWeight: 700,
                   color: '#fff',
-                  background: (!uploadId || uploadSuccess || (uploadStats && uploadStats.valid === 0)) ? '#94A3B8' : 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
+                  background: (!uploadId || uploadSuccess || !uploadStats || uploadStats.valid === 0) ? '#94A3B8' : 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
                   border: 'none',
-                  borderRadius: '10px',
                   boxShadow: '0 4px 12px rgba(37,99,235,0.2)',
-                  cursor: (!uploadId || uploadSuccess || (uploadStats && uploadStats.valid === 0)) ? 'not-allowed' : 'pointer',
+                  cursor: (!uploadId || uploadSuccess || !uploadStats || uploadStats.valid === 0) ? 'not-allowed' : 'pointer',
                   width: '100%',
                   transition: 'all 0.15s ease'
                 }}

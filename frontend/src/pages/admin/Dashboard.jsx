@@ -404,16 +404,15 @@ export default function Dashboard({ departments, selectedDept, setActiveNav }) {
       {/* 4. QUICK ACTIONS ROW */}
       <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0' }}>
         <h3 style={{ margin: '0 0 16px', fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Quick Actions</h3>
-        <div style={{ display: 'flex', gap: '14px', overflowX: 'auto', paddingBottom: '4px' }}>
+        <div className="thin-scrollbar" style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '4px' }}>
           {[
-            { label: 'Student Records', icon: Users, id: 'students' },
-            { label: 'CSV/Excel Ingestion', icon: UploadCloud, id: 'upload' },
-            { label: 'Batch Allocation', icon: Layers, id: 'batches' },
-            { label: 'Migration Records', icon: RefreshCw, id: 'migrations' },
-            { label: 'Curriculum Setup', icon: BookOpen, id: 'curriculum' },
-            { label: 'Timetable Setup', icon: Calendar, id: 'timetable_generator' },
-            { label: 'Exam Schedule', icon: CalendarDays, id: 'datesheet_generator' },
-            { label: 'Schedule Override', icon: Clock, id: 'schedule_override' },
+            { label: 'Student Records', icon: Users, id: 'students', iconColor: '#16A34A', bg: '#F0FDF4' },
+            { label: 'CSV/Excel Ingestion', icon: UploadCloud, id: 'upload', iconColor: '#2563EB', bg: '#EFF6FF' },
+            { label: 'Batch Allocation', icon: Layers, id: 'batches', iconColor: '#8B5CF6', bg: '#F5F3FF' },
+            { label: 'Migration Records', icon: RefreshCw, id: 'migrations', iconColor: '#F59E0B', bg: '#FFFBEB' },
+            { label: 'Curriculum Setup', icon: BookOpen, id: 'curriculum', iconColor: '#EC4899', bg: '#FDF2F8' },
+            { label: 'Timetable Setup', icon: Calendar, id: 'timetable_generator', iconColor: '#0D9488', bg: '#F0FDFA' },
+            { label: 'Exam Schedule', icon: CalendarDays, id: 'datesheet_generator', iconColor: '#E11D48', bg: '#FFF1F2' },
           ].map((action, i) => {
             const Icon = action.icon;
             return (
@@ -421,17 +420,16 @@ export default function Dashboard({ departments, selectedDept, setActiveNav }) {
                 key={i}
                 onClick={() => setActiveNav && action.id && setActiveNav(action.id)}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: '12px',
-                  minWidth: '170px', padding: '12px 16px',
-                  backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0',
-                  borderRadius: '12px', cursor: 'pointer', transition: 'all 0.15s ease',
-                  flexShrink: 0
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                  padding: '14px 8px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0',
+                  borderRadius: '12px', cursor: 'pointer', transition: 'all 0.15s ease', textAlign: 'center',
+                  minWidth: '130px', flexShrink: 0
                 }}
                 onMouseEnter={e => {
-                  e.currentTarget.style.backgroundColor = '#EFF6FF';
-                  e.currentTarget.style.borderColor = '#BFDBFE';
+                  e.currentTarget.style.backgroundColor = '#F1F5F9';
+                  e.currentTarget.style.borderColor = '#CBD5E1';
                   e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(37,99,235,0.08)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
                 }}
                 onMouseLeave={e => {
                   e.currentTarget.style.backgroundColor = '#F8FAFC';
@@ -440,10 +438,10 @@ export default function Dashboard({ departments, selectedDept, setActiveNav }) {
                   e.currentTarget.style.boxShadow = 'none';
                 }}
               >
-                <div style={{ width: '38px', height: '38px', borderRadius: '10px', backgroundColor: '#fff', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Icon size={18} color="#2563EB" />
+                <div style={{ width: '38px', height: '38px', borderRadius: '10px', backgroundColor: action.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon size={18} color={action.iconColor} />
                 </div>
-                <span style={{ fontSize: '13px', fontWeight: 600, color: '#1E293B', textAlign: 'left' }}>{action.label}</span>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: '#334155' }}>{action.label}</span>
               </button>
             );
           })}
