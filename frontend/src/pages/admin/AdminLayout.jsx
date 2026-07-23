@@ -270,13 +270,11 @@ export default function AdminLayout({
       : { color: '#10B981', label: 'Administrator', bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.25)' }
     );
 
-  const displayName = user?.name === 'Admin CS Only' || user?.name === 'Admin CS+SE' ? 'Dr. Adrian Vance' : (user?.name || 'Academic Admin');
+  const displayName = user?.name || 'Academic Admin';
   const isFemale = /fatima|ayesha|zainab|sana/i.test(displayName || '');
-  const profilePic = user?.name === 'Admin CS Only' || user?.name === 'Admin CS+SE'
-    ? 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'
-    : (user?.profilePictureUrl || (isFemale
-      ? 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'
-      : 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'));
+  const profilePic = user?.profilePictureUrl || (isFemale
+    ? 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'
+    : 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80');
 
   const portalLabel = isAdvisor
     ? 'Advisory Portal'
@@ -579,7 +577,7 @@ export default function AdminLayout({
       </aside>
 
       {/* Main Content Pane */}
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden', backgroundColor: '#F8FAFC' }}>
+      <main className="thin-scrollbar" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflowY: 'auto', overflowX: 'hidden', backgroundColor: '#F8FAFC' }}>
 
         {/* Top Header */}
         <div className="bg-white border-b border-slate-200 flex flex-wrap items-center gap-3 shrink-0"
@@ -603,14 +601,7 @@ export default function AdminLayout({
             <Menu size={18} />
           </button>
 
-          <div style={{ flex: 1, minWidth: 0, paddingLeft: '8px' }}>
-            <h1 style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', margin: 0, letterSpacing: '-0.3px' }}>
-              {activeNavLabel}
-            </h1>
-            <p style={{ fontSize: '12px', color: '#64748B', margin: 0, fontWeight: 500 }}>
-              {portalLabel} • BatchMinder System
-            </p>
-          </div>
+          <div style={{ flex: 1 }} />
 
 
           {/* Advisor Batch Switcher — multi-batch */}
@@ -786,7 +777,7 @@ export default function AdminLayout({
         </div>
 
         {/* Content Wrapper */}
-        <div style={{ flex: 1, padding: isMobile ? '16px' : '28px 32px', overflowY: 'auto', overflowX: 'hidden' }}>
+        <div style={{ flex: 1, padding: isMobile ? '16px' : '28px 32px' }}>
           {children}
         </div>
       </main>
