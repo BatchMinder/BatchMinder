@@ -16,11 +16,11 @@ export const STMU_GRADING_SCALE = [
 export default function STMUGradingScaleTable({ compact = false }) {
   return (
     <div style={{ backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #E2E8F0', padding: compact ? '12px' : '16px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-        <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 800, color: '#0F172A', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '12px' }}>
+        <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 800, color: '#0F172A', textTransform: 'uppercase', letterSpacing: '0.5px', lineHeight: 1.3 }}>
           Official STMU Grading System & Formula
         </h4>
-        <span style={{ fontSize: '10px', color: '#2563EB', fontWeight: 700, backgroundColor: '#EFF6FF', padding: '2px 8px', borderRadius: '12px' }}>
+        <span style={{ fontSize: '10px', color: '#2563EB', fontWeight: 700, backgroundColor: '#EFF6FF', padding: '2px 8px', borderRadius: '12px', whiteSpace: 'nowrap', marginTop: '2px' }}>
           STMU Standard
         </span>
       </div>

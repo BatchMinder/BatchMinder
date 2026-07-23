@@ -42,6 +42,10 @@ export default function DataIngestionHub({ onUploadSuccess }) {
   const previewLimit = 5;
   const [previewRows, setPreviewRows] = useState([]);
   const [syncLogs, setSyncLogs] = useState([]);
+  const [uploadId, setUploadId] = useState(null);
+  const [uploadValidated, setUploadValidated] = useState(false);
+  const [uploadHistory, setUploadHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   // Fetch Sync Logs pointing directly to port 5000 with cookies included
   const fetchSyncLogs = async () => {
@@ -64,8 +68,27 @@ export default function DataIngestionHub({ onUploadSuccess }) {
     }
   };
 
+  // Fetch Upload File History from /api/uploads
+  const fetchUploadHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const res = await fetch('http://localhost:5000/api/uploads', {
+        credentials: 'include'
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setUploadHistory(d.data?.uploads || []);
+      }
+    } catch (e) {
+      console.error('Failed to fetch upload history:', e);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchSyncLogs();
+    fetchUploadHistory();
   }, []);
 
   // Sync trigger states
@@ -81,6 +104,8 @@ export default function DataIngestionHub({ onUploadSuccess }) {
   const [uploadStats, setUploadStats] = useState(null);
   const [syncCount, setSyncCount] = useState(0);
   const [syncFailedCount, setSyncFailedCount] = useState(0);
+  const [syncPromotedCount, setSyncPromotedCount] = useState(0);
+  const [syncGraduatedCount, setSyncGraduatedCount] = useState(0);
   const [syncError, setSyncError] = useState('');
 
   // Metadata Dropdown Selection States
@@ -195,22 +220,28 @@ export default function DataIngestionHub({ onUploadSuccess }) {
     setUploading(true);
     setUploadProgress(40);
     setUploadSuccess(false);
+    setUploadValidated(false);
+    setUploadId(null);
     setUploadStats(null);
     setValidationErrors([]);
     setShowValidationReport(false);
 
+    const deptObj = departments.find(d => d.name === selectedDept);
+    if (!deptObj) {
+      showAlert('Error', 'Invalid department selected');
+      setUploading(false);
+      return;
+    }
+
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
-      formData.append('department', selectedDept);
-      formData.append('batch', selectedBatch);
-      formData.append('semester', selectedSemester);
-      formData.append('intakeSession', selectedIntake);
+      formData.append('departmentId', deptObj._id);
 
       // Simulate progress progression
       setTimeout(() => setUploadProgress(85), 600);
 
-      const response = await fetch('http://localhost:5000/api/students/upload', {
+      const response = await fetch('http://localhost:5000/api/uploads', {
         method: 'POST',
         credentials: 'include', // Automatically sends httpOnly cookies
         body: formData
@@ -221,71 +252,47 @@ export default function DataIngestionHub({ onUploadSuccess }) {
       setUploadProgress(100);
 
       if (response.ok) {
-        setUploadSuccess(true);
-        if (onUploadSuccess) onUploadSuccess();
+        setUploadValidated(true);
+        setUploadId(data.data.uploadId);
+        
         setUploadStats({
-          processed: data.data.processed || 0,
-          upserted: data.data.upserted || 0,
-          modified: data.data.modified || 0
+          processed: data.data.totalRecords || 0,
+          valid: data.data.validRecords || 0,
+          errors: data.data.errorCount || 0,
+          duplicates: data.data.duplicateCount || 0
         });
-        if (data.data.students) {
-          setPreviewRows(data.data.students);
+        
+        if (data.data.validPreview) {
+          setPreviewRows(data.data.validPreview.map((r) => ({
+             roll: r.rollNumber,
+             name: r.name,
+             dept: selectedDept,
+             batch: r.batchCode,
+             sem: selectedSemester,
+             cgpa: Number(selectedSemester) === 1 ? 'N/A' : r.cgpa,
+             status: 'Valid'
+          })));
         }
+        
         if (data.data.errors && data.data.errors.length > 0) {
-          const parsed = data.data.errors.map((errStr, idx) => {
-            const match = errStr.match(/^Row (\d+): ([a-zA-Z0-9_]+) - (.*)/);
-            if (match) {
-              return {
-                row: Number(match[1]),
-                field: match[2],
-                error: match[3],
-                severity: 'error'
-              };
-            }
-            const simpleMatch = errStr.match(/^Row (\d+): (.*)/);
-            return {
-              row: simpleMatch ? Number(simpleMatch[1]) : idx + 1,
-              field: 'Record Schema',
-              error: simpleMatch ? simpleMatch[2] : errStr,
-              severity: 'error'
-            };
-          });
-          setValidationErrors(parsed);
+          setValidationErrors(data.data.errors.map(err => ({
+            row: err.row,
+            field: err.field,
+            error: err.message,
+            severity: 'error'
+          })));
           setShowValidationReport(true);
         }
       } else {
         const errMsg = data.message || 'File upload failed';
-        const rawErrors = data.errors || [];
         setUploadStats({
-          processed: data.stats?.total || rawErrors.length || 0,
-          modified: data.stats?.duplicates || 0
+          processed: 0,
+          valid: 0,
+          errors: 1,
+          duplicates: 0
         });
-        const parsed = rawErrors.map((errStr, idx) => {
-          const match = errStr.match(/^Row (\d+): ([a-zA-Z0-9_]+) - (.*)/);
-          if (match) {
-            return {
-              row: Number(match[1]),
-              field: match[2],
-              error: match[3],
-              severity: 'error'
-            };
-          }
-          const simpleMatch = errStr.match(/^Row (\d+): (.*)/);
-          return {
-            row: simpleMatch ? Number(simpleMatch[1]) : idx + 1,
-            field: 'Required Attribute',
-            error: simpleMatch ? simpleMatch[2] : errStr,
-            severity: 'error'
-          };
-        });
-
-        if (parsed.length > 0) {
-          setValidationErrors(parsed);
-          setShowValidationReport(true);
-        } else {
-          setValidationErrors([{ row: 1, field: 'File schema', value: 'Invalid format', error: errMsg, severity: 'error' }]);
-          setShowValidationReport(true);
-        }
+        setValidationErrors([{ row: 1, field: 'File', error: errMsg, severity: 'error' }]);
+        setShowValidationReport(true);
       }
     } catch (err) {
       showAlert('Network Error', 'Network error uploading CSV spreadsheet');
@@ -306,6 +313,8 @@ export default function DataIngestionHub({ onUploadSuccess }) {
     setSyncError('');
     setSyncCount(0);
     setSyncFailedCount(0);
+    setSyncPromotedCount(0);
+    setSyncGraduatedCount(0);
 
     try {
       const batchCodesToSync =
@@ -322,6 +331,8 @@ export default function DataIngestionHub({ onUploadSuccess }) {
       let netCount = 0;
       let failedBatch = null;
       let netFailedCount = 0;
+      let netPromotedCount = 0;
+      let netGraduatedCount = 0;
 
       for (const batchCode of batchCodesToSync) {
         // Pointing explicitly to backend server on port 5000 with credentials: 'include'
@@ -341,6 +352,8 @@ export default function DataIngestionHub({ onUploadSuccess }) {
         if (response.ok) {
           netCount += data.syncedCount || 0;
           netFailedCount += data.failedCount || 0;
+          netPromotedCount += data.promotedCount || 0;
+          netGraduatedCount += data.graduatedCount || 0;
         } else {
           failedBatch = batchCode;
           setSyncError(data.message || `Failed to sync batch ${batchCode}`);
@@ -351,6 +364,8 @@ export default function DataIngestionHub({ onUploadSuccess }) {
       if (!failedBatch) {
         setSyncCount(netCount);
         setSyncFailedCount(netFailedCount);
+        setSyncPromotedCount(netPromotedCount);
+        setSyncGraduatedCount(netGraduatedCount);
         if (netFailedCount > 0 && netCount === 0) {
           setSyncError(`Sync ran but 0 students updated (${netFailedCount} failed). Check that the mock LMS server is reachable.`);
         } else {
@@ -358,6 +373,8 @@ export default function DataIngestionHub({ onUploadSuccess }) {
         }
         fetchSyncLogs();
         if (onUploadSuccess) onUploadSuccess();
+        // Notify other parts of the app that data changed (e.g., dashboard stats)
+        try { window.dispatchEvent(new CustomEvent('batchminder:data-updated')); } catch (e) { /* ignore */ }
       }
     } catch (err) {
       setSyncError('Network error connecting to LMS synchronizer');
@@ -370,6 +387,8 @@ export default function DataIngestionHub({ onUploadSuccess }) {
     setFile(null);
     setUploadProgress(0);
     setUploadSuccess(false);
+    setUploadValidated(false);
+    setUploadId(null);
     setUploadStats(null);
     setPreviewRows([]);
     setValidationErrors([]);
@@ -545,19 +564,19 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                   <div style={{ backgroundColor: '#ECFDF5', border: '1px solid #D1FAE5', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
                     <div style={{ fontSize: '11px', color: '#16A34A', fontWeight: 700 }}>Valid Records</div>
                     <div style={{ fontSize: '20px', fontWeight: 800, color: '#16A34A', marginTop: '6px' }}>
-                      {uploadStats ? (uploadStats.processed - validationErrors.length).toLocaleString() : '0'}
+                      {uploadStats ? uploadStats.valid.toLocaleString() : '0'}
                     </div>
                   </div>
                   <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FEE2E2', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
                     <div style={{ fontSize: '11px', color: '#EF4444', fontWeight: 700 }}>Errors Found</div>
                     <div style={{ fontSize: '20px', fontWeight: 800, color: '#EF4444', marginTop: '6px' }}>
-                      {validationErrors.length > 0 ? validationErrors.length : '0'}
+                      {uploadStats ? uploadStats.errors.toLocaleString() : (validationErrors.length > 0 ? validationErrors.length : '0')}
                     </div>
                   </div>
                   <div style={{ backgroundColor: '#FFFBEB', border: '1px solid #FEF3C7', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
                     <div style={{ fontSize: '11px', color: '#D97706', fontWeight: 700 }}>Duplicates</div>
                     <div style={{ fontSize: '20px', fontWeight: 800, color: '#D97706', marginTop: '6px' }}>
-                      {uploadStats ? uploadStats.modified : '0'}
+                      {uploadStats ? uploadStats.duplicates : '0'}
                     </div>
                   </div>
                 </div>
@@ -567,13 +586,13 @@ export default function DataIngestionHub({ onUploadSuccess }) {
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 700, color: '#64748B', marginBottom: '8px' }}>
                   <span>Upload Progress</span>
-                  <span>{uploading ? `${uploadProgress}%` : (uploadSuccess ? '100%' : '0%')}</span>
+                  <span>{uploading ? `${uploadProgress}%` : (uploadValidated ? '100%' : '0%')}</span>
                 </div>
                 <div style={{ height: '8px', width: '100%', backgroundColor: '#F1F5F9', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: uploading ? `${uploadProgress}%` : (uploadSuccess ? '100%' : '0%'), backgroundColor: '#2563EB', transition: 'width 0.3s ease' }}></div>
+                  <div style={{ height: '100%', width: uploading ? `${uploadProgress}%` : (uploadValidated ? '100%' : '0%'), backgroundColor: '#2563EB', transition: 'width 0.3s ease' }}></div>
                 </div>
                 <span style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginTop: '6px' }}>
-                  {uploading ? 'Uploading... please wait' : (uploadSuccess ? 'Ingestion completed successfully.' : 'No file uploaded.')}
+                  {uploading ? 'Uploading... please wait' : (uploadValidated ? 'Validation completed.' : 'No file uploaded.')}
                 </span>
               </div>
             </div>
@@ -614,7 +633,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                   backgroundColor: uploading ? '#FFFBEB' : (uploadSuccess ? '#D1FAE5' : '#F1F5F9'),
                   color: uploading ? '#D97706' : (uploadSuccess ? '#059669' : '#64748B')
                 }}>
-                  {uploading ? 'Processing' : (uploadSuccess ? 'Completed' : 'Idle')}
+                  {uploading ? 'Processing' : (uploadSuccess ? 'Imported' : (uploadValidated ? 'Validated' : 'Idle'))}
                 </span>
               </div>
             </div>
@@ -714,7 +733,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                 </div>
               )}
               {/* Import Outcome Summary Banner */}
-              {(uploadSuccess || validationErrors.length > 0) && (
+              {uploadSuccess && (
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -730,7 +749,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                 }}>
                   <CheckCircle size={16} color="#10B981" style={{ flexShrink: 0 }} />
                   <span>
-                    Import complete: {uploadSuccess ? ((uploadStats?.upserted || 0) + (uploadStats?.modified || 0)) : 0} students imported/updated, {validationErrors.length} errors
+                    Import complete! The students have been saved to the database.
                   </span>
                 </div>
               )}
@@ -846,11 +865,28 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                 <RefreshCw size={14} /> Validate Again
               </button>
               <button
-                onClick={() => {
-                  if (uploadSuccess) {
-                    showSuccess('Import completed successfully!');
+                disabled={!uploadId || uploadSuccess || (uploadStats && uploadStats.valid === 0)}
+                onClick={async () => {
+                  if (uploadId && !uploadSuccess && uploadStats?.valid > 0) {
+                    try {
+                      const res = await fetch(`http://localhost:5000/api/uploads/${uploadId}/import`, {
+                         method: 'POST',
+                         credentials: 'include'
+                      });
+                      const data = await res.json();
+                      if (res.ok) {
+                         setUploadSuccess(true);
+                         showSuccess(`Import completed! ${data.data.importedCount} records saved.`);
+                         if (onUploadSuccess) onUploadSuccess();
+                         fetchUploadHistory(); // Refresh history after import
+                      } else {
+                         showAlert('Import Failed', data.message);
+                      }
+                    } catch (e) {
+                      showAlert('Error', 'Network error during import');
+                    }
                   } else {
-                    showAlert('Notice', 'No valid records to import. Please upload a file first.');
+                    showAlert('Notice', 'No valid records to import or already imported.');
                   }
                 }}
                 style={{
@@ -863,11 +899,11 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                   fontSize: '13px',
                   fontWeight: 700,
                   color: '#fff',
-                  background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
+                  background: (!uploadId || uploadSuccess || (uploadStats && uploadStats.valid === 0)) ? '#94A3B8' : 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
                   border: 'none',
                   borderRadius: '10px',
                   boxShadow: '0 4px 12px rgba(37,99,235,0.2)',
-                  cursor: 'pointer',
+                  cursor: (!uploadId || uploadSuccess || (uploadStats && uploadStats.valid === 0)) ? 'not-allowed' : 'pointer',
                   width: '100%',
                   transition: 'all 0.15s ease'
                 }}
@@ -877,6 +913,77 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                 <CheckCircle size={14} /> Import Valid Records
               </button>
 
+            </div>
+          </div>
+
+          {/* Upload File History — FR-2.2 */}
+          <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <History size={18} color="#2563EB" />
+                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Upload File History</h3>
+              </div>
+              <button
+                onClick={fetchUploadHistory}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid #E2E8F0', padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: 700, color: '#334155', backgroundColor: '#fff', cursor: 'pointer' }}
+              >
+                <RefreshCw size={12} /> Refresh
+              </button>
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #E2E8F0', color: '#64748B', fontWeight: 700, backgroundColor: '#F8FAFC' }}>
+                    <th style={{ padding: '10px 12px' }}>FILE NAME</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'center' }}>TOTAL</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'center' }}>VALID</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'center' }}>ERRORS</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'center' }}>DUPLICATES</th>
+                    <th style={{ padding: '10px 12px' }}>UPLOADED AT</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'center' }}>STATUS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {historyLoading ? (
+                    <tr><td colSpan="7" style={{ padding: '32px', textAlign: 'center', color: '#94A3B8' }}>Loading history...</td></tr>
+                  ) : uploadHistory.length > 0 ? (
+                    uploadHistory.map((h, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                        <td style={{ padding: '10px 12px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <FileText size={13} color="#64748B" />
+                            <span style={{ fontWeight: 700, color: '#0F172A' }}>{h.fileName}</span>
+                          </div>
+                          <span style={{ fontSize: '10px', color: '#94A3B8' }}>{(h.fileSize / 1024).toFixed(1)} KB</span>
+                        </td>
+                        <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700, color: '#3B82F6' }}>{h.totalRecords}</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700, color: '#16A34A' }}>{h.validRecords}</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700, color: '#EF4444' }}>{h.errorCount}</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700, color: '#D97706' }}>{h.duplicateCount}</td>
+                        <td style={{ padding: '10px 12px', color: '#64748B', fontSize: '11px' }}>
+                          {new Date(h.createdAt).toLocaleString()}
+                        </td>
+                        <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                          <span style={{
+                            display: 'inline-block', padding: '3px 10px', borderRadius: '10px', fontSize: '10px', fontWeight: 700,
+                            backgroundColor: h.status === 'complete' ? '#D1FAE5' : h.status === 'processing' ? '#FFFBEB' : '#FEE2E2',
+                            color: h.status === 'complete' ? '#059669' : h.status === 'processing' ? '#D97706' : '#EF4444'
+                          }}>
+                            {h.status === 'complete' ? '✓ Complete' : h.status === 'processing' ? '⏳ Processing' : h.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="7" style={{ padding: '40px', textAlign: 'center', color: '#94A3B8', fontWeight: 600 }}>
+                        No upload history found. Upload a CSV/Excel file to get started.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </>
@@ -951,6 +1058,8 @@ export default function DataIngestionHub({ onUploadSuccess }) {
               <div style={{ padding: '12px', backgroundColor: syncFailedCount > 0 ? '#FEF3C7' : '#D1FAE5', color: syncFailedCount > 0 ? '#92400E' : '#059669', borderRadius: '8px', fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <CheckCircle size={16} />
                 Sync process completed! {syncCount} student profiles synced.
+                {syncPromotedCount > 0 && ` ${syncPromotedCount} student${syncPromotedCount === 1 ? '' : 's'} auto-promoted to next semester.`}
+                {syncGraduatedCount > 0 && ` ${syncGraduatedCount} student${syncGraduatedCount === 1 ? '' : 's'} marked as graduated.`}
                 {syncFailedCount > 0 && ` (${syncFailedCount} student${syncFailedCount === 1 ? '' : 's'} failed to sync — check server logs.)`}
               </div>
             )}

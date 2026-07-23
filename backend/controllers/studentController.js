@@ -7,6 +7,25 @@ import DegreeProgress from '../models/degreeProgress.js';
 import { scopeToUserDepartments } from '../middleware/scopeMiddleware.js';
 import { logAudit, logNotification } from '../utils/logger.js';
 import xlsx from 'xlsx';
+import { calculateSTMU_CGPA } from '../utils/stmuGrading.js';
+
+// Auto-generates a unique, conflict-free roll number for a new real student,
+// in the standard STMU-style format: {BatchCode}-{4-digit sequence}
+// e.g. BSCS-2023-0014. Sequence is based on how many students already exist
+// in that batch, then verified unique with a retry loop (handles the rare
+// race condition where two students are created in the same instant).
+const generateRollNumber = async (batchDoc) => {
+  let attempt = 0;
+  while (attempt < 5) {
+    const count = await Student.countDocuments({ batchId: batchDoc._id });
+    const candidate = `${batchDoc.code}-${String(count + 1 + attempt).padStart(4, '0')}`;
+    const exists = await Student.findOne({ rollNumber: candidate });
+    if (!exists) return candidate;
+    attempt++;
+  }
+  // Extremely unlikely fallback if 5 sequential attempts all collided
+  return `${batchDoc.code}-${Date.now().toString().slice(-6)}`;
+};
 
 // Helper function to auto-enroll HEC Curriculum courses for a student
 const autoEnrollHECCourses = async (student) => {
@@ -182,8 +201,8 @@ export const createStudent = async (req, res) => {
 
     const { rollNumber, name, email, departmentId, batchId, currentSemester, cgpa, intakeSession } = req.body;
 
-    if (!rollNumber || !name || !departmentId || !batchId) {
-      return res.status(400).json({ message: 'Please provide rollNumber, name, departmentId, and batchId' });
+    if (!name || !departmentId || !batchId) {
+      return res.status(400).json({ message: 'Please provide name, departmentId, and batchId' });
     }
 
     if (scope.departmentId && scope.departmentId.$in) {
@@ -193,20 +212,32 @@ export const createStudent = async (req, res) => {
       }
     }
 
-    const existing = await Student.findOne({ rollNumber: rollNumber.toUpperCase().trim() });
-    if (existing) {
-      return res.status(400).json({ message: 'Student with this roll number already exists' });
+    let finalRollNumber;
+    if (rollNumber && rollNumber.trim()) {
+      // Manual roll number provided — still enforce no-conflict.
+      finalRollNumber = rollNumber.toUpperCase().trim();
+      const existing = await Student.findOne({ rollNumber: finalRollNumber });
+      if (existing) {
+        return res.status(400).json({ message: 'Student with this roll number already exists' });
+      }
+    } else {
+      // No roll number given — auto-generate a conflict-free one from the batch.
+      const batchDoc = await Batch.findById(batchId);
+      if (!batchDoc) {
+        return res.status(404).json({ message: 'Batch not found — cannot auto-generate roll number' });
+      }
+      finalRollNumber = await generateRollNumber(batchDoc);
     }
 
     let student = await Student.create({
-      rollNumber: rollNumber.toUpperCase().trim(),
+      rollNumber: finalRollNumber,
       name,
       email,
       departmentId,
       batchId,
       currentSemester: currentSemester || 1,
       cgpa: cgpa !== undefined ? cgpa : 0.0,
-      intakeSession: intakeSession || (rollNumber?.toUpperCase().includes('S-') ? 'Spring' : 'Fall'),
+      intakeSession: intakeSession || (finalRollNumber?.toUpperCase().includes('S-') ? 'Spring' : 'Fall'),
     });
 
     // Auto-enroll official HEC Curriculum courses for the newly created student
@@ -662,71 +693,189 @@ export const syncLmsRecords = async (req, res, next) => {
     const students = await Student.find({ departmentId: dept._id, batchId: batchDoc._id });
     let syncedCount = 0;
     let failedCount = 0;
+    let promotedCount = 0;
+    let graduatedCount = 0;
+    const notPromoted = [];
+
+    // CURRICULUM FIX: a Curriculum document is NOT one-per-semester — it's
+    // one document per program/department, holding every semester's courses
+    // embedded together (each course tagged with its own `semester`). It's
+    // linked to a batch via Batch.curriculumVersionId, NOT via
+    // Curriculum.batchId (that field can point to an unrelated seed batch).
+    // Fetch it once here instead of querying per-student per-semester.
+    const curriculumDoc = batchDoc.curriculumVersionId
+      ? await Curriculum.findById(batchDoc.curriculumVersionId)
+      : null;
 
     for (const student of students) {
+      if (student.status === 'graduated') continue;
+
       const inProgressCourses = student.courses.filter(
         c => c.grade === 'IP' || c.status === 'enrolled' || c.enrollmentStatus === 'enrolled'
       );
-      if (inProgressCourses.length === 0) continue;
 
-      // Real authenticated HTTP call to the (mock) external LMS, exactly the
-      // pattern a genuine integration would use — API key auth, JSON payload.
-      let lmsResponse;
-      try {
-        const apiRes = await fetch(`${process.env.MOCK_LMS_URL}/api/mock-lms/sync`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': process.env.MOCK_LMS_API_KEY
-          },
-          body: JSON.stringify({
-            rollNumber: student.rollNumber,
-            courseCodes: inProgressCourses.map(c => c.courseCode)
-          })
+      // BUG FIX: this used to `continue` here when a student had nothing
+      // new to sync (e.g. their courses were already resolved by an
+      // earlier sync). That skipped the ENTIRE rest of the loop, including
+      // the auto-promote check below — so already-resolved students could
+      // never get auto-promoted, only ones actively mid-sync right now.
+      // Now: only the LMS call + save is conditional; every non-graduated
+      // student still falls through to the promotion check.
+      if (inProgressCourses.length > 0) {
+        // Real authenticated HTTP call to the (mock) external LMS, exactly the
+        // pattern a genuine integration would use — API key auth, JSON payload.
+        let lmsResponse;
+        try {
+          const apiRes = await fetch(`${process.env.MOCK_LMS_URL}/api/mock-lms/sync`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': process.env.MOCK_LMS_API_KEY
+            },
+            body: JSON.stringify({
+              rollNumber: student.rollNumber,
+              courseCodes: inProgressCourses.map(c => c.courseCode)
+            })
+          });
+
+          if (!apiRes.ok) {
+            throw new Error(`LMS responded with status ${apiRes.status}`);
+          }
+          lmsResponse = await apiRes.json();
+        } catch (err) {
+          console.error(`LMS sync failed for student ${student.rollNumber}:`, err.message);
+          failedCount++;
+          continue;
+        }
+
+        const resultByCourse = new Map(lmsResponse.results.map(r => [r.courseCode, r]));
+
+        student.courses = student.courses.map(course => {
+          const lmsResult = resultByCourse.get(course.courseCode);
+          if (!lmsResult) return course;
+          return {
+            ...course.toObject(),
+            grade: lmsResult.grade,
+            enrollmentStatus: lmsResult.status,
+            status: lmsResult.status
+          };
         });
 
-        if (!apiRes.ok) {
-          throw new Error(`LMS responded with status ${apiRes.status}`);
-        }
-        lmsResponse = await apiRes.json();
-      } catch (err) {
-        console.error(`LMS sync failed for student ${student.rollNumber}:`, err.message);
-        failedCount++;
-        continue;
+        // BUG FIX: previously the CGPA field itself was never recalculated
+        // after grades changed here — only cgpaStatus (the Warning/Critical
+        // badge) got recomputed on save, from the OLD stale cgpa number.
+        // A student's grades could change via sync and their CGPA/alert
+        // status would silently never reflect it. Use the same canonical
+        // STMU CGPA formula the migration flow already uses.
+        student.cgpa = calculateSTMU_CGPA(student.courses);
+
+        await student.save();
+        syncedCount++;
+
+        await logAudit({
+          actorId: req.user?._id || new mongoose.Types.ObjectId(),
+          actorRole: req.user?.role || 'admin',
+          action: 'LMS_SYNCED',
+          targetType: 'Student',
+          targetId: student._id.toString(),
+          departmentId: dept._id.toString(),
+          metadata: { description: `Synced student ${student.name} courses from LMS for Department: ${dept.name}` }
+        });
       }
 
-      const resultByCourse = new Map(lmsResponse.results.map(r => [r.courseCode, r]));
+      // AUTO-PROMOTE: if the student's CURRENT semester has no more
+      // 'IP'/'enrolled' courses left — whether resolved just now or
+      // already resolved earlier — the semester is effectively complete.
+      // Promote them immediately instead of waiting for a separate manual
+      // "Promote Semester" click. Same gate condition promoteSemester uses.
+      const currentSemCourses = student.courses.filter(c => c.semester === student.currentSemester);
+      const unresolvedCourses = currentSemCourses.filter(
+        c => c.grade === 'IP' || c.status === 'enrolled' || c.enrollmentStatus === 'enrolled'
+      );
+      const stillUnresolved = unresolvedCourses.length > 0;
 
-      student.courses = student.courses.map(course => {
-        const lmsResult = resultByCourse.get(course.courseCode);
-        if (!lmsResult) return course;
-        return {
-          ...course.toObject(),
-          grade: lmsResult.grade,
-          enrollmentStatus: lmsResult.status,
-          status: lmsResult.status
-        };
-      });
+      if (!stillUnresolved) {
+        const nextSem = student.currentSemester + 1;
+        const nextSemCourses = curriculumDoc?.courses?.filter(c => c.semester === nextSem) || [];
 
-      await student.save();
-      syncedCount++;
+        // No curriculum linked to this batch at all — we can't tell whether
+        // the student has more semesters left, so don't guess. Skip
+        // promotion and surface it clearly instead of silently graduating.
+        if (!curriculumDoc) {
+          notPromoted.push({
+            rollNumber: student.rollNumber,
+            name: student.name,
+            currentSemester: student.currentSemester,
+            reason: `No curriculum is linked to batch ${batchDoc.code} — cannot determine next semester's courses.`
+          });
+          continue;
+        }
 
-      await logAudit({
-        actorId: req.user?._id || new mongoose.Types.ObjectId(),
-        actorRole: req.user?.role || 'admin',
-        action: 'LMS_SYNCED',
-        targetType: 'Student',
-        targetId: student._id.toString(),
-        departmentId: dept._id.toString(),
-        metadata: { description: `Synced student ${student.name} courses from LMS for Department: ${dept.name}` }
-      });
+        // GRADUATION: curriculum exists, but has no courses for the next
+        // semester — this was the student's final semester.
+        if (nextSemCourses.length === 0) {
+          student.status = 'graduated';
+          await student.save();
+          graduatedCount++;
+
+          await logAudit({
+            actorId: req.user?._id || new mongoose.Types.ObjectId(),
+            actorRole: req.user?.role || 'admin',
+            action: 'STUDENT_GRADUATED',
+            targetType: 'Student',
+            targetId: student._id.toString(),
+            departmentId: dept._id.toString(),
+            metadata: { description: `Marked student ${student.name} as graduated after completing Semester ${student.currentSemester} for Department: ${dept.name}` }
+          });
+          continue;
+        }
+
+        const newCourses = nextSemCourses.map(c => ({
+          courseCode: c.code || c.courseCode,
+          courseTitle: c.title || c.courseTitle,
+          creditHours: c.creditHours,
+          grade: 'IP',
+          status: 'enrolled',
+          enrollmentStatus: 'enrolled',
+          semester: nextSem
+        }));
+        student.courses = student.courses.concat(newCourses);
+
+        student.currentSemester = nextSem;
+        await student.save();
+        promotedCount++;
+
+        await logAudit({
+          actorId: req.user?._id || new mongoose.Types.ObjectId(),
+          actorRole: req.user?.role || 'admin',
+          action: 'BATCH_PROMOTED',
+          targetType: 'Student',
+          targetId: student._id.toString(),
+          departmentId: dept._id.toString(),
+          metadata: { description: `Auto-promoted student ${student.name} to Semester ${nextSem} after LMS sync for Department: ${dept.name}` }
+        });
+      } else {
+        notPromoted.push({
+          rollNumber: student.rollNumber,
+          name: student.name,
+          currentSemester: student.currentSemester,
+          reason: currentSemCourses.length === 0
+            ? `No courses recorded for Semester ${student.currentSemester} at all.`
+            : `${unresolvedCourses.length} of ${currentSemCourses.length} Semester ${student.currentSemester} course(s) still unresolved: ${unresolvedCourses.map(c => `${c.courseCode} (grade: ${c.grade || 'none'})`).join(', ')}`
+        });
+      }
     }
 
     res.status(200).json({
       status: 'success',
-      message: 'LMS synced successfully',
+      message: promotedCount > 0 || graduatedCount > 0
+        ? `LMS synced successfully. Auto-promoted ${promotedCount} student(s), graduated ${graduatedCount} student(s).`
+        : 'LMS synced successfully',
       syncedCount,
-      failedCount
+      failedCount,
+      promotedCount,
+      graduatedCount,
+      notPromoted
     });
   } catch (err) {
     next(err);
@@ -745,33 +894,84 @@ export const promoteSemester = async (req, res, next) => {
     }
 
     const students = await Student.find({ departmentId: dept._id, batchId: batchDoc._id });
+    const promotedCount = [];
+    const skippedCount = [];
+    const graduatedCount = [];
+
+    // Same fix as syncLmsRecords: Curriculum is linked via
+    // Batch.curriculumVersionId, not by matching Curriculum.batchId/semester.
+    const curriculumDoc = batchDoc.curriculumVersionId
+      ? await Curriculum.findById(batchDoc.curriculumVersionId)
+      : null;
 
     for (const student of students) {
-      const nextSem = student.currentSemester + 1;
+      if (student.status === 'graduated') continue;
 
-      const curriculum = await Curriculum.findOne({
-        $or: [
-          { departmentId: dept._id, batchId: batchDoc._id, semester: nextSem },
-          { department: department, batch: batch, semester: nextSem }
-        ]
-      });
-
-      if (curriculum && curriculum.courses) {
-        const newCourses = curriculum.courses.map(c => ({
-          courseCode: c.code || c.courseCode,
-          courseTitle: c.title || c.courseTitle,
-          creditHours: c.creditHours,
-          grade: 'IP',
-          status: 'enrolled',
-          enrollmentStatus: 'enrolled',
-          semester: nextSem
-        }));
-
-        student.courses = student.courses.concat(newCourses);
+      // GATE: previously this promoted every student unconditionally, even
+      // if their current-semester courses were still 'IP' (never synced).
+      // That let a batch get promoted with zero real grades ever recorded.
+      // Now: any course still in-progress for the student's CURRENT
+      // semester blocks that student's promotion until it's resolved
+      // (via LMS sync or manual grade entry).
+      const unresolvedCurrentSemCourses = student.courses.filter(
+        c => c.semester === student.currentSemester &&
+             (c.grade === 'IP' || c.status === 'enrolled' || c.enrollmentStatus === 'enrolled')
+      );
+      if (unresolvedCurrentSemCourses.length > 0) {
+        skippedCount.push({
+          rollNumber: student.rollNumber,
+          name: student.name,
+          reason: `${unresolvedCurrentSemCourses.length} unresolved course(s) in Semester ${student.currentSemester} — sync grades before promoting.`,
+        });
+        continue;
       }
 
+      const nextSem = student.currentSemester + 1;
+      const nextSemCourses = curriculumDoc?.courses?.filter(c => c.semester === nextSem) || [];
+
+      if (!curriculumDoc) {
+        skippedCount.push({
+          rollNumber: student.rollNumber,
+          name: student.name,
+          reason: `No curriculum is linked to batch ${batchDoc.code} — cannot determine next semester's courses.`
+        });
+        continue;
+      }
+
+      // GRADUATION: curriculum exists but has no courses for the next
+      // semester — mark graduated instead of promoting into a semester
+      // with no courses.
+      if (nextSemCourses.length === 0) {
+        student.status = 'graduated';
+        await student.save();
+        graduatedCount.push(student.rollNumber);
+
+        await logAudit({
+          actorId: req.user?._id || new mongoose.Types.ObjectId(),
+          actorRole: req.user?.role || 'admin',
+          action: 'STUDENT_GRADUATED',
+          targetType: 'Student',
+          targetId: student._id.toString(),
+          departmentId: dept._id.toString(),
+          metadata: { description: `Marked student ${student.name} as graduated after completing Semester ${student.currentSemester} for Department: ${dept.name}` }
+        });
+        continue;
+      }
+
+      const newCourses = nextSemCourses.map(c => ({
+        courseCode: c.code || c.courseCode,
+        courseTitle: c.title || c.courseTitle,
+        creditHours: c.creditHours,
+        grade: 'IP',
+        status: 'enrolled',
+        enrollmentStatus: 'enrolled',
+        semester: nextSem
+      }));
+
+      student.courses = student.courses.concat(newCourses);
       student.currentSemester = nextSem;
       await student.save();
+      promotedCount.push(student.rollNumber);
 
       await logAudit({
         actorId: req.user?._id || new mongoose.Types.ObjectId(),
@@ -784,7 +984,16 @@ export const promoteSemester = async (req, res, next) => {
       });
     }
 
-    res.status(200).json({ status: 'success', message: 'Batch promoted successfully' });
+    res.status(200).json({
+      status: 'success',
+      message: skippedCount.length > 0
+        ? `Promoted ${promotedCount.length} student(s). Graduated ${graduatedCount.length} student(s). Skipped ${skippedCount.length} student(s) with unresolved courses — sync their grades first.`
+        : `Promoted ${promotedCount.length} student(s) successfully. Graduated ${graduatedCount.length} student(s).`,
+      promotedCount: promotedCount.length,
+      graduatedCount: graduatedCount.length,
+      skippedCount: skippedCount.length,
+      skipped: skippedCount,
+    });
   } catch (err) {
     next(err);
   }

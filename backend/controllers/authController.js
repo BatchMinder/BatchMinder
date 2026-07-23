@@ -288,17 +288,9 @@ export const setupDean = async (req, res) => {
       return res.status(403).json({ message: 'Invalid secret key' });
     }
 
-    // BatchMinder only ever has one Dean account. Look up any existing Dean,
-    // not just one matching this exact email — otherwise calling this with
-    // a different email than the current Dean's would silently create a
-    // second Dean account instead of updating the existing one.
-    let user = await User.findOne({ role: 'dean' });
+    // Check if user already exists
+    let user = await User.findOne({ email: email.toLowerCase().trim(), role: 'dean' });
     if (user) {
-      if (user.email !== email.toLowerCase().trim()) {
-        return res.status(400).json({
-          message: 'A Dean account already exists under a different email. Only one Dean is allowed; update the existing account instead of creating a new one.'
-        });
-      }
       // Update password
       user.password = password;
       if (name) user.name = name;

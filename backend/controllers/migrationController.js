@@ -1,6 +1,7 @@
 import Migration from '../models/migration.js';
 import Student from '../models/student.js';
 import Curriculum from '../models/curriculum.js';
+import Batch from '../models/batch.js';
 import { scopeToUserDepartments } from '../middleware/scopeMiddleware.js';
 import { logAudit, logNotification } from '../utils/logger.js';
 import { recalculateProgress } from '../services/progressRecalculationService.js';
@@ -68,8 +69,23 @@ export const createMigration = async (req, res) => {
         return res.status(400).json({ message: 'Please provide either studentId or studentName and batchId' });
       }
 
-      // Generate a unique temporary roll number for evaluation/prospective student
-      const tempRoll = `MIG-${Math.floor(100000 + Math.random() * 900000)}`;
+      // Generate a deterministic, sequential temporary roll number for this
+      // prospective migrating student, tied to their target batch:
+      // MIG-{BatchCode}-{4-digit sequence}. Previously this was a random
+      // 6-digit number (MIG-482913) with NO uniqueness check at all — two
+      // migrations created close together could theoretically collide, and
+      // the ID had no connection to the student's actual batch/semester.
+      let tempRoll;
+      {
+        const targetBatch = await Batch.findById(batchId);
+        const migPrefix = targetBatch ? `MIG-${targetBatch.code}-` : 'MIG-UNASSIGNED-';
+        let attempt = 0;
+        do {
+          const count = await Student.countDocuments({ rollNumber: { $regex: `^${migPrefix}` } });
+          tempRoll = `${migPrefix}${String(count + 1 + attempt).padStart(4, '0')}`;
+          attempt++;
+        } while (await Student.findOne({ rollNumber: tempRoll }) && attempt < 5);
+      }
       const newStudent = await Student.create({
         rollNumber: tempRoll,
         name: studentName,
@@ -296,6 +312,25 @@ export const decideMigration = async (req, res) => {
 
         // Calculate True CGPA using STMU GPA formula: Sum(Points * CH) / Sum(CH)
         student.cgpa = calculateSTMU_CGPA(student.courses);
+
+        // Convert temporary MIG- placeholder roll number to a real, permanent
+        // batch roll number now that migration is approved and the student is
+        // a fully enrolled batch member. Previously the MIG- id was never
+        // replaced, so approved migrated students stayed as "MIG-482913"
+        // forever even after joining a real batch.
+        if (student.rollNumber && student.rollNumber.toUpperCase().startsWith('MIG-')) {
+          const enrolledBatch = await Batch.findById(student.batchId);
+          if (enrolledBatch) {
+            let attempt = 0;
+            let newRoll;
+            do {
+              const count = await Student.countDocuments({ batchId: enrolledBatch._id, rollNumber: { $not: /^MIG-/i } });
+              newRoll = `${enrolledBatch.code}-${String(count + 1 + attempt).padStart(4, '0')}`;
+              attempt++;
+            } while (await Student.findOne({ rollNumber: newRoll }) && attempt < 5);
+            student.rollNumber = newRoll;
+          }
+        }
 
         await student.save();
 

@@ -167,9 +167,7 @@ export default function CurriculumSetup() {
   const statCards = [
     { label: 'Curriculum Versions', value: curriculums.length, subtitle: `${activeCount} Active`, icon: BookOpen, color: '#8B5CF6', bg: '#F5F3FF' },
     { label: 'Departments', value: deptCount, subtitle: 'All Departments', icon: Building2, color: '#3B82F6', bg: '#EFF6FF' },
-    { label: 'Total Courses', value: totalCourses, subtitle: 'Across all curriculums', icon: Layers, color: '#10B981', bg: '#F0FDF4' },
-    { label: 'Active Mappings', value: 0, subtitle: 'Course Equivalencies', icon: ArrowRightLeft, color: '#F59E0B', bg: '#FFFBEB' },
-    { label: 'Pending Updates', value: 0, subtitle: 'Require Review', icon: Clock, color: '#EF4444', bg: '#FEF2F2' }
+    { label: 'Total Courses', value: totalCourses, subtitle: 'Across all curriculums', icon: Layers, color: '#10B981', bg: '#F0FDF4' }
   ];
 
   // Selected Curriculum Stats
@@ -225,7 +223,7 @@ export default function CurriculumSetup() {
       </div>
 
       {/* 1. TOP STATS ROW */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
         {statCards.map((card, i) => {
           const Icon = card.icon;
           return (
@@ -543,7 +541,7 @@ export default function CurriculumSetup() {
               </button>
             </div>
             
-            <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '24px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #E2E8F0', color: '#64748B', fontWeight: 700, backgroundColor: '#F8FAFC' }}>
@@ -604,10 +602,10 @@ export default function CurriculumSetup() {
               </button>
             </div>
             
-            <div style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div style={{ border: '1px solid #E2E8F0', borderRadius: '16px', overflow: 'hidden' }}>
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{ border: '1px solid #E2E8F0', borderRadius: '16px', maxHeight: '340px', overflowY: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
-                  <thead>
+                  <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                     <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#64748B', fontWeight: 700 }}>
                       <th style={{ padding: '12px 16px' }}>CODE</th>
                       <th style={{ padding: '12px 16px' }}>TITLE</th>

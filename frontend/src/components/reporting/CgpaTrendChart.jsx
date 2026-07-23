@@ -7,18 +7,7 @@ import {
   Tooltip, ResponsiveContainer, ReferenceLine
 } from 'recharts';
 
-const gradePoints = {
-  'A': 4.0,
-  'A-': 3.7,
-  'B+': 3.3,
-  'B': 3.0,
-  'B-': 2.7,
-  'C+': 2.3,
-  'C': 2.0,
-  'C-': 1.7,
-  'D': 1.0,
-  'F': 0.0
-};
+import { GRADE_POINTS as gradePoints } from '../../utils/stmuGrading';
 
 export default function CgpaTrendChart({ courses = [], currentCgpa }) {
   const chartData = useMemo(() => {
@@ -146,6 +135,7 @@ export default function CgpaTrendChart({ courses = [], currentCgpa }) {
             axisLine={false}
             tick={{ fontSize: 10, fill: '#64748B', fontWeight: 600 }}
             dy={8}
+            interval={0}
           />
           <YAxis
             domain={[0.0, 4.0]}

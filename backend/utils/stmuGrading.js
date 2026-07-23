@@ -1,17 +1,30 @@
 // backend/utils/stmuGrading.js
 // Official STMU Grading Scale, GPA Calculation Formula, & Migrated Student Semester Placement
+//
+// SINGLE SOURCE OF TRUTH for grade points across the entire app. Every other
+// file that needs a grade-point table (backend models, frontend transcript
+// generation, frontend academic summary) must import from here rather than
+// keeping its own copy — duplicated tables previously drifted out of sync
+// with each other AND with STMU's real published scale, which is what
+// caused the same student to show two different CGPA numbers in different
+// screens (see: Basic Profile vs Academic Summary CGPA mismatch).
+//
+// Values below match STMU's official Academic Regulations grading table
+// exactly (.66/.33 increments), not the generic US 4.0-scale .7/.3
+// increments this file used previously.
 
 export const STMU_GRADE_MAP = {
-  'A':  { points: 4.0, minPercentage: 85, maxPercentage: 100, label: '85 - 100%' },
-  'A-': { points: 3.7, minPercentage: 80, maxPercentage: 84,  label: '80 - 84%' },
-  'B+': { points: 3.3, minPercentage: 75, maxPercentage: 79,  label: '75 - 79%' },
-  'B':  { points: 3.0, minPercentage: 71, maxPercentage: 74,  label: '71 - 74%' },
-  'B-': { points: 2.7, minPercentage: 68, maxPercentage: 70,  label: '68 - 70%' },
-  'C+': { points: 2.3, minPercentage: 64, maxPercentage: 67,  label: '64 - 67%' },
-  'C':  { points: 2.0, minPercentage: 61, maxPercentage: 63,  label: '61 - 63%' },
-  'C-': { points: 1.7, minPercentage: 58, maxPercentage: 60,  label: '58 - 60%' },
-  'D':  { points: 1.0, minPercentage: 50, maxPercentage: 57,  label: '50 - 57%' },
-  'F':  { points: 0.0, minPercentage: 0,  maxPercentage: 49,  label: 'Below 50%' },
+  'A':  { points: 4.00, minPercentage: 85, maxPercentage: 100, label: '85 - 100%' },
+  'A-': { points: 3.66, minPercentage: 80, maxPercentage: 84,  label: '80 - 84%' },
+  'B+': { points: 3.33, minPercentage: 75, maxPercentage: 79,  label: '75 - 79%' },
+  'B':  { points: 3.00, minPercentage: 71, maxPercentage: 74,  label: '71 - 74%' },
+  'B-': { points: 2.66, minPercentage: 68, maxPercentage: 70,  label: '68 - 70%' },
+  'C+': { points: 2.33, minPercentage: 64, maxPercentage: 67,  label: '64 - 67%' },
+  'C':  { points: 2.00, minPercentage: 61, maxPercentage: 63,  label: '61 - 63%' },
+  'C-': { points: 1.66, minPercentage: 58, maxPercentage: 60,  label: '58 - 60%' },
+  'D+': { points: 1.33, minPercentage: 54, maxPercentage: 57,  label: '54 - 57%' },
+  'D':  { points: 1.00, minPercentage: 50, maxPercentage: 53,  label: '50 - 53%' },
+  'F':  { points: 0.00, minPercentage: 0,  maxPercentage: 49,  label: 'Below 50%' },
 };
 
 /**
@@ -19,16 +32,17 @@ export const STMU_GRADE_MAP = {
  */
 export function getSTMUGradeFromPercentage(pct) {
   const score = Math.round(Number(pct) || 0);
-  if (score >= 85) return { grade: 'A', points: 4.0 };
-  if (score >= 80) return { grade: 'A-', points: 3.7 };
-  if (score >= 75) return { grade: 'B+', points: 3.3 };
-  if (score >= 71) return { grade: 'B', points: 3.0 };
-  if (score >= 68) return { grade: 'B-', points: 2.7 };
-  if (score >= 64) return { grade: 'C+', points: 2.3 };
-  if (score >= 61) return { grade: 'C', points: 2.0 };
-  if (score >= 58) return { grade: 'C-', points: 1.7 };
-  if (score >= 50) return { grade: 'D', points: 1.0 };
-  return { grade: 'F', points: 0.0 };
+  if (score >= 85) return { grade: 'A', points: 4.00 };
+  if (score >= 80) return { grade: 'A-', points: 3.66 };
+  if (score >= 75) return { grade: 'B+', points: 3.33 };
+  if (score >= 71) return { grade: 'B', points: 3.00 };
+  if (score >= 68) return { grade: 'B-', points: 2.66 };
+  if (score >= 64) return { grade: 'C+', points: 2.33 };
+  if (score >= 61) return { grade: 'C', points: 2.00 };
+  if (score >= 58) return { grade: 'C-', points: 1.66 };
+  if (score >= 54) return { grade: 'D+', points: 1.33 };
+  if (score >= 50) return { grade: 'D', points: 1.00 };
+  return { grade: 'F', points: 0.00 };
 }
 
 /**

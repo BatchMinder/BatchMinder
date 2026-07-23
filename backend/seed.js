@@ -143,6 +143,7 @@ async function seed() {
 
     let globalStudentCounter = 0;
     const students = [];
+    const seedNow = new Date();
     for (let i = 0; i < 60; i++) {
       const info = batchInfoPool[i % batchInfoPool.length];
       globalStudentCounter++;
@@ -153,6 +154,19 @@ async function seed() {
 
       const cgpa = cgpaValues[i % cgpaValues.length] + (Math.random() * 0.2 - 0.1);
 
+      // BUG FIX: previously currentSemester was Math.min(8, Math.floor(i/7)+1)
+      // — derived purely from the loop counter, disconnected from which
+      // batch the student was placed in. Students in the identical batch
+      // could land anywhere from Semester 1 to 8, which can't happen in
+      // real life since promoteSemester only ever advances a whole batch
+      // together. Now derived from the batch's real intake year/session,
+      // with only a small +/-1 semester natural variance.
+      const introYear = 2000 + parseInt(info.year.slice(0, 2), 10);
+      const isSpringIntake = info.year.endsWith('S');
+      const elapsedSemesters = (seedNow.getFullYear() - introYear) * 2 + (isSpringIntake ? 0 : 1);
+      const variance = (i % 3) - 1; // -1, 0, or +1
+      const currentSemester = Math.min(8, Math.max(1, elapsedSemesters + variance));
+
       students.push({
         rollNumber: `${info.code}-${info.year}-${seqNum}`,
         name: studentNames[i % studentNames.length],
@@ -160,7 +174,7 @@ async function seed() {
         departmentId: info.deptId,
         batchId: info.batchId,
         intakeSession: info.year.endsWith('S') ? 'Spring' : 'Fall',
-        currentSemester: Math.min(8, Math.floor(i / 7) + 1),
+        currentSemester,
         cgpa: Math.round(cgpa * 100) / 100,
         status: i < 45 ? 'active' : 'inactive',
         enrolledAt,

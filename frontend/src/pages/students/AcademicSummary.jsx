@@ -5,19 +5,7 @@ import React, { useMemo } from 'react';
 import CgpaTrendChart from '../../components/reporting/CgpaTrendChart';
 import { downloadSingleTranscript } from '../../services/transcriptService';
 import { Award, Download, Clock, FileText, ChevronRight, User } from 'lucide-react';
-
-const gradePoints = {
-  'A': 4.0,
-  'A-': 3.7,
-  'B+': 3.3,
-  'B': 3.0,
-  'B-': 2.7,
-  'C+': 2.3,
-  'C': 2.0,
-  'C-': 1.7,
-  'D': 1.0,
-  'F': 0.0
-};
+import { GRADE_POINTS as gradePoints } from '../../utils/stmuGrading';
 
 export default function AcademicSummary({ student }) {
   if (!student) {
@@ -210,13 +198,13 @@ export default function AcademicSummary({ student }) {
                     fontSize: '11.5px', fontWeight: 800, padding: '3px 10px', borderRadius: '20px',
                     backgroundColor: '#EFF6FF', color: '#1E40AF', border: '1px solid #BFDBFE'
                   }}>
-                    SGPA: {Number(sem.semesterNumber) === 1 ? 'N/A' : sem.sgpa}
+                    SGPA: {sem.sgpa}
                   </span>
                   <span style={{
                     fontSize: '11.5px', fontWeight: 800, padding: '3px 10px', borderRadius: '20px',
                     backgroundColor: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0'
                   }}>
-                    CGPA: {Number(sem.semesterNumber) === 1 ? 'N/A' : sem.cumulativeCgpa}
+                    CGPA: {sem.cumulativeCgpa}
                   </span>
                 </div>
               </div>

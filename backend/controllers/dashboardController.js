@@ -67,6 +67,7 @@ export const getDashboardStats = async (req, res) => {
 
     const totalStudents = allStudents.length;
     const activeStudents = allStudents.filter(s => s.status === 'active').length;
+    const graduatedStudents = allStudents.filter(s => s.status === 'graduated').length;
     const warningStudents = allStudents.filter(s => s.cgpaStatus === 'warning' || s.status === 'warning').length;
     const criticalStudents = allStudents.filter(s => s.cgpaStatus === 'critical' || s.status === 'critical').length;
     const goodStudents = allStudents.filter(s => s.cgpaStatus === 'good' || s.status === 'good_standing').length;
@@ -102,6 +103,7 @@ export const getDashboardStats = async (req, res) => {
       data: {
         // New shape for Admin dashboard
         totalStudents,
+      graduatedStudents,
         activeStudents,
         atRiskStudents,
         studentsByStatus: { good: goodStudents, warning: warningStudents, critical: criticalStudents },

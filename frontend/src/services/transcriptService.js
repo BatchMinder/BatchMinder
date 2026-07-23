@@ -1,37 +1,7 @@
 // transcriptService.js
 // Handles client-side PDF Transcript Generation (FR-6.4) for single students and batches.
 
-const gradePoints = {
-  'A': 4.0,
-  'A-': 3.7,
-  'B+': 3.3,
-  'B': 3.0,
-  'B-': 2.7,
-  'C+': 2.3,
-  'C': 2.0,
-  'C-': 1.7,
-  'D': 1.0,
-  'F': 0.0
-};
-
-// Calculate SGPA for a list of courses in a semester
-const calculateSGPA = (courses) => {
-  let totalCredits = 0;
-  let totalGradePoints = 0;
-  let hasGraded = false;
-
-  courses.forEach(c => {
-    if (c.grade && gradePoints[c.grade] !== undefined) {
-      const cr = c.creditHours || c.credits || 3;
-      totalCredits += cr;
-      totalGradePoints += cr * gradePoints[c.grade];
-      hasGraded = true;
-    }
-  });
-
-  if (!hasGraded || totalCredits === 0) return 'N/A';
-  return (totalGradePoints / totalCredits).toFixed(2);
-};
+import { GRADE_POINTS as gradePoints, calculateGPA as calculateSGPA } from '../utils/stmuGrading';
 
 // Generate HTML Content for a Student Transcript
 const generateTranscriptHtml = (student) => {

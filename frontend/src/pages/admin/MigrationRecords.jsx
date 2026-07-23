@@ -376,6 +376,21 @@ export default function MigrationRecords() {
   const remainingCredits = Math.max(0, totalRequiredCredits - selectedSummary.creditsAccepted);
   const degreeProgress = totalRequiredCredits > 0 ? Math.round((selectedSummary.creditsAccepted / totalRequiredCredits) * 100) : 0;
 
+  const currentSemPlacement = selected?.studentId?.currentSemester || Math.min(8, Math.max(1, Math.floor((selectedSummary.creditsAccepted || 0) / 16) + 1));
+  let gradYear = new Date().getFullYear();
+  let gradSeason = selected?.intakeSession || (new Date().getMonth() >= 6 ? 'Fall' : 'Spring');
+  const remainingSems = Math.max(0, 8 - currentSemPlacement);
+  
+  for (let i = 0; i < remainingSems; i++) {
+      if (gradSeason === 'Fall') { 
+          gradSeason = 'Spring'; 
+          gradYear++; 
+      } else { 
+          gradSeason = 'Fall'; 
+      }
+  }
+  const expectedGraduation = `${gradSeason} ${gradYear}`;
+
   return (
     <div style={{ padding: '0 0 40px', maxWidth: '1400px', margin: '0 auto' }}>
 
@@ -438,7 +453,7 @@ export default function MigrationRecords() {
                 <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0F172A' }}>Migrated Students List</h3>
                 <div className="flex flex-col sm:flex-row items-center gap-3">
                   <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                    <Search size={16} color="#64748B" style={{ position: 'absolute', left: '14px', pointerEvents: 'none' }} />
+                    <Search size={14} color="#64748B" style={{ position: 'absolute', left: '12px', pointerEvents: 'none' }} />
                     <input
                       type="text"
                       placeholder="Search by name or ID..."
@@ -451,7 +466,7 @@ export default function MigrationRecords() {
                         fontSize: '13px',
                         fontWeight: 500,
                         outline: 'none',
-                        width: '260px',
+                        width: '200px',
                         backgroundColor: '#F8FAFC',
                         color: '#0F172A',
                         transition: 'all 0.2s ease',
@@ -592,7 +607,7 @@ export default function MigrationRecords() {
             <div className="order-3 xl:order-none grid grid-cols-1 xl:grid-cols-[1fr_1.5fr] gap-5">
 
               {/* Curriculum Comparison */}
-              <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0' }}>
+              <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0', alignSelf: 'start' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
                   <div style={{ width: '28px', height: '28px', borderRadius: '6px', backgroundColor: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <Layers size={14} color="#2563EB" />
@@ -618,8 +633,8 @@ export default function MigrationRecords() {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #E2E8F0', paddingTop: '8px', marginTop: '4px' }}>
                     <span style={{ color: '#2563EB', fontWeight: 700 }}>STMU Current Sem Placement</span>
-                    <span style={{ fontWeight: 800, color: '#2563EB', backgroundColor: '#EFF6FF', padding: '2px 8px', borderRadius: '12px' }}>
-                      Semester {selected?.studentId?.currentSemester || Math.min(8, Math.max(1, Math.floor((selectedSummary.creditsAccepted || 0) / 16) + 1))}
+                    <span style={{ fontWeight: 800, color: '#2563EB', backgroundColor: '#EFF6FF', padding: '2px 8px', borderRadius: '12px', whiteSpace: 'nowrap' }}>
+                      Semester {currentSemPlacement}
                     </span>
                   </div>
                 </div>
@@ -630,13 +645,10 @@ export default function MigrationRecords() {
                     <div style={{ height: '100%', width: `${degreeProgress}%`, backgroundColor: '#2563EB' }}></div>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 600, color: '#64748B' }}>
-                    <span>Expected Completion: Spring 2028</span>
+                    <span>Expected Completion: {expectedGraduation}</span>
                     <span>{degreeProgress}% Completed</span>
                   </div>
                 </div>
-
-                {/* Official STMU Grading System & Formula Reference */}
-                <STMUGradingScaleTable compact={true} />
               </div>
 
               {/* Course Equivalency Mapping */}

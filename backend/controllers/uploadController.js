@@ -20,11 +20,13 @@ export const validateUpload = async (req, res) => {
     // Security check: ensure requesting user has access to this department
     if (req.user.role !== 'dean') {
       const scope = scopeToUserDepartments(req);
-      const allowed = scope.departmentId && scope.departmentId.$in
-        ? scope.departmentId.$in.some(id => id.toString() === departmentId.toString())
-        : false;
-      if (!allowed) {
-        return res.status(403).json({ message: 'Department not in your scope' });
+      // If scope has a departmentId restriction, enforce it.
+      // If scope is empty (e.g. admin with no specific dept restriction), allow access.
+      if (scope.departmentId && scope.departmentId.$in) {
+        const allowed = scope.departmentId.$in.some(id => id.toString() === departmentId.toString());
+        if (!allowed) {
+          return res.status(403).json({ message: 'Department not in your scope' });
+        }
       }
     }
 

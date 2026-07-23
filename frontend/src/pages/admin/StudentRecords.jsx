@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-  Search, Plus, Eye, X, User, Award, Mail, BookOpen, AlertCircle,
-  Download, UserPlus, ChevronLeft, ChevronRight, TrendingUp,
-  CheckCircle, AlertTriangle, FileText, Bell, Edit3, Trash2, RefreshCw
+  Search, Eye, X, User, Award, AlertCircle,
+  Download, UserPlus, ChevronLeft, ChevronRight,
+  FileText, Edit3, Trash2, RefreshCw
 } from 'lucide-react';
 import { CircularProgress } from '@mui/material';
 
@@ -10,7 +10,7 @@ import { CircularProgress } from '@mui/material';
 
 
 import {
-  ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip
+  ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis
 } from 'recharts';
 import { useAuth } from '../../contexts/AuthContext';
 import { useModal } from '../../contexts/ModalContext';
@@ -175,8 +175,7 @@ export default function StudentRecords({ setActiveNav }) {
     }
   };
 
-
-  const fetchStudents = async () => {
+  const fetchStudents = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -201,11 +200,11 @@ export default function StudentRecords({ setActiveNav }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, search, statusFilter, sessionFilter, deptFilter, batchFilter, semesterFilter]);
 
   useEffect(() => {
     fetchStudents();
-  }, [page, search, statusFilter, sessionFilter, deptFilter, batchFilter, semesterFilter]);
+  }, [fetchStudents]);
 
   useEffect(() => {
     if (selected) {
@@ -218,7 +217,9 @@ export default function StudentRecords({ setActiveNav }) {
       const r = await fetch('/api/dashboard/stats');
       const d = await r.json();
       if (d.status === 'success' && d.data) setStats(d.data);
-    } catch (e) { }
+    } catch (e) {
+      console.error('Failed to fetch stats:', e);
+    }
   };
 
   const fetchAuditLogs = async () => {
@@ -241,7 +242,7 @@ export default function StudentRecords({ setActiveNav }) {
       if (d.status === 'success' && d.data) {
         const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
         setAtRiskTrend(d.data.map(item => {
-          const [year, monthNum] = item.month.split('-');
+          const [, monthNum] = item.month.split('-');
           const monthIndex = parseInt(monthNum) - 1;
           return {
             name: months[monthIndex] || item.month,
@@ -284,6 +285,7 @@ export default function StudentRecords({ setActiveNav }) {
   const handleClearFilters = () => {
     setSearch('');
     setStatusFilter('');
+    setSessionFilter('');
     setDeptFilter('');
     setBatchFilter('');
     setSemesterFilter('');
@@ -333,7 +335,7 @@ export default function StudentRecords({ setActiveNav }) {
   const displayStudents = useMemo(() => {
     return students.filter(s => {
       const q = search.toLowerCase();
-      const matchesSearch = !search || s.name.toLowerCase().includes(q) || s.rollNumber.toLowerCase().includes(q);
+      const matchesSearch = !search || (s.name || '').toLowerCase().includes(q) || (s.rollNumber || '').toLowerCase().includes(q);
       const matchesStatus = !statusFilter || s.status === statusFilter;
       const deptName = s.departmentId?.name || '';
       const matchesDept = !deptFilter || deptName.toLowerCase().includes(deptFilter.toLowerCase());
@@ -492,15 +494,15 @@ export default function StudentRecords({ setActiveNav }) {
         </div>
       </div>
 
-      {/* ── Two Column Main Layout ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-5 items-stretch flex-1">
+      {/* ── Main Layout (Full Width) ── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', flex: 1 }}>
 
-        {/* Left Column: Filters and Table Container */}
+        {/* Filters and Table Container */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
           {/* Filters Bar */}
           <div className="flex flex-col md:flex-row gap-4 justify-between md:items-center" style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '12px 16px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-            <div className="flex flex-col sm:flex-row gap-3 md:items-center w-full md:w-auto" style={{ flex: 1 }}>
+            <div className="flex flex-col sm:flex-row gap-3 md:items-center w-full md:w-auto" style={{ flex: 1, flexWrap: 'wrap', minWidth: 0 }}>
               {/* Search Field */}
               <div style={{ position: 'relative', width: '220px' }}>
                 <Search size={14} color="#94A3B8" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
@@ -572,15 +574,7 @@ export default function StudentRecords({ setActiveNav }) {
             </div>
 
             <button
-              onClick={() => {
-                setSearch('');
-                setStatusFilter('');
-                setSessionFilter('');
-                setDeptFilter('');
-                setBatchFilter('');
-                setSemesterFilter('');
-                setPage(1);
-              }}
+              onClick={handleClearFilters}
               style={{ border: 'none', backgroundColor: 'transparent', color: '#2563EB', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
             >
               Clear Filters
@@ -608,7 +602,7 @@ export default function StudentRecords({ setActiveNav }) {
                 ) : displayStudents.length === 0 ? (
                   <tr><td colSpan={6} style={{ padding: 40, textAlign: 'center', color: '#94A3B8' }}>No students found</td></tr>
                 ) : displayStudents.map((s, idx) => {
-                  const initials = s.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+                  const initials = (s.name || '?').split(' ').filter(Boolean).map(n => n[0]).join('').slice(0, 2).toUpperCase();
                   const avatarColor = ['#3B82F6', '#10B981', '#6366F1', '#8B5CF6', '#EC4899'][idx % 5];
                   const isSpring = (s.intakeSession === 'Spring') || (!s.intakeSession && /-[0-9]{2}[Ss]-/.test(s.rollNumber || ''));
                   return (
@@ -667,10 +661,10 @@ export default function StudentRecords({ setActiveNav }) {
                         ) : (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <div style={{ flex: 1, height: '5px', backgroundColor: '#E2E8F0', borderRadius: '3px', overflow: 'hidden' }}>
-                              <div style={{ width: `${(s.cgpa / 4.0) * 100}%`, height: '100%', backgroundColor: getCgpaColor(s.cgpa), borderRadius: '3px' }} />
+                              <div style={{ width: `${((s.cgpa || 0) / 4.0) * 100}%`, height: '100%', backgroundColor: getCgpaColor(s.cgpa || 0), borderRadius: '3px' }} />
                             </div>
                             <span style={{ fontSize: '12px', fontWeight: 700, color: '#334155', minWidth: '28px' }}>
-                              {s.cgpa.toFixed(2)}
+                              {(s.cgpa || 0).toFixed(2)}
                             </span>
                           </div>
                         )}
@@ -761,57 +755,41 @@ export default function StudentRecords({ setActiveNav }) {
           </div>
         </div>
 
-        {/* Right Column: Activities Panel & System Status */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-          {/* Activities Card */}
-          {(user?.role === 'dean' || user?.role === 'admin') && (
-            <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>Recent Activities</h3>
-                <span
-                  onClick={() => setActiveNav && setActiveNav('audit_logs')}
-                  style={{ fontSize: '11px', fontWeight: 700, color: '#2563EB', cursor: 'pointer' }}
-                >
-                  View All
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {auditLogs.length > 0 ? (
-                  auditLogs.map((log, i) => (
-                    <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                      <div style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: log.action.includes('FAILED') ? '#FEE2E2' : '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: log.action.includes('FAILED') ? '#EF4444' : '#2563EB' }}>
-                        {log.action.includes('INGESTED') ? <FileText size={12} /> : <UserPlus size={12} />}
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#334155', lineHeight: 1.2 }}>{log.action.replace(/_/g, ' ')}</span>
-                        <span style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.2 }}>{log.metadata?.description || log.description || 'System Audit Log'}</span>
-                        <span style={{ fontSize: '9px', fontWeight: 700, color: '#94A3B8', marginTop: '2px', textTransform: 'uppercase' }}>
-                          {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div style={{ padding: '24px', textAlign: 'center', color: '#94A3B8', fontSize: '12px' }}>No recent activities.</div>
-                )}
-              </div>
+        {/* Activities Card (Moved to full width below table) */}
+        {(user?.role === 'dean' || user?.role === 'admin') && (
+          <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>Recent Activities</h3>
+              <span
+                onClick={() => setActiveNav && setActiveNav('audit_logs')}
+                style={{ fontSize: '11px', fontWeight: 700, color: '#2563EB', cursor: 'pointer' }}
+              >
+                View All
+              </span>
             </div>
-          )}
 
-          {/* System Status Panel */}
-          <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 700, color: '#64748B' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10B981', display: 'inline-block' }} />
-              SYSTEM STATUS
-            </span>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: '#10B981', backgroundColor: '#ECFDF5', padding: '4px 10px', borderRadius: '8px' }}>
-              Database Connected
-            </span>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {auditLogs.length > 0 ? (
+                auditLogs.map((log, i) => (
+                  <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', padding: '12px', backgroundColor: '#F8FAFC', borderRadius: '10px' }}>
+                    <div style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: log.action.includes('FAILED') ? '#FEE2E2' : '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: log.action.includes('FAILED') ? '#EF4444' : '#2563EB' }}>
+                      {log.action.includes('INGESTED') ? <FileText size={12} /> : <UserPlus size={12} />}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, flex: 1 }}>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#334155', lineHeight: 1.2 }}>{log.action.replace(/_/g, ' ')}</span>
+                      <span style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.2, wordBreak: 'break-word' }}>{log.metadata?.description || log.description || 'System Audit Log'}</span>
+                      <span style={{ fontSize: '9px', fontWeight: 700, color: '#94A3B8', marginTop: '2px', textTransform: 'uppercase' }}>
+                        {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={{ padding: '24px', textAlign: 'center', color: '#94A3B8', fontSize: '12px', gridColumn: '1 / -1' }}>No recent activities.</div>
+              )}
+            </div>
           </div>
-
-        </div>
+        )}
 
       </div>
 
@@ -953,7 +931,7 @@ export default function StudentRecords({ setActiveNav }) {
               <>
                 <div style={{ backgroundColor: '#F8FAFC', padding: 16, borderRadius: 12, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
                   <div style={{ width: 48, height: 48, borderRadius: '50%', backgroundColor: '#EFF6FF', display: 'flex', alignItems: 'center', justifySelf: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 18, color: '#2563EB' }}>
-                    {selected.name.split(' ').map(n => n[0]).join('')}
+                    {(selected.name || '?').split(' ').filter(Boolean).map(n => n[0]).join('')}
                   </div>
                   <div>
                     <div style={{ fontWeight: 700, color: '#0F172A' }}>{selected.name}</div>
@@ -968,7 +946,7 @@ export default function StudentRecords({ setActiveNav }) {
                   <div style={{ padding: 12, border: '1px solid #E2E8F0', borderRadius: 8 }}>
                     <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>CGPA</div>
                     <div style={{ fontWeight: 700, color: '#0F172A', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <Award size={14} color="#F59E0B" /> {selected.currentSemester === 1 ? 'N/A' : selected.cgpa.toFixed(2)}
+                      <Award size={14} color="#F59E0B" /> {selected.currentSemester === 1 ? 'N/A' : (selected.cgpa || 0).toFixed(2)}
                     </div>
                   </div>
                   <div style={{ padding: 12, border: '1px solid #E2E8F0', borderRadius: 8 }}>
