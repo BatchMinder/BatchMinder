@@ -10,7 +10,7 @@ import { logAudit } from '../utils/logger.js';
 export const getTimetable = async (req, res, next) => {
   try {
     let query = {};
-    
+
     // If user is an advisor, strictly limit timetable to their assigned batches
     if (req.user && req.user.role === 'advisor' && req.user.assignedBatchIds?.length > 0) {
       const batches = await Batch.find({ _id: { $in: req.user.assignedBatchIds } });
@@ -41,7 +41,7 @@ export const saveTimetable = async (req, res, next) => {
 
     // Clean existing and bulk insert new
     await Timetable.deleteMany({});
-    
+
     // Map entries to ensure no stray _id from frontend storage (or generate if missing)
     const formatted = entries.map(e => {
       const entry = { ...e };
@@ -161,16 +161,26 @@ export const saveOverride = async (req, res, next) => {
       const roomCapacityMap = {
         'Room 101': 50,
         'Room 102': 45,
+        'Room 103': 45,
+        'Room 104': 50,
+        'Room 201': 60,
+        'Room 202': 60,
+        'Room 203': 55,
+        'Room 204': 60,
+        'Room 301': 50,
+        'Room 302': 50,
         'Lab A': 30,
         'Lab B': 30,
-        'Room 201': 60,
-        'Room 202': 60
+        'Lab C': 30,
+        'Lab D': 30,
+        'Exam Hall': 150,
+        'Main Auditorium': 200
       };
 
       // 2. Validate all incoming entries against hard constraints (FR-5.4)
       for (let i = 0; i < entries.length; i++) {
         const a = entries[i];
-        
+
         // Validation 1: Room Capacity Constraint (FR-5.5)
         const batchSize = batchMap[a.batch] || 35;
         const capacity = roomCapacityMap[a.room] || 40;
@@ -198,11 +208,12 @@ export const saveOverride = async (req, res, next) => {
                 message: `Constraint Violation: Instructor Double-Booking for ${a.instructor} at ${a.day} ${a.timeSlot} (${a.courseCode} & ${b.courseCode}).`
               });
             }
-            // Validation 4: Student Cohort Overlap
-            if (a.batch === b.batch) {
+            // Validation 4: Student Cohort Overlap - only a real clash within the SAME semester
+            // of the batch; different semesters of a batch aren't in class together.
+            if (a.batch === b.batch && a.semester === b.semester) {
               return res.status(400).json({
                 status: 'error',
-                message: `Constraint Violation: Student Cohort Overlap for Batch ${a.batch} at ${a.day} ${a.timeSlot} (${a.courseCode} & ${b.courseCode}).`
+                message: `Constraint Violation: Student Cohort Overlap for Batch ${a.batch} (Sem ${a.semester}) at ${a.day} ${a.timeSlot} (${a.courseCode} & ${b.courseCode}).`
               });
             }
           }
@@ -225,7 +236,7 @@ export const saveOverride = async (req, res, next) => {
         const a = entries[i];
         for (let j = i + 1; j < entries.length; j++) {
           const b = entries[j];
-          
+
           const aDate = a.date || a.examDate;
           const bDate = b.date || b.examDate;
           const aSlot = a.examSlot || a.timeSlot;
@@ -248,10 +259,12 @@ export const saveOverride = async (req, res, next) => {
                 message: `Datesheet Violation: Invigilator Double-Booking for ${aInv} on ${new Date(aDate).toLocaleDateString()} (${a.courseCode} & ${b.courseCode}).`
               });
             }
-            if (a.batch === b.batch) {
+            // Only a real clash within the SAME semester of the batch - different semesters
+            // of a batch don't sit exams together even if the dates line up.
+            if (a.batch === b.batch && a.semester === b.semester) {
               return res.status(400).json({
                 status: 'error',
-                message: `Datesheet Violation: Cohort Overlap for Batch ${a.batch} on ${new Date(aDate).toLocaleDateString()} (${a.courseCode} & ${b.courseCode}).`
+                message: `Datesheet Violation: Cohort Overlap for Batch ${a.batch} (Sem ${a.semester}) on ${new Date(aDate).toLocaleDateString()} (${a.courseCode} & ${b.courseCode}).`
               });
             }
           }
@@ -351,7 +364,7 @@ export const checkTimetableClash = async (req, res, next) => {
 export const autoGenerateTimetable = async (req, res, next) => {
   try {
     const { batchId, semester } = req.body;
-    
+
     if (!batchId || !semester) {
       return res.status(400).json({ status: 'error', message: 'Batch ID and semester are required' });
     }
@@ -401,16 +414,24 @@ export const autoGenerateTimetable = async (req, res, next) => {
       '12:00 PM - 01:00 PM'
     ];
 
-    const LECTURE_ROOMS = ['Room 101', 'Room 102', 'Room 201', 'Room 202'];
-    const LAB_ROOMS = ['Lab A', 'Lab B'];
+    const LECTURE_ROOMS = ['Room 101', 'Room 102', 'Room 103', 'Room 104', 'Room 201', 'Room 202', 'Room 203', 'Room 204', 'Room 301', 'Room 302'];
+    const LAB_ROOMS = ['Lab A', 'Lab B', 'Lab C', 'Lab D'];
 
     const roomCapacityMap = {
       'Room 101': 50,
       'Room 102': 45,
+      'Room 103': 45,
+      'Room 104': 50,
+      'Room 201': 60,
+      'Room 202': 60,
+      'Room 203': 55,
+      'Room 204': 60,
+      'Room 301': 50,
+      'Room 302': 50,
       'Lab A': 30,
       'Lab B': 30,
-      'Room 201': 60,
-      'Room 202': 60
+      'Lab C': 30,
+      'Lab D': 30
     };
 
     // Assign distinct instructors across courses using round-robin distribution
@@ -486,9 +507,9 @@ export const autoGenerateTimetable = async (req, res, next) => {
               if (roomCapacity < batchSize) continue;
 
               const roomTaken = existing.some(e => e.day === day && e.timeSlot === timeSlot && e.room === room) ||
-                                generatedEntries.some(e => e.day === day && e.timeSlot === timeSlot && e.room === room);
+                generatedEntries.some(e => e.day === day && e.timeSlot === timeSlot && e.room === room);
               const instructorTaken = existing.some(e => e.day === day && e.timeSlot === timeSlot && e.instructor === assignedInstructor) ||
-                                       generatedEntries.some(e => e.day === day && e.timeSlot === timeSlot && e.instructor === assignedInstructor);
+                generatedEntries.some(e => e.day === day && e.timeSlot === timeSlot && e.instructor === assignedInstructor);
 
               if (!roomTaken && !instructorTaken) {
                 generatedEntries.push({
@@ -534,6 +555,219 @@ export const autoGenerateTimetable = async (req, res, next) => {
   }
 };
 
+// POST: Auto-generate examination datesheet (FR-5.2)
+// Mirrors autoGenerateTimetable's constraint-checked assignment approach so datesheet
+// generation has the same backend-driven, persisted, audit-logged architecture as
+// timetable generation, instead of living only in the frontend.
+export const autoGenerateDatesheet = async (req, res, next) => {
+  try {
+    const { batchId, semester } = req.body;
+
+    if (!batchId || !semester) {
+      return res.status(400).json({ status: 'error', message: 'Batch ID and semester are required' });
+    }
+
+    const batch = await Batch.findById(batchId);
+    if (!batch) {
+      return res.status(404).json({ status: 'error', message: 'Batch not found' });
+    }
+
+    // 1. Resolve active curriculum the same way autoGenerateTimetable does
+    let curriculum = await Curriculum.findOne({ batchId, status: 'active' });
+    if (!curriculum && batch.departmentId) {
+      curriculum = await Curriculum.findOne({ departmentId: batch.departmentId, status: 'active' });
+    }
+    if (!curriculum) {
+      curriculum = await Curriculum.findOne({ isHecStandard: true, status: 'active' });
+    }
+    if (!curriculum) {
+      curriculum = await Curriculum.findOne({ status: 'active' });
+    }
+
+    if (!curriculum || !curriculum.courses || curriculum.courses.length === 0) {
+      return res.status(404).json({ status: 'error', message: 'No active curriculum found for this batch or department' });
+    }
+
+    const semNum = Number(semester);
+    const coursesToSchedule = curriculum.courses.filter(c => c.semester === semNum);
+    if (!coursesToSchedule || coursesToSchedule.length === 0) {
+      return res.status(404).json({ status: 'error', message: `No courses found for semester ${semester} in active curriculum` });
+    }
+
+    // 2. Invigilator pool (faculty/advisor/admin users, same fallback pattern as timetable instructors)
+    let invigilatorPool = await User.find({ role: { $in: ['advisor', 'faculty', 'admin', 'academic_admin', 'dean'] } }).select('name');
+    let invigilatorNames = invigilatorPool.map(u => u.name).filter(Boolean);
+    if (invigilatorNames.length === 0) {
+      const allUsers = await User.find({}).select('name');
+      invigilatorNames = allUsers.map(u => u.name).filter(Boolean);
+    }
+    if (invigilatorNames.length === 0) {
+      invigilatorNames = ['Invigilator A', 'Invigilator B', 'Invigilator C'];
+    }
+
+    const EXAM_SLOTS = ['09:00 AM - 12:00 PM', '02:00 PM - 05:00 PM'];
+    const ROOMS = [
+      'Room 101', 'Room 102', 'Room 103', 'Room 104',
+      'Room 201', 'Room 202', 'Room 203', 'Room 204',
+      'Room 301', 'Room 302',
+      'Lab A', 'Lab B', 'Lab C', 'Lab D',
+      'Exam Hall', 'Main Auditorium'
+    ];
+    const roomCapacityMap = {
+      'Room 101': 50,
+      'Room 102': 45,
+      'Room 103': 45,
+      'Room 104': 50,
+      'Room 201': 60,
+      'Room 202': 60,
+      'Room 203': 55,
+      'Room 204': 60,
+      'Room 301': 50,
+      'Room 302': 50,
+      'Lab A': 30,
+      'Lab B': 30,
+      'Lab C': 30,
+      'Lab D': 30,
+      'Exam Hall': 150,
+      'Main Auditorium': 200
+    };
+
+    // 3. Build a rolling list of upcoming weekdays (Mon-Fri) to serve as exam dates,
+    // so generation always produces a forward-looking datesheet regardless of when it's run.
+    const examDates = [];
+    const cursor = new Date();
+    cursor.setDate(cursor.getDate() + 1);
+    while (examDates.length < 10) {
+      const day = cursor.getDay();
+      if (day !== 0 && day !== 6) {
+        examDates.push(cursor.toISOString().slice(0, 10));
+      }
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    const studentCount = await Student.countDocuments({ batchId });
+    const batchSize = studentCount > 0 ? studentCount : 35;
+
+    // Existing entries for OTHER batches/semesters -- used to avoid room/invigilator clashes
+    // against exams already scheduled elsewhere (multi-dimensional conflict detection, FE-17/FR-5.2/5.3).
+    const existing = await Datesheet.find({
+      $or: [
+        { batch: { $ne: batch.code } },
+        { semester: { $ne: semNum } }
+      ]
+    });
+
+    await Datesheet.deleteMany({ batch: batch.code, semester: semNum });
+
+    const generatedEntries = [];
+    const unscheduledCourses = [];
+
+    for (let cIdx = 0; cIdx < coursesToSchedule.length; cIdx++) {
+      const course = coursesToSchedule[cIdx];
+      let assigned = false;
+
+      for (const date of examDates) {
+        if (assigned) break;
+
+        // Hard constraint: this cohort cannot sit two exams on the same date (cohort overlap).
+        // Only checked against entries being generated in THIS run (same batch + same semester).
+        // `existing` includes past/other-semester entries for this same batch too, which must
+        // NOT block new dates here - otherwise every semester generated after the first ends up
+        // with zero available dates (since the rolling date window is the same each time).
+        const cohortBusyThisDate = generatedEntries.some(e => e.batch === batch.code && e.date === date);
+        if (cohortBusyThisDate) continue;
+
+        for (const examSlot of EXAM_SLOTS) {
+          if (assigned) break;
+
+          for (const room of ROOMS) {
+            if (assigned) break;
+
+            const capacity = roomCapacityMap[room] || 40;
+            if (capacity < batchSize) continue;
+
+            const roomTaken = existing.some(e => e.date === date && e.examSlot === examSlot && e.room === room)
+              || generatedEntries.some(e => e.date === date && e.examSlot === examSlot && e.room === room);
+            if (roomTaken) continue;
+
+            // Search the invigilator pool for someone actually free at this date+slot, instead of
+            // locking in a single fixed invigilator by course index - otherwise the same few
+            // invigilators (whoever lands on the low indices) get reused as the "first pick" across
+            // every semester ever generated, get booked solid, and then block scheduling entirely
+            // even when other invigilators in the pool are completely free.
+            const startIdx = cIdx % invigilatorNames.length;
+            let invigilator = null;
+            for (let k = 0; k < invigilatorNames.length; k++) {
+              const candidate = invigilatorNames[(startIdx + k) % invigilatorNames.length];
+              const candidateTaken = existing.some(e => e.date === date && e.examSlot === examSlot && e.invigilator === candidate)
+                || generatedEntries.some(e => e.date === date && e.examSlot === examSlot && e.invigilator === candidate);
+              if (!candidateTaken) {
+                invigilator = candidate;
+                break;
+              }
+            }
+            if (!invigilator) continue;
+
+            generatedEntries.push({
+              date,
+              examSlot,
+              courseCode: course.code,
+              courseName: course.title,
+              room,
+              invigilator,
+              batch: batch.code,
+              semester: semNum,
+              departmentId: batch.departmentId
+            });
+            assigned = true;
+          }
+        }
+      }
+
+      if (!assigned) {
+        unscheduledCourses.push(`${course.code} - ${course.title}`);
+      }
+    }
+
+    const savedEntries = await Datesheet.insertMany(generatedEntries);
+
+    await logAudit({
+      actorId: req.user._id,
+      actorRole: req.user.role,
+      action: 'DATESHEET_GENERATED',
+      targetType: 'Datesheet',
+      targetId: 'all',
+      departmentId: batch.departmentId.toString(),
+      metadata: {
+        description: `Auto-generated examination datesheet for batch ${batch.code}, semester ${semester}`,
+        count: savedEntries.length,
+        unscheduledCount: unscheduledCourses.length
+      }
+    });
+
+    // Surface partial-failure clearly instead of reporting "success" when some courses
+    // couldn't find any free date/slot/room/invigilator combination in the exam window.
+    // (This happens once the shared pool of dates x slots x rooms gets used up by other
+    // batches/semesters generated in the same window - add more rooms/invigilators or
+    // widen the exam date window if this keeps happening.)
+    if (unscheduledCourses.length > 0) {
+      return res.status(207).json({
+        status: 'partial',
+        message: `Datesheet generated with ${unscheduledCourses.length} of ${coursesToSchedule.length} course(s) unscheduled - no available date/slot/room/invigilator combination was found for them within the exam window. Consider freeing up existing datesheets, adding rooms/invigilators, or widening the exam date window.`,
+        data: { entries: savedEntries, unscheduledCourses }
+      });
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Automatic Datesheet Generation successful.',
+      data: { entries: savedEntries }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // POST: Validate Room Capacity (FR-5.5)
 export const validateRoomCapacity = async (req, res, next) => {
   try {
@@ -542,14 +776,24 @@ export const validateRoomCapacity = async (req, res, next) => {
     const roomCapacityMap = {
       'Room 101': 50,
       'Room 102': 45,
+      'Room 103': 45,
+      'Room 104': 50,
+      'Room 201': 60,
+      'Room 202': 60,
+      'Room 203': 55,
+      'Room 204': 60,
+      'Room 301': 50,
+      'Room 302': 50,
       'Lab A': 30,
       'Lab B': 30,
-      'Room 201': 60,
-      'Room 202': 60
+      'Lab C': 30,
+      'Lab D': 30,
+      'Exam Hall': 150,
+      'Main Auditorium': 200
     };
-    
+
     const capacity = roomCapacityMap[room] || 40; // fallback capacity
-    
+
     if (studentCount > capacity) {
       return res.status(200).json({
         status: 'success',

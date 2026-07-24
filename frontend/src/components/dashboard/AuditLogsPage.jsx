@@ -47,7 +47,7 @@ const renderMetadataDetails = (meta, fallbackDescription = '') => {
 const CustomSelect = ({ value, onChange, options, placeholder = "Select..." }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = React.useRef(null);
-  
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setIsOpen(false);
@@ -75,10 +75,10 @@ const CustomSelect = ({ value, onChange, options, placeholder = "Select..." }) =
       </div>
       {isOpen && (
         <div style={{
-          position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '4px',
+          position: 'absolute', top: '100%', right: 0, marginTop: '4px', minWidth: '100%',
           backgroundColor: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: '8px',
           boxShadow: '0 20px 25px -5px rgba(0,0,0,0.15), 0 10px 10px -5px rgba(0,0,0,0.05)',
-          zIndex: 9999, maxHeight: '220px', overflowY: 'auto'
+          zIndex: 999999, maxHeight: '220px', overflowY: 'auto', whiteSpace: 'nowrap'
         }}>
           {options.map((opt, idx) => (
             <div
@@ -215,7 +215,7 @@ export default function AuditLogsPage({ setActiveNav }) {
 
   return (
     <div style={{ flex: 1, overflow: 'hidden', backgroundColor: '#F8FAFC', display: 'flex', flexDirection: 'column', fontFamily: 'inherit' }}>
-      
+
       {isDean ? (
         <Header
           title="System Audit Logs"
@@ -315,99 +315,99 @@ export default function AuditLogsPage({ setActiveNav }) {
               width: '100%'
             }}>
 
-          {isDean && (
-            <>
-              {/* Department Filter */}
+              {isDean && (
+                <>
+                  {/* Department Filter */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Department</span>
+                    <div style={{ position: 'relative' }}>
+                      <CustomSelect
+                        value={deptFilter}
+                        onChange={(val) => { setDeptFilter(val); setCurrentPage(1); }}
+                        options={[
+                          { value: 'All Departments', label: 'All Departments' },
+                          ...departments.map(d => ({ value: d.name, label: d.name }))
+                        ]}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Batch Filter */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Batch</span>
+                    <div style={{ position: 'relative' }}>
+                      <CustomSelect
+                        value={batchFilter}
+                        onChange={(val) => { setBatchFilter(val); setCurrentPage(1); }}
+                        options={[
+                          { value: 'All Batches', label: 'All Batches' },
+                          ...batches.map(b => ({ value: b.code, label: b.code }))
+                        ]}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Date Range Filters (Middle Columns) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Department</span>
+                <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Start Date</span>
+                <input
+                  type="date"
+                  value={startDateFilter}
+                  onChange={e => { setStartDateFilter(e.target.value); setCurrentPage(1); }}
+                  style={{
+                    width: '100%',
+                    padding: '7px 12px', borderRadius: '8px', border: '1px solid #E2E8F0',
+                    fontSize: '12px', fontWeight: 600, color: '#1E293B', outline: 'none',
+                    backgroundColor: '#FAFAFA', fontFamily: 'inherit',
+                    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.01)'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>End Date</span>
+                <input
+                  type="date"
+                  value={endDateFilter}
+                  onChange={e => { setEndDateFilter(e.target.value); setCurrentPage(1); }}
+                  style={{
+                    width: '100%',
+                    padding: '7px 12px', borderRadius: '8px', border: '1px solid #E2E8F0',
+                    fontSize: '12px', fontWeight: 600, color: '#1E293B', outline: 'none',
+                    backgroundColor: '#FAFAFA', fontFamily: 'inherit',
+                    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.01)'
+                  }}
+                />
+              </div>
+
+              {/* Action Filter (Last Column) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Action</span>
                 <div style={{ position: 'relative' }}>
                   <CustomSelect
-                    value={deptFilter}
-                    onChange={(val) => { setDeptFilter(val); setCurrentPage(1); }}
+                    value={actionFilter}
+                    onChange={(val) => { setActionFilter(val); setCurrentPage(1); }}
                     options={[
-                      { value: 'All Departments', label: 'All Departments' },
-                      ...departments.map(d => ({ value: d.name, label: d.name }))
+                      { value: '', label: 'All Actions' },
+                      { value: 'STUDENT_CREATED', label: 'Student Created' },
+                      { value: 'STUDENT_UPDATED', label: 'Student Updated' },
+                      { value: 'STUDENT_DELETED', label: 'Student Deleted' },
+                      { value: 'UPLOAD_VALIDATED', label: 'CSV Upload Validated' },
+                      { value: 'UPLOAD_IMPORTED', label: 'CSV Upload Imported' },
+                      { value: 'CURRICULUM_UPDATED', label: 'Curriculum Updated' },
+                      { value: 'MIGRATION_CREATED', label: 'Migration Created' },
+                      { value: 'MIGRATION_DECIDED', label: 'Migration Decided' },
+                      { value: 'BATCH_CREATED', label: 'Batch Created' },
+                      { value: 'BATCH_UPDATED', label: 'Batch Updated' },
+                      { value: 'PROFILE_UPDATED', label: 'Profile Updated' },
+                      { value: 'PROFILE_PICTURE_UPLOADED', label: 'Profile Picture Uploaded' },
+                      { value: 'PROFILE_PICTURE_DELETED', label: 'Profile Picture Deleted' }
                     ]}
                   />
                 </div>
               </div>
-
-              {/* Batch Filter */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Batch</span>
-                <div style={{ position: 'relative' }}>
-                  <CustomSelect
-                    value={batchFilter}
-                    onChange={(val) => { setBatchFilter(val); setCurrentPage(1); }}
-                    options={[
-                      { value: 'All Batches', label: 'All Batches' },
-                      ...batches.map(b => ({ value: b.code, label: b.code }))
-                    ]}
-                  />
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Date Range Filters (Middle Columns) */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Start Date</span>
-            <input
-              type="date"
-              value={startDateFilter}
-              onChange={e => { setStartDateFilter(e.target.value); setCurrentPage(1); }}
-              style={{
-                width: '100%',
-                padding: '7px 12px', borderRadius: '8px', border: '1px solid #E2E8F0',
-                fontSize: '12px', fontWeight: 600, color: '#1E293B', outline: 'none',
-                backgroundColor: '#FAFAFA', fontFamily: 'inherit',
-                boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.01)'
-              }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>End Date</span>
-            <input
-              type="date"
-              value={endDateFilter}
-              onChange={e => { setEndDateFilter(e.target.value); setCurrentPage(1); }}
-              style={{
-                width: '100%',
-                padding: '7px 12px', borderRadius: '8px', border: '1px solid #E2E8F0',
-                fontSize: '12px', fontWeight: 600, color: '#1E293B', outline: 'none',
-                backgroundColor: '#FAFAFA', fontFamily: 'inherit',
-                boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.01)'
-              }}
-            />
-          </div>
-
-          {/* Action Filter (Last Column) */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Action</span>
-            <div style={{ position: 'relative' }}>
-              <CustomSelect
-                value={actionFilter}
-                onChange={(val) => { setActionFilter(val); setCurrentPage(1); }}
-                options={[
-                  { value: '', label: 'All Actions' },
-                  { value: 'STUDENT_CREATED', label: 'Student Created' },
-                  { value: 'STUDENT_UPDATED', label: 'Student Updated' },
-                  { value: 'STUDENT_DELETED', label: 'Student Deleted' },
-                  { value: 'UPLOAD_VALIDATED', label: 'CSV Upload Validated' },
-                  { value: 'UPLOAD_IMPORTED', label: 'CSV Upload Imported' },
-                  { value: 'CURRICULUM_UPDATED', label: 'Curriculum Updated' },
-                  { value: 'MIGRATION_CREATED', label: 'Migration Created' },
-                  { value: 'MIGRATION_DECIDED', label: 'Migration Decided' },
-                  { value: 'BATCH_CREATED', label: 'Batch Created' },
-                  { value: 'BATCH_UPDATED', label: 'Batch Updated' },
-                  { value: 'PROFILE_UPDATED', label: 'Profile Updated' },
-                  { value: 'PROFILE_PICTURE_UPLOADED', label: 'Profile Picture Uploaded' },
-                  { value: 'PROFILE_PICTURE_DELETED', label: 'Profile Picture Deleted' }
-                ]}
-              />
-            </div>
-          </div>
             </div>
           )}
         </div>
@@ -442,8 +442,8 @@ export default function AuditLogsPage({ setActiveNav }) {
                   const dateStr = new Date(log.timestamp).toLocaleString('en-US', {
                     month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit'
                   });
-                  const actorName = log.actorId?.name || log.userId?.name || log.userEmail || log.metadata?.email || 'System';
-                  const actionLabel = log.action || 'EVENT';
+                  const actorName = log.userID?.name || log.userId?.name || log.userEmail || log.metadata?.email || 'System';
+                  const actionLabel = log.actionType || 'EVENT';
                   const rColors = {
                     'dean': { bg: '#FEE2E2', color: '#991B1B' },
                     'academic_admin': { bg: '#D1FAE5', color: '#065F46' },
@@ -522,9 +522,9 @@ export default function AuditLogsPage({ setActiveNav }) {
                     const dateStr = new Date(log.timestamp).toLocaleString('en-US', {
                       month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit'
                     });
-                    const actorName = log.actorId?.name || log.userId?.name || log.userEmail || log.metadata?.email || 'System';
-                    const actorEmail = log.actorId?.email || log.userId?.email || log.userEmail || (log.actorId ? '' : log.metadata?.email) || '';
-                    const actionLabel = log.action || 'EVENT';
+                    const actorName = log.userID?.name || log.userId?.name || log.userEmail || log.metadata?.email || 'System';
+                    const actorEmail = log.userID?.email || log.userId?.email || log.userEmail || (log.userID ? '' : log.metadata?.email) || '';
+                    const actionLabel = log.actionType || 'EVENT';
 
                     // role colors
                     const rColors = {
@@ -736,7 +736,7 @@ export default function AuditLogsPage({ setActiveNav }) {
                 {/* Action */}
                 <div>
                   <span style={{ fontSize: '10px', fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Action Triggered</span>
-                  <p style={{ margin: '4px 0 0', fontSize: '13px', fontWeight: 750, color: '#1E293B' }}>{selectedAudit.action}</p>
+                  <p style={{ margin: '4px 0 0', fontSize: '13px', fontWeight: 750, color: '#1E293B' }}>{selectedAudit.actionType}</p>
                 </div>
                 {/* Timestamp */}
                 <div>
@@ -752,11 +752,11 @@ export default function AuditLogsPage({ setActiveNav }) {
                 <div>
                   <span style={{ fontSize: '10px', fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Triggered By</span>
                   <p style={{ margin: '4px 0 0', fontSize: '13px', fontWeight: 700, color: '#1E293B' }}>
-                    {selectedAudit.actorId?.name || selectedAudit.metadata?.email || 'System'}
+                    {selectedAudit.userID?.name || selectedAudit.metadata?.email || 'System'}
                   </p>
-                  {(selectedAudit.actorId?.email || selectedAudit.metadata?.email) && (
+                  {(selectedAudit.userID?.email || selectedAudit.metadata?.email) && (
                     <p style={{ margin: 0, fontSize: '11px', color: '#64748B' }}>
-                      {selectedAudit.actorId?.email || selectedAudit.metadata?.email}
+                      {selectedAudit.userID?.email || selectedAudit.metadata?.email}
                     </p>
                   )}
                 </div>

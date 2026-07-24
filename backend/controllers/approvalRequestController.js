@@ -919,3 +919,36 @@ export const getRequestDetails = async (req, res, next) => {
     next(err);
   }
 };
+
+export const updateApprovalRequest = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { studentName, rollNumber, justification, courseCode, courseTitle, creditHours, requestType } = req.body;
+    
+    const request = await ApprovalRequest.findById(id).populate('studentId');
+    if (!request) {
+      return res.status(404).json({ status: 'error', message: 'Request not found' });
+    }
+    
+    if (justification !== undefined) request.justification = justification;
+    if (courseCode !== undefined) request.courseCode = courseCode;
+    if (courseTitle !== undefined) request.courseTitle = courseTitle;
+    if (creditHours !== undefined) request.creditHours = creditHours;
+    if (requestType !== undefined) request.requestType = requestType;
+    
+    await request.save();
+
+    if (request.studentId && (studentName || rollNumber)) {
+      const student = await Student.findById(request.studentId._id);
+      if (student) {
+        if (studentName) student.name = studentName;
+        if (rollNumber) student.rollNumber = rollNumber;
+        await student.save();
+      }
+    }
+    
+    res.status(200).json({ status: 'success', data: request });
+  } catch (error) {
+    next(error);
+  }
+};

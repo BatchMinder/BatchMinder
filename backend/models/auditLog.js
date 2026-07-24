@@ -1,7 +1,11 @@
 import mongoose from 'mongoose';
 
+// Field names below match the Dev Blueprint's documented AuditLogs collection
+// (Section 4.2: logID, userID, actionType, timestamp, ipAddress) -- previously
+// this schema used actorId/action, which drifted from that spec. logID isn't a
+// literal field here because Mongoose's auto-generated _id already serves that role.
 const auditLogSchema = new mongoose.Schema({
-  actorId: {
+  userID: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: false
@@ -19,7 +23,7 @@ const auditLogSchema = new mongoose.Schema({
     type: String,
     required: false
   },
-  action: {
+  actionType: {
     type: String,
     required: [true, 'Please provide an action name']
   },

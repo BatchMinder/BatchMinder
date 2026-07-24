@@ -8,6 +8,8 @@ import { CircularProgress } from '@mui/material';
 import RequestDetail from '../../components/ApprovalWorkflow/RequestDetail';
 import SpecialPermissionForm from '../../components/ApprovalWorkflow/SpecialPermissionForm';
 
+import EditRequestModal from '../../components/ApprovalWorkflow/EditRequestModal';
+
 export default function HODQueue() {
   const { user } = useAuth();
 
@@ -28,6 +30,7 @@ export default function HODQueue() {
   // Split-pane selection state
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showSpecialForm, setShowSpecialForm] = useState(false);
+  const [editingRequest, setEditingRequest] = useState(null);
 
   // Fetch pending requests
   const fetchRequests = async (showRefresher = false) => {
@@ -277,9 +280,8 @@ export default function HODQueue() {
                     return (
                       <tr key={r._id} style={{
                         borderBottom: '1px solid #F1F5F9',
-                        backgroundColor: selectedRequest?._id === r._id ? '#EFF6FF' : 'transparent',
-                        cursor: 'pointer'
-                      }} onClick={() => setSelectedRequest(r)}>
+                        backgroundColor: selectedRequest?._id === r._id ? '#EFF6FF' : 'transparent'
+                      }}>
                         <td style={{ padding: '14px 24px', fontSize: '13.5px', fontWeight: 700, color: '#0F172A' }}>
                           {student.rollNumber || 'N/A'}
                         </td>
@@ -311,29 +313,54 @@ export default function HODQueue() {
                           </div>
                         </td>
                         <td style={{ padding: '14px 24px', textAlign: 'right' }}>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setSelectedRequest(r); }}
-                            style={{
-                              padding: '6px 14px',
-                              borderRadius: '8px',
-                              border: '1px solid #2563EB',
-                              backgroundColor: '#FFFFFF',
-                              color: '#2563EB',
-                              fontSize: '12.5px',
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              fontFamily: 'inherit',
-                              transition: 'all 0.15s',
-                            }}
-                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#2563EB'; e.currentTarget.style.color = '#FFFFFF'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#FFFFFF'; e.currentTarget.style.color = '#2563EB'; }}
-                          >
-                            <span>Review</span>
-                            <ArrowRight size={13} />
-                          </button>
+                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setEditingRequest(r); }}
+                              style={{
+                                padding: '6px 14px',
+                                borderRadius: '8px',
+                                border: '1px solid #F59E0B',
+                                backgroundColor: '#FFFFFF',
+                                color: '#F59E0B',
+                                fontSize: '12.5px',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontFamily: 'inherit',
+                                transition: 'all 0.15s',
+                              }}
+                              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#F59E0B'; e.currentTarget.style.color = '#FFFFFF'; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#FFFFFF'; e.currentTarget.style.color = '#F59E0B'; }}
+                            >
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setSelectedRequest(r); }}
+                              style={{
+                                padding: '6px 14px',
+                                borderRadius: '8px',
+                                border: '1px solid #2563EB',
+                                backgroundColor: '#FFFFFF',
+                                color: '#2563EB',
+                                fontSize: '12.5px',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontFamily: 'inherit',
+                                transition: 'all 0.15s',
+                              }}
+                              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#2563EB'; e.currentTarget.style.color = '#FFFFFF'; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#FFFFFF'; e.currentTarget.style.color = '#2563EB'; }}
+                            >
+                              <span>Review</span>
+                              <ArrowRight size={13} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -374,6 +401,21 @@ export default function HODQueue() {
           onClose={() => setShowSpecialForm(false)}
           onSuccess={() => {
             fetchRequests();
+          }}
+        />
+      )}
+
+      {/* Edit Request Modal */}
+      {editingRequest && (
+        <EditRequestModal
+          request={editingRequest}
+          onClose={() => setEditingRequest(null)}
+          onSuccess={(updatedRequest) => {
+            setEditingRequest(null);
+            fetchRequests();
+            if (selectedRequest && selectedRequest._id === updatedRequest._id) {
+              setSelectedRequest(updatedRequest);
+            }
           }}
         />
       )}

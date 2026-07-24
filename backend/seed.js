@@ -53,13 +53,17 @@ async function seed() {
     // ── Users ──
     const users = await User.create([
       { name: 'Dean User', email: 'dean@stmu.edu.pk', password: 'password123', role: 'dean', status: 'Active' },
-      { name: 'Admin CS Only', email: 'admin.cs@stmu.edu.pk', password: 'password123', role: 'academic_admin', departmentIds: [cs], dept: 'Computer Science', status: 'Active' },
-      { name: 'Admin All Depts', email: 'admin.both@stmu.edu.pk', password: 'password123', role: 'academic_admin', departmentIds: [cs, ai, se, cy], dept: 'All Departments', status: 'Active' },
+      { name: 'Admin CY ', email: 'admin.cy@stmu.edu.pk', password: 'password123', role: 'academic_admin', departmentIds: [cy], dept: 'Cyber Security', status: 'Active' },
+      { name: 'Admin CS ', email: 'admin.cs@stmu.edu.pk', password: 'password123', role: 'academic_admin', departmentIds: [cs], dept: 'Computer Science', status: 'Active' },
+      { name: 'Admin SE ', email: 'admin.se@stmu.edu.pk', password: 'password123', role: 'academic_admin', departmentIds: [se], dept: 'Software Engineering', status: 'Active' },
+      { name: 'Admin AI ', email: 'admin.ai@stmu.edu.pk', password: 'password123', role: 'academic_admin', departmentIds: [ai], dept: 'Artifical Intelligence', status: 'Active' },
+      { name: 'Admin All ', email: 'admin.all@stmu.edu.pk', password: 'password123', role: 'academic_admin', departmentIds: [se, cs, ai, cy], dept: 'All Departments', status: 'Active' },
       { name: 'HOD Computer Science', email: 'hod.cs@stmu.edu.pk', password: 'password123', role: 'admin', departmentIds: [cs], dept: 'Computer Science', status: 'Active' },
       { name: 'HOD Artificial Intelligence', email: 'hod.ai@stmu.edu.pk', password: 'password123', role: 'admin', departmentIds: [ai], dept: 'Artificial Intelligence', status: 'Active' },
       { name: 'HOD Software Engineering', email: 'hod.se@stmu.edu.pk', password: 'password123', role: 'admin', departmentIds: [se], dept: 'Software Engineering', status: 'Active' },
       { name: 'HOD Cyber Security', email: 'hod.cy@stmu.edu.pk', password: 'password123', role: 'admin', departmentIds: [cy], dept: 'Cyber Security', status: 'Active' },
-      { name: 'Advisor Ahmed', email: 'advisor.both@stmu.edu.pk', password: 'password123', role: 'advisor', dept: 'Computer Science', status: 'Active' },
+      { name: 'Advisor Ahmed', email: 'advisor.ai@stmu.edu.pk', password: 'password123', role: 'advisor', dept: 'Artifical Intelligence', status: 'Active' },
+      { name: 'Advisor Ali', email: 'advisor.cy@stmu.edu.pk', password: 'password123', role: 'advisor', dept: 'Cyber Security', status: 'Active' },
       { name: 'Advisor Fatima', email: 'advisor.cs@stmu.edu.pk', password: 'password123', role: 'advisor', dept: 'Computer Science', status: 'Active' },
       { name: 'Advisor Usman', email: 'advisor.se@stmu.edu.pk', password: 'password123', role: 'advisor', dept: 'Software Engineering', status: 'Active' },
     ]);
@@ -613,7 +617,7 @@ async function seed() {
     console.log('  Administrator (CS only): admin.cs@stmu.edu.pk / password123 / academic_admin');
     console.log('  Administrator (CS+SE):   admin.both@stmu.edu.pk / password123 / academic_admin');
     console.log('  Dean:                    dean@stmu.edu.pk / password123 / dean');
-    console.log('  Batch Advisor:           batchadvisor@stmu.edu.pk / password123 / advisor');
+    console.log('  Batch Advisor:           advisor.cs@stmu.edu.pk / password123 / advisor');
 
     process.exit(0);
   } catch (err) {

@@ -23,6 +23,7 @@ export default function RoomCapacityBadge({ studentCount = 0, roomCapacity = 0 }
                 borderRadius: '50%',
                 backgroundColor: isOverCapacity ? '#EF4444' : '#22C55E'
             }} />
+
             <span>Cap: {studentCount} / {roomCapacity}</span>
             {isOverCapacity && (
                 <span style={{ backgroundColor: '#EF4444', color: '#FFF', fontSize: 9, padding: '1px 4px', borderRadius: 4, fontWeight: 800 }}>

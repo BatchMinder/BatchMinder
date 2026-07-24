@@ -3,6 +3,7 @@ import { Search, RefreshCw, Calendar, ArrowRight, BookOpen } from 'lucide-react'
 import { CircularProgress } from '@mui/material';
 import StatusBadge from '../../components/ApprovalWorkflow/StatusBadge';
 import RequestDetail from '../../components/ApprovalWorkflow/RequestDetail';
+import EditRequestModal from '../../components/ApprovalWorkflow/EditRequestModal';
 
 export default function RequestHistory() {
   const [history, setHistory] = useState([]);
@@ -13,6 +14,7 @@ export default function RequestHistory() {
 
   // Modal state
   const [selectedRequest, setSelectedRequest] = useState(null);
+  const [editingRequest, setEditingRequest] = useState(null);
 
   const fetchHistory = async (showRefresher = false) => {
     if (showRefresher) setRefreshing(true);
@@ -226,29 +228,54 @@ export default function RequestHistory() {
                         {r.hodRemarks || <span style={{ color: '#94A3B8', fontStyle: 'italic' }}>No remarks</span>}
                       </td>
                       <td style={{ padding: '14px 24px', textAlign: 'right' }}>
-                        <button
-                          onClick={() => setSelectedRequest(r)}
-                          style={{
-                            padding: '6px 14px',
-                            borderRadius: '8px',
-                            border: '1px solid #CBD5E1',
-                            backgroundColor: '#FFFFFF',
-                            color: '#475569',
-                            fontSize: '12px',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            fontFamily: 'inherit',
-                            transition: 'all 0.15s',
-                          }}
-                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#F1F5F9'; e.currentTarget.style.color = '#0F172A'; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#FFFFFF'; e.currentTarget.style.color = '#475569'; }}
-                        >
-                          <span>Details</span>
-                          <ArrowRight size={13} />
-                        </button>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setEditingRequest(r); }}
+                            style={{
+                              padding: '6px 14px',
+                              borderRadius: '8px',
+                              border: '1px solid #F59E0B',
+                              backgroundColor: '#FFFFFF',
+                              color: '#F59E0B',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontFamily: 'inherit',
+                              transition: 'all 0.15s',
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#F59E0B'; e.currentTarget.style.color = '#FFFFFF'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#FFFFFF'; e.currentTarget.style.color = '#F59E0B'; }}
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            onClick={() => setSelectedRequest(r)}
+                            style={{
+                              padding: '6px 14px',
+                              borderRadius: '8px',
+                              border: '1px solid #CBD5E1',
+                              backgroundColor: '#FFFFFF',
+                              color: '#475569',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontFamily: 'inherit',
+                              transition: 'all 0.15s',
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#F1F5F9'; e.currentTarget.style.color = '#0F172A'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#FFFFFF'; e.currentTarget.style.color = '#475569'; }}
+                          >
+                            <span>Details</span>
+                            <ArrowRight size={13} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -265,6 +292,21 @@ export default function RequestHistory() {
           request={selectedRequest}
           userRole="hod"
           onClose={() => setSelectedRequest(null)}
+        />
+      )}
+
+      {/* Edit Request Modal */}
+      {editingRequest && (
+        <EditRequestModal
+          request={editingRequest}
+          onClose={() => setEditingRequest(null)}
+          onSuccess={(updatedRequest) => {
+            setEditingRequest(null);
+            fetchHistory();
+            if (selectedRequest && selectedRequest._id === updatedRequest._id) {
+              setSelectedRequest(updatedRequest);
+            }
+          }}
         />
       )}
     </div>

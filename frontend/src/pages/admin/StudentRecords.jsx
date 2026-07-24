@@ -344,7 +344,8 @@ export default function StudentRecords({ setActiveNav }) {
       const matchesBatch = !batchFilter || batchCode.toLowerCase().includes(batchFilter.toLowerCase());
 
       const sem = s.currentSemester || 1;
-      const matchesSemester = !semesterFilter || sem === Number(semesterFilter);
+      const matchesSemester = !semesterFilter || 
+        (semesterFilter === 'graduated' ? s.status === 'graduated' : (sem === Number(semesterFilter) && s.status !== 'graduated'));
 
       return matchesSearch && matchesStatus && matchesDept && matchesBatch && matchesSemester;
     });
@@ -545,9 +546,12 @@ export default function StudentRecords({ setActiveNav }) {
                 style={{ padding: '7px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', backgroundColor: '#FFFFFF', color: '#475569', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}
               >
                 <option value="">All Semesters</option>
-                {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => (
-                  <option key={sem} value={sem}>Semester {sem}</option>
-                ))}
+                {(() => {
+                  const options = [1, 2, 3, 4, 5, 6, 7, 8, 'graduated'];
+                  return options.map(sem => (
+                    <option key={sem} value={sem}>{sem === 'graduated' ? 'Graduated' : `Semester ${sem}`}</option>
+                  ));
+                })()}
               </select>
 
               {/* Session Dropdown */}
@@ -651,7 +655,18 @@ export default function StudentRecords({ setActiveNav }) {
 
                       {/* Semester */}
                       <td style={{ padding: '12px 20px', color: '#64748B' }}>
-                        Semester {s.currentSemester}
+                        {s.status === 'graduated' ? (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            padding: '2px 8px',
+                            backgroundColor: '#D1FAE5',
+                            color: '#065F46',
+                            borderRadius: '12px',
+                            fontSize: '11px',
+                            fontWeight: 700
+                          }}>Graduated</span>
+                        ) : `Semester ${s.currentSemester}`}
                       </td>
 
                       {/* CGPA Progress Bar + Value */}
@@ -772,11 +787,11 @@ export default function StudentRecords({ setActiveNav }) {
               {auditLogs.length > 0 ? (
                 auditLogs.map((log, i) => (
                   <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', padding: '12px', backgroundColor: '#F8FAFC', borderRadius: '10px' }}>
-                    <div style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: log.action.includes('FAILED') ? '#FEE2E2' : '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: log.action.includes('FAILED') ? '#EF4444' : '#2563EB' }}>
-                      {log.action.includes('INGESTED') ? <FileText size={12} /> : <UserPlus size={12} />}
+                    <div style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: log.actionType.includes('FAILED') ? '#FEE2E2' : '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: log.actionType.includes('FAILED') ? '#EF4444' : '#2563EB' }}>
+                      {log.actionType.includes('INGESTED') ? <FileText size={12} /> : <UserPlus size={12} />}
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, flex: 1 }}>
-                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#334155', lineHeight: 1.2 }}>{log.action.replace(/_/g, ' ')}</span>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#334155', lineHeight: 1.2 }}>{log.actionType.replace(/_/g, ' ')}</span>
                       <span style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.2, wordBreak: 'break-word' }}>{log.metadata?.description || log.description || 'System Audit Log'}</span>
                       <span style={{ fontSize: '9px', fontWeight: 700, color: '#94A3B8', marginTop: '2px', textTransform: 'uppercase' }}>
                         {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -1141,7 +1156,7 @@ export default function StudentRecords({ setActiveNav }) {
                       onChange={e => setFormData(f => ({ ...f, currentSemester: Number(e.target.value) }))}
                       style={{ width: '100%', padding: '10px 12px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', backgroundColor: '#fff', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}
                     >
-                      {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => (
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(sem => (
                         <option key={sem} value={sem}>Semester {sem}</option>
                       ))}
                     </select>
@@ -1243,7 +1258,7 @@ export default function StudentRecords({ setActiveNav }) {
                     <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Semester *</label>
                     <select required value={editForm.currentSemester || 1} onChange={e => setEditForm(f => ({ ...f, currentSemester: Number(e.target.value) }))}
                       style={{ width: '100%', padding: '10px 12px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', backgroundColor: '#fff', outline: 'none', fontFamily: 'inherit' }}>
-                      {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => (
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(sem => (
                         <option key={sem} value={sem}>Semester {sem}</option>
                       ))}
                     </select>

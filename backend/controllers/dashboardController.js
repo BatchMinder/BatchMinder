@@ -103,7 +103,7 @@ export const getDashboardStats = async (req, res) => {
       data: {
         // New shape for Admin dashboard
         totalStudents,
-      graduatedStudents,
+        graduatedStudents,
         activeStudents,
         atRiskStudents,
         studentsByStatus: { good: goodStudents, warning: warningStudents, critical: criticalStudents },
@@ -126,10 +126,10 @@ export const getDashboardStats = async (req, res) => {
         })),
         activityLogs: recentLogs.map(log => ({
           id: log._id,
-          action: log.action,
+          action: log.actionType,
           details: log.metadata?.description || log.description || '',
           time: log.timestamp,
-          user: log.userEmail || log.actorId || 'System',
+          user: log.userEmail || log.userID || 'System',
         })),
       }
     });

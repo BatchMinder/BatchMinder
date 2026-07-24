@@ -50,15 +50,15 @@ export const scopeQueryToRole = (user) => {
   }
 
   if (user.role === 'academic_admin' || user.role === 'admin') {
-    const ids = (user.departmentIds || []).map(id => new mongoose.Types.ObjectId(id.toString()));
+    const ids = (user.departmentIds || []).map(id => id.toString());
     if (ids.length > 0) return { departmentId: { $in: ids } };
     return {};
   }
 
   if (user.role === 'advisor') {
-    const ids = (user.assignedBatchIds || []).map(id => new mongoose.Types.ObjectId(id.toString()));
+    const ids = (user.assignedBatchIds || []).map(id => id.toString());
     if (ids.length > 0) return { batchId: { $in: ids } };
-    const deptIds = (user.departmentIds || []).map(id => new mongoose.Types.ObjectId(id.toString()));
+    const deptIds = (user.departmentIds || []).map(id => id.toString());
     if (deptIds.length > 0) return { departmentId: { $in: deptIds } };
     return {};
   }

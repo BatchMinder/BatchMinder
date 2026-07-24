@@ -16,7 +16,7 @@ export const getAuditLogs = async (req, res, next) => {
     const filter = { ...scope };
 
     if (action) {
-      filter.action = action;
+      filter.actionType = action;
     }
 
     if (startDate || endDate) {
@@ -34,7 +34,7 @@ export const getAuditLogs = async (req, res, next) => {
 
     const skip = (Number(page) - 1) * Number(limit);
     const logs = await AuditLog.find(filter)
-      .populate('actorId', 'name email role')
+      .populate('userID', 'name email role')
       .populate('userId', 'name email role')
       .sort({ timestamp: -1 })
       .skip(skip)

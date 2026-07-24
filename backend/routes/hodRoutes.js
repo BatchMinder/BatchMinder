@@ -4,7 +4,8 @@ import {
   listHODHistory,
   createHODSpecialPermission,
   resolveHODDecision,
-  getRequestDetails
+  getRequestDetails,
+  updateApprovalRequest
 } from '../controllers/approvalRequestController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { restrictTo } from '../middleware/roleMiddleware.js';
@@ -20,5 +21,6 @@ router.post('/special-permission', createHODSpecialPermission);
 router.post('/approve/:id', resolveHODDecision);
 router.post('/reject/:id', resolveHODDecision);
 router.get('/requests/:id', getRequestDetails);
+router.put('/requests/:id/edit', updateApprovalRequest);
 
 export default router;

@@ -8,6 +8,7 @@ const datesheetSchema = new mongoose.Schema({
   room: { type: String, required: true },
   invigilator: { type: String, required: true },
   batch: { type: String, required: true },
+  semester: { type: Number, required: true },
   departmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Department', required: true }
 }, { timestamps: true });
 

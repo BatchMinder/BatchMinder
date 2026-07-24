@@ -19,8 +19,11 @@ const TIMESLOTS = [
 function detectTimetableConflicts(entries, batchSizes = {}) {
   const conflicts = [];
   const roomCapacities = {
-    'Room 101': 50, 'Room 102': 45, 'Room 201': 60, 'Room 202': 60, 'Room 204': 60,
-    'Lab A': 30, 'Lab B': 30, 'Lab 3 (Block B)': 50, 'Exam Hall': 120, 'Main Auditorium': 150
+    'Room 101': 50, 'Room 102': 45, 'Room 103': 45, 'Room 104': 50,
+    'Room 201': 60, 'Room 202': 60, 'Room 203': 55, 'Room 204': 60,
+    'Room 301': 50, 'Room 302': 50,
+    'Lab A': 30, 'Lab B': 30, 'Lab C': 30, 'Lab D': 30,
+    'Exam Hall': 150, 'Main Auditorium': 200
   };
 
   for (const entry of entries) {
@@ -119,9 +122,9 @@ export default function TimetableGenerator({ setActiveNav }) {
       const token = localStorage.getItem("token");
       const saveRes = await fetch("/api/scheduling/auto-generate", {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}` 
+          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify(payload)
       });
@@ -180,12 +183,11 @@ export default function TimetableGenerator({ setActiveNav }) {
   // --- Dynamic Metrics (Scoped to Selected Batch and Semester) ---
   const selectedBatchObj = batches.find(b => b._id === selectedBatchId);
   const semFilterStr = selectedSemester ? String(selectedSemester) : null;
-  const filtered = entries.filter(e => {
+  const filteredEntries = entries.filter(e => {
     const matchesBatch = !selectedBatchObj || !e.batch || e.batch.toUpperCase() === selectedBatchObj.code.toUpperCase() || String(e.batchId?._id || e.batchId) === String(selectedBatchObj._id);
-    const matchesSem = !semFilterStr || !e.semester || String(e.semester) === semFilterStr;
-    return matchesBatch || matchesSem;
+    const matchesSem = !semFilterStr || String(e.semester) === semFilterStr;
+    return matchesBatch && matchesSem;
   });
-  const filteredEntries = filtered.length > 0 ? filtered : entries;
 
 
 
@@ -302,8 +304,8 @@ export default function TimetableGenerator({ setActiveNav }) {
               boxShadow: '0 4px 12px rgba(37,99,235,0.2)',
               transition: 'all 0.15s ease'
             }}
-            onMouseEnter={e => { if(!generating) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(37,99,235,0.3)'; } }}
-            onMouseLeave={e => { if(!generating) { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(37,99,235,0.2)'; } }}
+            onMouseEnter={e => { if (!generating) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(37,99,235,0.3)'; } }}
+            onMouseLeave={e => { if (!generating) { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(37,99,235,0.2)'; } }}
           >
             <RefreshCw size={15} className={generating ? 'animate-spin' : ''} />
             {generating ? 'Processing...' : 'Generate Algorithm'}
@@ -328,198 +330,198 @@ export default function TimetableGenerator({ setActiveNav }) {
 
       <div className="space-y-6">
 
-          {/* Main Grid Card */}
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
-            <div className="px-5 py-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white">
-              <div className="flex items-center gap-3">
-                <h3 className="text-sm font-extrabold text-slate-800">
-                  Weekly Timetable — {selectedBatchObj?.code || 'All Batches'} {selectedSemester ? `- Semester ${selectedSemester}` : '- All Semesters'}
-                </h3>
-                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase tracking-wider rounded border border-emerald-200">Published</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setActiveNav && setActiveNav('schedule_override')}
-                  style={{
-                    padding: '9px 18px',
-                    background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
-                    color: '#fff', border: 'none', borderRadius: '10px',
-                    fontSize: '13px', fontWeight: 700, cursor: 'pointer',
-                    boxShadow: '0 4px 12px rgba(37,99,235,0.2)',
-                    transition: 'all 0.15s ease'
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(37,99,235,0.3)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(37,99,235,0.2)'; }}
-                >
-                  Edit Timetable
-                </button>
-
-              </div>
+        {/* Main Grid Card */}
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
+          <div className="px-5 py-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white">
+            <div className="flex items-center gap-3">
+              <h3 className="text-sm font-extrabold text-slate-800">
+                Weekly Timetable — {selectedBatchObj?.code || 'All Batches'} {selectedSemester ? `- Semester ${selectedSemester}` : '- All Semesters'}
+              </h3>
+              <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase tracking-wider rounded border border-emerald-200">Published</span>
             </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setActiveNav && setActiveNav('schedule_override')}
+                style={{
+                  padding: '9px 18px',
+                  background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
+                  color: '#fff', border: 'none', borderRadius: '10px',
+                  fontSize: '13px', fontWeight: 700, cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(37,99,235,0.2)',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(37,99,235,0.3)'; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(37,99,235,0.2)'; }}
+              >
+                Edit Timetable
+              </button>
 
-            <div className="overflow-x-auto">
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
 
 
-              <table className="w-full text-left border-collapse min-w-[1000px]">
-                <thead>
-                  <tr className="bg-slate-50/50 text-slate-500 text-[11px] font-bold uppercase tracking-wider border-b border-slate-200">
-                    <th className="px-4 py-3 w-36 text-center border-r border-slate-100">Time / Day</th>
-                    {DAYS.map(day => <th key={day} className="px-4 py-3 text-center border-r border-slate-100 w-44">{day}</th>)}
+            <table className="w-full text-left border-collapse min-w-[1000px]">
+              <thead>
+                <tr className="bg-slate-50/50 text-slate-500 text-[11px] font-bold uppercase tracking-wider border-b border-slate-200">
+                  <th className="px-4 py-3 w-36 text-center border-r border-slate-100">Time / Day</th>
+                  {DAYS.map(day => <th key={day} className="px-4 py-3 text-center border-r border-slate-100 w-44">{day}</th>)}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-xs">
+                {TIMESLOTS.map((slot, index) => (
+                  <React.Fragment key={slot}>
+                    <tr className="hover:bg-slate-50/30 transition-colors">
+                      <td className="px-4 py-5 text-center font-bold text-slate-600 border-r border-slate-100 align-middle bg-slate-50/30">
+                        {slot}
+                      </td>
+                      {DAYS.map(day => {
+                        const cellEntries = filteredEntries.filter(e => e.day === day && e.timeSlot === slot);
+                        return (
+                          <td key={day} className="p-2 border-r border-slate-100 align-top h-auto min-h-[6.5rem]">
+                            {cellEntries.length === 0 ? (
+                              <div className="h-full min-h-[5.5rem] flex items-center justify-center p-1.5">
+                                <span className="text-[9px] font-extrabold text-slate-300 tracking-wider uppercase bg-slate-50 border border-slate-200/50 px-2 py-1 rounded border-dashed select-none">
+                                  FREE SLOT
+                                </span>
+                              </div>
+                            ) : (
+                              cellEntries.map((entry, i) => (
+                                <div key={i} className={`p-2.5 rounded-lg border border-l-4 ${getSlotColor(entry.courseName, entry.room)} mb-2 flex flex-col text-left shadow-sm transition-all hover:shadow-md h-full min-h-[5.5rem]`}>
+                                  <span className="font-bold text-[11px] leading-tight mb-1">{entry.courseCode} - {entry.courseName}</span>
+                                  <div className="mt-auto flex flex-col gap-0.5 pt-1 border-t border-slate-200/50">
+                                    <span className="font-bold text-[10px] text-amber-800">{entry.room}</span>
+                                    <span className="font-semibold text-[10px] text-slate-600">{entry.instructor}</span>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-6">
+          {/* Bottom Table: Class Timing Details */}
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 overflow-hidden min-w-0">
+            <h3 className="text-sm font-bold text-slate-800 mb-4">Class Timing Details</h3>
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full text-left text-xs min-w-[700px]">
+                <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200">
+                  <tr>
+                    <th className="px-4 py-3">Code</th>
+                    <th className="px-4 py-3">Course Title</th>
+                    <th className="px-4 py-3">Type</th>
+                    <th className="px-4 py-3">Credit Hours</th>
+                    <th className="px-4 py-3">Instructor</th>
+                    <th className="px-4 py-3">Room</th>
+                    <th className="px-4 py-3 text-center">Sessions / Week</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 text-xs">
-                  {TIMESLOTS.map((slot, index) => (
-                    <React.Fragment key={slot}>
-                      <tr className="hover:bg-slate-50/30 transition-colors">
-                        <td className="px-4 py-5 text-center font-bold text-slate-600 border-r border-slate-100 align-middle bg-slate-50/30">
-                          {slot}
-                        </td>
-                        {DAYS.map(day => {
-                          const cellEntries = filteredEntries.filter(e => e.day === day && e.timeSlot === slot);
-                          return (
-                            <td key={day} className="p-2 border-r border-slate-100 align-top h-auto min-h-[6.5rem]">
-                              {cellEntries.length === 0 ? (
-                                <div className="h-full min-h-[5.5rem] flex items-center justify-center p-1.5">
-                                  <span className="text-[9px] font-extrabold text-slate-300 tracking-wider uppercase bg-slate-50 border border-slate-200/50 px-2 py-1 rounded border-dashed select-none">
-                                    FREE SLOT
-                                  </span>
-                                </div>
-                              ) : (
-                                cellEntries.map((entry, i) => (
-                                  <div key={i} className={`p-2.5 rounded-lg border border-l-4 ${getSlotColor(entry.courseName, entry.room)} mb-2 flex flex-col text-left shadow-sm transition-all hover:shadow-md h-full min-h-[5.5rem]`}>
-                                    <span className="font-bold text-[11px] leading-tight mb-1">{entry.courseCode} - {entry.courseName}</span>
-                                    <div className="mt-auto flex flex-col gap-0.5 pt-1 border-t border-slate-200/50">
-                                      <span className="font-bold text-[10px] text-amber-800">{entry.room}</span>
-                                      <span className="font-semibold text-[10px] text-slate-600">{entry.instructor}</span>
-                                    </div>
-                                  </div>
-                                ))
-                              )}
-                            </td>
-                          );
-                        })}
+                <tbody className="divide-y divide-slate-100 font-medium">
+                  {timingDetails.length > 0 ? (() => {
+                    const currentTimingDetails = timingDetails.slice(
+                      (timingPage - 1) * timingLimit,
+                      timingPage * timingLimit
+                    );
+                    return currentTimingDetails.map((td, i) => (
+                      <tr key={i} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-4 py-3 text-slate-800 font-bold">{td.code}</td>
+                        <td className="px-4 py-3 text-slate-600">{td.title}</td>
+                        <td className="px-4 py-3 text-slate-500">{td.type}</td>
+                        <td className="px-4 py-3 text-slate-500">{td.credits}</td>
+                        <td className="px-4 py-3 text-slate-800">{td.instructor}</td>
+                        <td className="px-4 py-3 text-brandNavy font-bold">{td.room}</td>
+                        <td className="px-4 py-3 text-center font-bold text-slate-600">{td.sessions}</td>
                       </tr>
-                    </React.Fragment>
-                  ))}
+                    ));
+                  })() : (
+                    <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400">No classes scheduled</td></tr>
+                  )}
                 </tbody>
               </table>
             </div>
-          </div>
-
-          <div className="flex flex-col gap-6">
-            {/* Bottom Table: Class Timing Details */}
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 overflow-hidden min-w-0">
-              <h3 className="text-sm font-bold text-slate-800 mb-4">Class Timing Details</h3>
-              <div className="overflow-x-auto rounded-xl border border-slate-200">
-                <table className="w-full text-left text-xs min-w-[700px]">
-                  <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200">
-                    <tr>
-                      <th className="px-4 py-3">Code</th>
-                      <th className="px-4 py-3">Course Title</th>
-                      <th className="px-4 py-3">Type</th>
-                      <th className="px-4 py-3">Credit Hours</th>
-                      <th className="px-4 py-3">Instructor</th>
-                      <th className="px-4 py-3">Room</th>
-                      <th className="px-4 py-3 text-center">Sessions / Week</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 font-medium">
-                    {timingDetails.length > 0 ? (() => {
-                      const currentTimingDetails = timingDetails.slice(
-                        (timingPage - 1) * timingLimit,
-                        timingPage * timingLimit
-                      );
-                      return currentTimingDetails.map((td, i) => (
-                        <tr key={i} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="px-4 py-3 text-slate-800 font-bold">{td.code}</td>
-                          <td className="px-4 py-3 text-slate-600">{td.title}</td>
-                          <td className="px-4 py-3 text-slate-500">{td.type}</td>
-                          <td className="px-4 py-3 text-slate-500">{td.credits}</td>
-                          <td className="px-4 py-3 text-slate-800">{td.instructor}</td>
-                          <td className="px-4 py-3 text-brandNavy font-bold">{td.room}</td>
-                          <td className="px-4 py-3 text-center font-bold text-slate-600">{td.sessions}</td>
-                        </tr>
-                      ));
-                    })() : (
-                      <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400">No classes scheduled</td></tr>
-                    )}
-                  </tbody>
-                </table>
+            {timingDetails.length > 0 && (
+              <div className="flex justify-between items-center mt-4 text-xs">
+                <span className="text-slate-500 font-medium">
+                  Showing {(timingPage - 1) * timingLimit + 1}–{Math.min(timingPage * timingLimit, timingDetails.length)} of {timingDetails.length} classes
+                </span>
+                <div className="flex gap-1.5">
+                  {Array.from({ length: Math.ceil(timingDetails.length / timingLimit) }, (_, idx) => idx + 1).map(p => (
+                    <button
+                      key={p}
+                      onClick={() => setTimingPage(p)}
+                      className={`px-2.5 py-1 rounded-md font-bold transition-all ${timingPage === p ? 'bg-brandAccent text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
               </div>
-              {timingDetails.length > 0 && (
-                <div className="flex justify-between items-center mt-4 text-xs">
-                  <span className="text-slate-500 font-medium">
-                    Showing {(timingPage - 1) * timingLimit + 1}–{Math.min(timingPage * timingLimit, timingDetails.length)} of {timingDetails.length} classes
-                  </span>
-                  <div className="flex gap-1.5">
-                    {Array.from({ length: Math.ceil(timingDetails.length / timingLimit) }, (_, idx) => idx + 1).map(p => (
-                      <button
-                        key={p}
-                        onClick={() => setTimingPage(p)}
-                        className={`px-2.5 py-1 rounded-md font-bold transition-all ${timingPage === p ? 'bg-brandAccent text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                      >
-                        {p}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Bottom Panel: Clash Check */}
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 flex flex-col min-w-0">
-              <h3 className="text-sm font-bold text-slate-800 mb-4">Timetable Clash Check</h3>
-
-              {conflicts.length === 0 ? (
-                <div className="flex-1 bg-emerald-50/50 border border-emerald-100 rounded-xl p-6 flex flex-col items-center justify-center text-center">
-                  <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-3">
-                    <CheckCircle2 className="w-6 h-6" />
-                  </div>
-                  <h4 className="text-sm font-extrabold text-emerald-700 mb-1">No Clashes Found!</h4>
-                  <p className="text-xs text-emerald-600/80 font-medium">Great! There are no faculty, room or student clashes in this timetable.</p>
-                </div>
-              ) : (
-                <div className="flex-1 bg-rose-50/50 border border-rose-100 rounded-xl p-5 flex flex-col">
-                  <div className="flex items-center gap-2 mb-3 text-rose-700">
-                    <AlertTriangle className="w-5 h-5" />
-                    <h4 className="text-sm font-extrabold">Clashes Detected ({conflicts.length})</h4>
-                  </div>
-                  <ul className="space-y-2 pr-1 mb-3">
-                    {(() => {
-                      const currentConflicts = conflicts.slice((clashPage - 1) * clashLimit, clashPage * clashLimit);
-                      return currentConflicts.map((c, i) => (
-                        <li key={i} className="text-[11px] p-2 bg-white rounded border border-rose-100 text-rose-800 shadow-sm">
-                          <strong className="block text-[10px] uppercase font-bold text-rose-500 mb-0.5">{c.type}</strong>
-                          {c.description}
-                        </li>
-                      ));
-                    })()}
-                  </ul>
-                  {conflicts.length > clashLimit && (
-                    <div className="flex justify-between items-center mt-auto text-xs border-t border-rose-100 pt-3">
-                      <span className="text-rose-600/80 font-medium">
-                        Showing {(clashPage - 1) * clashLimit + 1}–{Math.min(clashPage * clashLimit, conflicts.length)} of {conflicts.length}
-                      </span>
-                      <div className="flex gap-1.5">
-                        {Array.from({ length: Math.ceil(conflicts.length / clashLimit) }, (_, idx) => idx + 1).map(p => (
-                          <button
-                            key={p}
-                            onClick={() => setClashPage(p)}
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${clashPage === p ? 'bg-rose-500 text-white' : 'bg-white text-rose-600 border border-rose-200 hover:bg-rose-50'}`}
-                          >
-                            {p}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+            )}
           </div>
 
-          {/* Summary Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Bottom Panel: Clash Check */}
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 flex flex-col min-w-0">
+            <h3 className="text-sm font-bold text-slate-800 mb-4">Timetable Clash Check</h3>
+
+            {conflicts.length === 0 ? (
+              <div className="flex-1 bg-emerald-50/50 border border-emerald-100 rounded-xl p-6 flex flex-col items-center justify-center text-center">
+                <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-3">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <h4 className="text-sm font-extrabold text-emerald-700 mb-1">No Clashes Found!</h4>
+                <p className="text-xs text-emerald-600/80 font-medium">Great! There are no faculty, room or student clashes in this timetable.</p>
+              </div>
+            ) : (
+              <div className="flex-1 bg-rose-50/50 border border-rose-100 rounded-xl p-5 flex flex-col">
+                <div className="flex items-center gap-2 mb-3 text-rose-700">
+                  <AlertTriangle className="w-5 h-5" />
+                  <h4 className="text-sm font-extrabold">Clashes Detected ({conflicts.length})</h4>
+                </div>
+                <ul className="space-y-2 pr-1 mb-3">
+                  {(() => {
+                    const currentConflicts = conflicts.slice((clashPage - 1) * clashLimit, clashPage * clashLimit);
+                    return currentConflicts.map((c, i) => (
+                      <li key={i} className="text-[11px] p-2 bg-white rounded border border-rose-100 text-rose-800 shadow-sm">
+                        <strong className="block text-[10px] uppercase font-bold text-rose-500 mb-0.5">{c.type}</strong>
+                        {c.description}
+                      </li>
+                    ));
+                  })()}
+                </ul>
+                {conflicts.length > clashLimit && (
+                  <div className="flex justify-between items-center mt-auto text-xs border-t border-rose-100 pt-3">
+                    <span className="text-rose-600/80 font-medium">
+                      Showing {(clashPage - 1) * clashLimit + 1}–{Math.min(clashPage * clashLimit, conflicts.length)} of {conflicts.length}
+                    </span>
+                    <div className="flex gap-1.5">
+                      {Array.from({ length: Math.ceil(conflicts.length / clashLimit) }, (_, idx) => idx + 1).map(p => (
+                        <button
+                          key={p}
+                          onClick={() => setClashPage(p)}
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${clashPage === p ? 'bg-rose-500 text-white' : 'bg-white text-rose-600 border border-rose-200 hover:bg-rose-50'}`}
+                        >
+                          {p}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Summary Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {/* Timetable Summary */}
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">

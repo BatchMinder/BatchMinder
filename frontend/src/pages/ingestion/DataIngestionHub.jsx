@@ -139,6 +139,31 @@ export default function DataIngestionHub({ onUploadSuccess }) {
     }
   }, [filteredBatches]);
 
+  // Auto-calculate expected semester based on batch and intake
+  useEffect(() => {
+    if (selectedBatch) {
+      const match = selectedBatch.match(/\d{4}/);
+      if (match) {
+        const batchYear = parseInt(match[0], 10);
+        const currentYear = new Date().getFullYear();
+        const currentMonth = new Date().getMonth(); // 0-11
+        const isFallTerm = currentMonth >= 7;
+        
+        let expectedSem = (currentYear - batchYear) * 2;
+        if (selectedIntake === 'Fall') {
+            expectedSem += (isFallTerm ? 1 : 0);
+        } else {
+            expectedSem += (isFallTerm ? 2 : 1);
+        }
+        
+        if (expectedSem < 1) expectedSem = 1;
+        if (expectedSem > 8) expectedSem = 'graduated';
+        
+        setSelectedSemester(expectedSem);
+      }
+    }
+  }, [selectedBatch, selectedIntake]);
+
   // Load Departments and Batches on mount directly from backend port 5000 with cookies included
   useEffect(() => {
     fetch('http://localhost:5000/api/departments', {
@@ -501,13 +526,13 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                   </label>
                   <select
                     value={selectedSemester}
-                    onChange={e => setSelectedSemester(Number(e.target.value))}
+                    onChange={e => setSelectedSemester(e.target.value === 'graduated' ? 'graduated' : Number(e.target.value))}
                     style={{
                       width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid #CBD5E1',
                       fontSize: '13px', color: '#1E293B', backgroundColor: '#FFFFFF', outline: 'none', cursor: 'pointer', fontFamily: 'inherit'
                     }}
                   >
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => (
+                    {[selectedSemester].map(sem => (
                       <option key={sem} value={sem}>Semester {sem}</option>
                     ))}
                   </select>

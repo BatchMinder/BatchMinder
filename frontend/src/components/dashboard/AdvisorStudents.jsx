@@ -16,6 +16,7 @@ export default function AdvisorStudents({ selectedBatch }) {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [intakeFilter, setIntakeFilter] = useState('');
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [studentDetailsLoading, setStudentDetailsLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -40,6 +41,9 @@ export default function AdvisorStudents({ selectedBatch }) {
       }
       if (statusFilter) {
         url += `&cgpaStatus=${statusFilter}`;
+      }
+      if (intakeFilter) {
+        url += `&intakeSession=${intakeFilter}`;
       }
       if (searchQuery.trim()) {
         url += `&search=${encodeURIComponent(searchQuery.trim())}`;
@@ -87,11 +91,11 @@ export default function AdvisorStudents({ selectedBatch }) {
 
   useEffect(() => {
     fetchStudentsList();
-  }, [selectedBatch, statusFilter, searchQuery, page]);
+  }, [selectedBatch, statusFilter, intakeFilter, searchQuery, page]);
 
   useEffect(() => {
     setPage(1);
-  }, [selectedBatch, statusFilter, searchQuery]);
+  }, [selectedBatch, statusFilter, intakeFilter, searchQuery]);
 
   if (hasNoBatches) {
     return (
@@ -149,6 +153,20 @@ export default function AdvisorStudents({ selectedBatch }) {
             <option value="good">Good Standing</option>
             <option value="warning">Warning Standing</option>
             <option value="critical">Critical Standing</option>
+          </select>
+          
+          <select
+            value={intakeFilter}
+            onChange={e => setIntakeFilter(e.target.value)}
+            style={{
+              padding: '8px 16px', borderRadius: '8px', border: '1px solid #CBD5E1',
+              fontSize: '13px', outline: 'none', color: '#475569', cursor: 'pointer',
+              backgroundColor: '#FFFFFF', fontFamily: 'inherit'
+            }}
+          >
+            <option value="">All Intakes</option>
+            <option value="Fall">Fall</option>
+            <option value="Spring">Spring</option>
           </select>
         </div>
 

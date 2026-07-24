@@ -12,6 +12,7 @@ export default function AdvisorMyBatch({ selectedBatch }) {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [intakeFilter, setIntakeFilter] = useState('');
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -29,6 +30,7 @@ export default function AdvisorMyBatch({ selectedBatch }) {
       let url = `/api/advisor/students?page=${page}&limit=15`;
       if (selectedBatch && selectedBatch !== 'all') url += `&batchId=${selectedBatch}`;
       if (statusFilter) url += `&cgpaStatus=${statusFilter}`;
+      if (intakeFilter) url += `&intakeSession=${intakeFilter}`;
       if (searchQuery.trim()) url += `&search=${encodeURIComponent(searchQuery.trim())}`;
 
       const res = await fetch(url);
@@ -45,8 +47,8 @@ export default function AdvisorMyBatch({ selectedBatch }) {
     }
   };
 
-  useEffect(() => { fetchStudents(); }, [selectedBatch, statusFilter, searchQuery, page]);
-  useEffect(() => { setPage(1); }, [selectedBatch, statusFilter, searchQuery]);
+  useEffect(() => { fetchStudents(); }, [selectedBatch, statusFilter, intakeFilter, searchQuery, page]);
+  useEffect(() => { setPage(1); }, [selectedBatch, statusFilter, intakeFilter, searchQuery]);
 
   // --- Open student profile detail ---
   const openDetail = async (id) => {
@@ -180,6 +182,20 @@ export default function AdvisorMyBatch({ selectedBatch }) {
           <option value="warning">Warning</option>
           <option value="critical">Critical</option>
         </select>
+        {/* Intake Filter */}
+        <select
+          value={intakeFilter}
+          onChange={e => setIntakeFilter(e.target.value)}
+          style={{
+            padding: '8px 12px', borderRadius: '8px', border: '1px solid #E2E8F0',
+            fontSize: '12px', fontWeight: 700, color: '#1E293B', outline: 'none',
+            backgroundColor: '#F8FAFC', cursor: 'pointer', fontFamily: 'inherit'
+          }}
+        >
+          <option value="">All Intakes</option>
+          <option value="Fall">Fall</option>
+          <option value="Spring">Spring</option>
+        </select>
         <span style={{ marginLeft: 'auto', fontSize: '11px', fontWeight: 600, color: '#94A3B8' }}>
           {totalCount} students
         </span>
@@ -214,7 +230,7 @@ export default function AdvisorMyBatch({ selectedBatch }) {
             <Users size={36} color="#CBD5E1" style={{ display: 'block', margin: '0 auto 12px' }} />
             <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#475569' }}>No Students Found</p>
             <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#94A3B8' }}>
-              {searchQuery || statusFilter ? 'Try clearing the filters above.' : 'No students are enrolled in your assigned batches yet.'}
+              {searchQuery || statusFilter || intakeFilter ? 'Try clearing the filters above.' : 'No students are enrolled in your assigned batches yet.'}
             </p>
           </div>
         ) : (

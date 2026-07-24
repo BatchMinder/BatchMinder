@@ -70,7 +70,7 @@ export const getStudents = async (req, res, next) => {
       });
     }
 
-    const { batchId, cgpaStatus, search, page = 1, limit = 25 } = req.query;
+    const { batchId, cgpaStatus, intakeSession, search, page = 1, limit = 25 } = req.query;
     let targetBatchIds = [...assignedBatches];
 
     if (batchId) {
@@ -88,6 +88,10 @@ export const getStudents = async (req, res, next) => {
 
     if (cgpaStatus) {
       filter.cgpaStatus = cgpaStatus;
+    }
+
+    if (intakeSession) {
+      filter.intakeSession = intakeSession;
     }
 
     if (search) {

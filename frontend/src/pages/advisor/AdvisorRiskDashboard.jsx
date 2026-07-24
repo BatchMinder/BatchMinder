@@ -12,6 +12,7 @@ export default function AdvisorRiskDashboard() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStanding, setFilterStanding] = useState('all');
+  const [filterIntake, setFilterIntake] = useState('all');
   const [selectedStudent, setSelectedStudent] = useState(null);
 
   const fetchStudents = async () => {
@@ -52,7 +53,11 @@ export default function AdvisorRiskDashboard() {
       (filterStanding === 'warning' && standing === 'warning') ||
       (filterStanding === 'critical' && standing === 'critical');
 
-    return matchesSearch && matchesFilter;
+    const matchesIntake =
+      filterIntake === 'all' ||
+      (s.intakeSession === filterIntake);
+
+    return matchesSearch && matchesFilter && matchesIntake;
   });
 
   // Recommendation builder
@@ -178,6 +183,19 @@ export default function AdvisorRiskDashboard() {
               <option value="good">Good Standing</option>
               <option value="warning">Warning</option>
               <option value="critical">Critical Risk</option>
+            </select>
+
+            <select
+              value={filterIntake}
+              onChange={e => setFilterIntake(e.target.value)}
+              style={{
+                padding: '8px 14px', borderRadius: '10px', border: '1px solid #CBD5E1',
+                fontSize: '13px', color: '#475569', backgroundColor: '#FFFFFF', cursor: 'pointer', outline: 'none', fontFamily: 'inherit'
+              }}
+            >
+              <option value="all">All Intakes</option>
+              <option value="Fall">Fall</option>
+              <option value="Spring">Spring</option>
             </select>
           </div>
 

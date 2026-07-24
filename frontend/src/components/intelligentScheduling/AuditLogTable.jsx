@@ -24,7 +24,7 @@ export default function AuditLogTable({ logs = [] }) {
                                 <td style={{ padding: '12px 16px', color: '#64748B', whiteSpace: 'nowrap' }}>{log.timestamp}</td>
                                 <td style={{ padding: '12px 16px' }}>
                                     <span style={{ backgroundColor: '#EFF6FF', color: '#1D4ED8', fontSize: 11, fontWeight: 700, padding: '2px 6px', borderRadius: 4 }}>
-                                        {log.action}
+                                        {log.actionType}
                                     </span>
                                 </td>
                                 <td style={{ padding: '12px 16px', color: '#334155', fontWeight: 500 }}>{log.details}</td>

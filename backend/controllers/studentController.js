@@ -90,7 +90,16 @@ export const getAllStudents = async (req, res) => {
     if (batchId) filter.batchId = batchId;
     if (status) filter.status = { $regex: new RegExp(`^${status.trim()}$`, 'i') };
     if (cgpaStatus) filter.cgpaStatus = cgpaStatus;
-    if (semester) filter.currentSemester = Number(semester);
+    if (semester) {
+      if (semester === 'graduated') {
+        filter.status = 'graduated';
+      } else {
+        filter.currentSemester = Number(semester);
+        if (!filter.status) {
+          filter.status = { $ne: 'graduated' };
+        }
+      }
+    }
     if (intakeSession) {
       const term = intakeSession.trim().toLowerCase();
       const codeLetter = term === 'spring' ? 'S' : 'F';

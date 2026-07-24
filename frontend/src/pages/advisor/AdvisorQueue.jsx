@@ -228,20 +228,20 @@ export default function AdvisorQueue() {
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="bg-slate-50 min-h-screen p-6 pb-20 space-y-5 font-sans text-slate-800">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '32px' }}>
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Academic Routing System</p>
-          <h1 className="text-2xl font-extrabold text-[#1B3A6B] mt-0.5">Approval Requests</h1>
+          <h1 className="text-2xl font-extrabold text-[#0F172A] mt-0.5">Approval Requests</h1>
           <p className="text-xs text-slate-500 mt-1">Manage, evaluate and route course adjustments for your assigned batches.</p>
         </div>
         <div className="flex gap-2">
           <button onClick={() => fetchRequests(true)} disabled={refreshing} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded-xl hover:bg-slate-50 transition-colors shadow-sm">
             <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} /> Sync Queue
           </button>
-          <button onClick={() => { setSubmitError(''); setShowSubmitModal(true); }} className="flex items-center gap-2 px-4 py-2 bg-[#1B3A6B] text-white text-xs font-bold rounded-xl shadow-md hover:bg-blue-900 transition-colors">
+          <button onClick={() => { setSubmitError(''); setShowSubmitModal(true); }} className="flex items-center gap-2 px-4 py-2 bg-[#2563EB] text-white text-xs font-bold rounded-xl shadow-md hover:bg-blue-700 transition-colors">
             <Plus className="w-4 h-4" /> Submit Request
           </button>
         </div>
@@ -384,10 +384,10 @@ export default function AdvisorQueue() {
               <div className="flex flex-wrap items-center gap-1">
                 <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page===1} className="w-6 h-6 flex items-center justify-center rounded border border-slate-200 hover:bg-slate-100 disabled:opacity-30">‹</button>
                 {Array.from({ length: Math.min(totalPages, 3) }, (_, i) => i+1).map(n => (
-                  <button key={n} onClick={() => setPage(n)} className={`w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold border ${page===n ? 'bg-[#1B3A6B] text-white border-[#1B3A6B]' : 'border-slate-200 hover:bg-slate-100'}`}>{n}</button>
+                  <button key={n} onClick={() => setPage(n)} className={`w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold border ${page===n ? 'bg-[#2563EB] text-white border-[#2563EB]' : 'border-slate-200 hover:bg-slate-100'}`}>{n}</button>
                 ))}
                 {totalPages > 3 && <span className="text-slate-400">...</span>}
-                {totalPages > 3 && <button onClick={() => setPage(totalPages)} className={`w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold border ${page===totalPages ? 'bg-[#1B3A6B] text-white border-[#1B3A6B]' : 'border-slate-200 hover:bg-slate-100'}`}>{totalPages}</button>}
+                {totalPages > 3 && <button onClick={() => setPage(totalPages)} className={`w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold border ${page===totalPages ? 'bg-[#2563EB] text-white border-[#2563EB]' : 'border-slate-200 hover:bg-slate-100'}`}>{totalPages}</button>}
                 <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page===totalPages} className="w-6 h-6 flex items-center justify-center rounded border border-slate-200 hover:bg-slate-100 disabled:opacity-30">›</button>
               </div>
             </div>
@@ -408,12 +408,12 @@ export default function AdvisorQueue() {
                     { n: 4, label: 'Final Confirmation', name: 'System', date: '', active: false },
                   ].map((step) => (
                     <div key={step.n} className={`relative flex gap-3 items-start ${step.active ? '' : 'opacity-50'}`}>
-                      <div className={`absolute left-[-24px] w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-extrabold border-2 border-white shadow ${step.active ? 'bg-[#1B3A6B] text-white' : 'bg-slate-200 text-slate-500'}`}>
+                      <div className={`absolute left-[-24px] w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-extrabold border-2 border-white shadow ${step.active ? 'bg-[#2563EB] text-white' : 'bg-slate-200 text-slate-500'}`}>
                         {step.n}
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center justify-between gap-2">
-                          <span className={`text-[11px] font-extrabold leading-tight ${step.active ? 'text-[#1B3A6B]' : 'text-slate-600'}`}>{step.label}</span>
+                          <span className={`text-[11px] font-extrabold leading-tight ${step.active ? 'text-[#0F172A]' : 'text-slate-600'}`}>{step.label}</span>
                           <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded uppercase shrink-0">Pending</span>
                         </div>
                         <p className="text-[10px] text-slate-400 mt-0.5">{step.name}</p>
@@ -737,7 +737,7 @@ export default function AdvisorQueue() {
               {submitError && <div className="flex items-center gap-2 text-rose-600 bg-rose-50 p-2.5 rounded-lg border border-rose-200 text-[11px] font-bold"><AlertCircle className="w-3.5 h-3.5" /> {submitError}</div>}
               <div className="flex gap-2 justify-end pt-2 border-t border-slate-100">
                 <button type="button" onClick={() => setShowSubmitModal(false)} className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-bold rounded-xl hover:bg-slate-50">Cancel</button>
-                <button type="submit" disabled={submitLoading} className="px-4 py-2 bg-[#1B3A6B] text-white text-xs font-bold rounded-xl hover:bg-blue-900 disabled:opacity-50">
+                <button type="submit" disabled={submitLoading} className="px-4 py-2 bg-[#2563EB] text-white text-xs font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50">
                   {submitLoading ? <CircularProgress size={10} color="inherit" /> : 'Submit Request'}
                 </button>
               </div>

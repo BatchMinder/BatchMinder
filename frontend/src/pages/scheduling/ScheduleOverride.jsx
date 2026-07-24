@@ -19,21 +19,33 @@ const DATES = [
   '2026-07-13', '2026-07-14', '2026-07-15', '2026-07-16', '2026-07-17',
   '2026-07-20', '2026-07-21', '2026-07-22', '2026-07-23', '2026-07-24'
 ];
-const ROOMS = ['Room 101', 'Room 102', 'Room 201', 'Room 202', 'Exam Hall', 'Lab A', 'Lab B'];
+const ROOMS = [
+  'Room 101', 'Room 102', 'Room 103', 'Room 104',
+  'Room 201', 'Room 202', 'Room 203', 'Room 204',
+  'Room 301', 'Room 302',
+  'Lab A', 'Lab B', 'Lab C', 'Lab D',
+  'Exam Hall', 'Main Auditorium'
+];
 
 function detectTimetableConflicts(entries, batchSizes = {}) {
   const conflicts = [];
   const roomCapacities = {
-    'Room 101': 40,
-    'Room 102': 50,
-    'Room 201': 40,
-    'Room 202': 40,
+    'Room 101': 50,
+    'Room 102': 45,
+    'Room 103': 45,
+    'Room 104': 50,
+    'Room 201': 60,
+    'Room 202': 60,
+    'Room 203': 55,
     'Room 204': 60,
+    'Room 301': 50,
+    'Room 302': 50,
     'Lab A': 30,
     'Lab B': 30,
-    'Lab 3 (Block B)': 50,
-    'Exam Hall': 120,
-    'Main Auditorium': 150
+    'Lab C': 30,
+    'Lab D': 30,
+    'Exam Hall': 150,
+    'Main Auditorium': 200
   };
 
   // 1. Capacity Violation Check
@@ -126,11 +138,12 @@ function detectDatesheetConflicts(entries) {
           });
         }
 
-        // Cohort/Batch Overlap
-        if (e1.batch === e2.batch) {
+        // Cohort/Batch Overlap - only a real clash if it's the SAME semester of the same batch;
+        // different semesters of a batch don't sit exams together even if the dates line up.
+        if (e1.batch === e2.batch && e1.semester === e2.semester) {
           conflicts.push({
             type: 'COHORT_OVERLAP',
-            description: `Cohort clash: Batch ${e1.batch} has exams for both ${e1.courseCode} and ${e2.courseCode} scheduled at the same time.`,
+            description: `Cohort clash: Batch ${e1.batch} (Sem ${e1.semester}) has exams for both ${e1.courseCode} and ${e2.courseCode} scheduled at the same time.`,
             cellIds: [id1, id2]
           });
         }
@@ -234,16 +247,16 @@ function ScheduleOverride({ initialTab = "timetable" }) {
         const list = result.data?.logs || [];
         const filtered = list.filter(log => {
           if (tab === 'timetable') {
-            return log.action.includes("TIMETABLE_") || log.action === "SCHEDULE_OVERRIDE";
+            return log.actionType.includes("TIMETABLE_") || log.actionType === "SCHEDULE_OVERRIDE";
           } else {
-            return log.action.includes("DATESHEET_") || log.action === "SCHEDULE_OVERRIDE";
+            return log.actionType.includes("DATESHEET_") || log.actionType === "SCHEDULE_OVERRIDE";
           }
         }).map(log => ({
           id: log._id,
           timestamp: log.timestamp || log.createdAt,
-          action: log.action,
-          actor: { name: log.actorId?.name || "System", email: log.actorId?.email || "system@stmu.edu.pk" },
-          description: log.metadata?.description || `${log.action} performed`
+          action: log.actionType,
+          actor: { name: log.userID?.name || "System", email: log.userID?.email || "system@stmu.edu.pk" },
+          description: log.metadata?.description || `${log.actionType} performed`
         })).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         setAuditLogs(filtered);
       }
@@ -364,7 +377,7 @@ function ScheduleOverride({ initialTab = "timetable" }) {
   const handleDelete = async () => {
     const slotId = selectedSlot._id || selectedSlot.id;
     if (!slotId) return;
- 
+
     const confirmed = await showConfirm(
       'Delete Schedule Slot',
       'Are you sure you want to delete this schedule slot? This action cannot be undone.',
@@ -402,6 +415,17 @@ function ScheduleOverride({ initialTab = "timetable" }) {
   const conflictIdsSet = new Set(conflicts.flatMap((c) => c.cellIds));
   const isConflicted = (entryId) => conflictIdsSet.has(entryId);
 
+  const [flashIds, setFlashIds] = useState([]);
+  const jumpToConflict = (cellIds) => {
+    const targetId = cellIds.find(id => document.getElementById(`slot-${id}`));
+    const el = targetId && document.getElementById(`slot-${targetId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    setFlashIds(cellIds);
+    setTimeout(() => setFlashIds([]), 2500);
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       {/* Upper Panel */}
@@ -416,21 +440,19 @@ function ScheduleOverride({ initialTab = "timetable" }) {
 
         <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200 text-xs font-semibold select-none self-start sm:self-center">
           <button
-            className={`px-4 py-2 rounded-lg transition-all ${
-              activeTab === "timetable" 
-                ? "bg-white text-[#1B3A6B] shadow-sm font-bold" 
-                : "text-slate-500 hover:text-slate-800"
-            }`}
+            className={`px-4 py-2 rounded-lg transition-all ${activeTab === "timetable"
+              ? "bg-white text-[#1B3A6B] shadow-sm font-bold"
+              : "text-slate-500 hover:text-slate-800"
+              }`}
             onClick={() => setActiveTab("timetable")}
           >
             Class Timetable
           </button>
           <button
-            className={`px-4 py-2 rounded-lg transition-all ${
-              activeTab === "datesheet" 
-                ? "bg-white text-[#1B3A6B] shadow-sm font-bold" 
-                : "text-slate-500 hover:text-slate-800"
-            }`}
+            className={`px-4 py-2 rounded-lg transition-all ${activeTab === "datesheet"
+              ? "bg-white text-[#1B3A6B] shadow-sm font-bold"
+              : "text-slate-500 hover:text-slate-800"
+              }`}
             onClick={() => setActiveTab("datesheet")}
           >
             Exam Datesheet
@@ -461,19 +483,25 @@ function ScheduleOverride({ initialTab = "timetable" }) {
             <AlertTriangle className="h-5 w-5 text-rose-500 shrink-0 mt-0.5" />
             <div>
               <h4 className="font-bold text-rose-950">Schedule Conflict Alert ({conflicts.length} Clashes)</h4>
-              <p className="mt-0.5 text-rose-700">The following overlaps exist in the schedule. Click any slot in the grid below to resolve or edit:</p>
+              <p className="mt-0.5 text-rose-700">Click a clash below to jump straight to it in the grid:</p>
             </div>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-2 mt-1">
             {conflicts.map((c, idx) => (
-              <div key={idx} className="p-2.5 bg-white border border-rose-200 rounded-lg shadow-sm flex flex-col justify-between">
+              <button
+                type="button"
+                key={idx}
+                onClick={() => jumpToConflict(c.cellIds)}
+                className="text-left p-2.5 bg-white border border-rose-200 rounded-lg shadow-sm flex flex-col justify-between hover:border-rose-400 hover:shadow-md transition-all cursor-pointer"
+              >
                 <div>
                   <span className="text-[9px] font-extrabold uppercase tracking-wider text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100 mb-1 inline-block">
                     {c.type}
                   </span>
                   <p className="text-[11px] font-semibold text-slate-700 leading-snug">{c.description}</p>
+                  <p className="text-[9px] text-rose-400 font-bold mt-1 uppercase tracking-wide">Click to locate ↴</p>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -519,17 +547,22 @@ function ScheduleOverride({ initialTab = "timetable" }) {
                         <div className="flex flex-col gap-2 h-full justify-between">
                           <div className="space-y-2 overflow-y-auto max-h-24">
                             {cellEntries.map(entry => {
-                              const conflicted = isConflicted(entry._id || entry.id);
+                              const entryId = entry._id || entry.id;
+                              const conflicted = isConflicted(entryId);
+                              const flashing = flashIds.includes(entryId);
                               return (
                                 <div
-                                  key={entry._id || entry.id}
+                                  key={entryId}
+                                  id={`slot-${entryId}`}
                                   onClick={() => handleOpenEdit(entry)}
-                                  className={`p-2.5 rounded-xl border text-[10px] cursor-pointer relative hover:border-[#1B3A6B] ${
-                                    conflicted
-                                      ? 'bg-rose-50 border-rose-200 text-rose-955'
-                                      : 'bg-indigo-50/40 border-indigo-100 text-indigo-955'
-                                  }`}
+                                  className={`p-2.5 rounded-xl border-2 text-[10px] cursor-pointer relative hover:border-[#1B3A6B] transition-all ${conflicted
+                                    ? 'bg-rose-50 border-l-4 border-rose-400 text-rose-955'
+                                    : 'bg-indigo-50/40 border-indigo-100 text-indigo-955'
+                                    } ${flashing ? 'ring-4 ring-rose-500 ring-offset-2' : ''}`}
                                 >
+                                  {conflicted && (
+                                    <span className="absolute -top-2 -right-2 h-4 w-4 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center shadow">!</span>
+                                  )}
                                   <div className="flex justify-between items-start font-bold">
                                     <span>{entry.courseCode}</span>
                                     <span className="px-1 bg-white border rounded text-[8px] font-mono">{entry.batch}</span>
@@ -537,7 +570,7 @@ function ScheduleOverride({ initialTab = "timetable" }) {
                                   <div className="truncate mt-0.5 font-medium">{entry.courseName}</div>
                                   <div className="text-[9px] text-slate-400 mt-1 flex justify-between">
                                     <span>🏫 {entry.room}</span>
-                                    <span>👤 {entry.instructor.split(' ').pop()}</span>
+                                    <span>👤 {(entry.instructor || '').split(' ').pop() || '—'}</span>
                                   </div>
                                 </div>
                               );
@@ -584,17 +617,22 @@ function ScheduleOverride({ initialTab = "timetable" }) {
                         <div className="flex flex-col gap-2 h-full justify-between">
                           <div className="space-y-2 overflow-y-auto max-h-24">
                             {cellEntries.map(entry => {
-                              const conflicted = isConflicted(entry._id || entry.id);
+                              const entryId = entry._id || entry.id;
+                              const conflicted = isConflicted(entryId);
+                              const flashing = flashIds.includes(entryId);
                               return (
                                 <div
-                                  key={entry._id || entry.id}
+                                  key={entryId}
+                                  id={`slot-${entryId}`}
                                   onClick={() => handleOpenEdit(entry)}
-                                  className={`p-3 rounded-xl border text-[11px] cursor-pointer relative hover:border-[#1B3A6B] ${
-                                    conflicted
-                                      ? 'bg-rose-50 border-rose-200 text-rose-955'
-                                      : 'bg-indigo-50/40 border-indigo-100 text-indigo-955'
-                                  }`}
+                                  className={`p-3 rounded-xl border-2 text-[11px] cursor-pointer relative hover:border-[#1B3A6B] transition-all ${conflicted
+                                    ? 'bg-rose-50 border-l-4 border-rose-400 text-rose-955'
+                                    : 'bg-indigo-50/40 border-indigo-100 text-indigo-955'
+                                    } ${flashing ? 'ring-4 ring-rose-500 ring-offset-2' : ''}`}
                                 >
+                                  {conflicted && (
+                                    <span className="absolute -top-2 -right-2 h-4 w-4 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center shadow">!</span>
+                                  )}
                                   <div className="flex justify-between items-start font-bold">
                                     <span>{entry.courseCode}</span>
                                     <span className="px-1.5 py-0.25 bg-white border rounded text-[8px] font-mono">{entry.batch}</span>
@@ -602,7 +640,7 @@ function ScheduleOverride({ initialTab = "timetable" }) {
                                   <div className="truncate mt-0.5 font-semibold text-xs">{entry.courseName}</div>
                                   <div className="text-[9px] text-slate-400 mt-1.5 flex justify-between">
                                     <span>🏫 {entry.room}</span>
-                                    <span>👤 {entry.invigilator.split(' ').pop()}</span>
+                                    <span>👤 {(entry.invigilator || '').split(' ').pop() || '—'}</span>
                                   </div>
                                 </div>
                               );
@@ -657,13 +695,12 @@ function ScheduleOverride({ initialTab = "timetable" }) {
                     <tr key={log.id || idx} className="hover:bg-slate-50/40">
                       <td className="p-3 text-slate-450 font-mono">{new Date(log.timestamp).toLocaleString()}</td>
                       <td className="p-3">
-                        <span className={`inline-flex px-1.5 py-0.25 text-[8px] font-extrabold rounded border tracking-wider uppercase font-mono ${
-                          log.action.endsWith('_DELETE') 
-                            ? 'bg-rose-50 border-rose-200 text-rose-700' 
-                            : log.action.endsWith('_GENERATED') || log.action.endsWith('_COMPILED')
-                              ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                              : 'bg-amber-50 border-amber-200 text-amber-700'
-                        }`}>
+                        <span className={`inline-flex px-1.5 py-0.25 text-[8px] font-extrabold rounded border tracking-wider uppercase font-mono ${log.action.endsWith('_DELETE')
+                          ? 'bg-rose-50 border-rose-200 text-rose-700'
+                          : log.action.endsWith('_GENERATED') || log.action.endsWith('_COMPILED')
+                            ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                            : 'bg-amber-50 border-amber-200 text-amber-700'
+                          }`}>
                           {log.action.endsWith('_DELETE') ? 'DELETE' : log.action.endsWith('_GENERATED') || log.action.endsWith('_COMPILED') ? 'GENERATE' : 'OVERRIDE'}
                         </span>
                       </td>
