@@ -282,7 +282,7 @@ export default function UserManagement({ setActiveNav }) {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, padding: '24px', backgroundColor: '#F8FAFC', overflowY: 'auto' }}>
 
         {/* Stats Row */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-5">
+        <div className="hidden md:grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-5">
           {/* Card 1 */}
           <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '14px 16px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
             <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -371,7 +371,7 @@ export default function UserManagement({ setActiveNav }) {
                 />
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 {/* Role select */}
                 <ResponsiveSelect
                   value={roleFilter}

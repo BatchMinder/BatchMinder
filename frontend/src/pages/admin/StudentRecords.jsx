@@ -457,7 +457,7 @@ export default function StudentRecords({ setActiveNav }) {
       </div>
 
       {/* ── Metric Cards Row ── */}
-      <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="hidden md:grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
 
         {/* Total Students Card */}
         <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>

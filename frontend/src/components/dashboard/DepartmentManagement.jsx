@@ -283,7 +283,7 @@ export default function DepartmentManagement({ setActiveNav }) {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, padding: '18px 24px', backgroundColor: '#F8FAFC', overflowY: 'auto' }}>
 
         {/* Stats Row */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-[18px]">
+        <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-3 mb-[18px]">
           {stats.map((s, i) => {
             const Icon = s.icon;
             return (
@@ -331,7 +331,7 @@ export default function DepartmentManagement({ setActiveNav }) {
               display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap',
               backgroundColor: '#FAFAFA'
             }}>
-              <div style={{ position: 'relative', flex: 1 }}>
+              <div style={{ position: 'relative', flex: 1, minWidth: '180px' }}>
                 <Search size={13} color="#94A3B8" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
                 <input
                   value={search}

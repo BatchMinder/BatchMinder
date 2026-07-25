@@ -15,6 +15,19 @@ export default function ResponsiveSelect({
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const containerRef = useRef(null);
+  const [dropdownAlign, setDropdownAlign] = useState('left');
+
+  useEffect(() => {
+    if (isOpen && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const screenWidth = window.innerWidth;
+      if (rect.right > screenWidth / 2) {
+        setDropdownAlign('right');
+      } else {
+        setDropdownAlign('left');
+      }
+    }
+  }, [isOpen]);
 
   // Normalize options array into [{ value, label }]
   const normalizedOptions = options.map(opt => {
@@ -87,9 +100,11 @@ export default function ResponsiveSelect({
       {/* Floating Inline Dropdown Menu (Universal for Desktop & Mobile) */}
       {isOpen && (
         <div 
-          className="absolute left-0 top-full mt-1 min-w-full w-max max-w-[280px] bg-white rounded-xl shadow-xl border border-slate-200 z-50 py-1.5 animate-scaleIn overflow-hidden"
+          className="absolute top-full mt-1 min-w-full w-max max-w-[280px] bg-white rounded-xl shadow-xl border border-slate-200 z-50 py-1.5 animate-scaleIn overflow-hidden"
           style={{
-            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)'
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+            left: dropdownAlign === 'left' ? 0 : 'auto',
+            right: dropdownAlign === 'right' ? 0 : 'auto'
           }}
         >
           {/* Optional Search */}

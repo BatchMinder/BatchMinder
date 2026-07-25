@@ -249,7 +249,7 @@ export default function AdvisorQueue() {
       </div>
 
       {/* ── KPI Cards ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="hidden md:grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         {[
           { label: 'Total Requests', value: totalReqs, sub: 'This Semester', color: '#2563EB', bg: '#EFF6FF', Icon: Layers },
           { label: 'Pending (My Level)', value: pendingCount, sub: pct(pendingCount), color: '#D97706', bg: '#FFFBEB', Icon: Hourglass },
