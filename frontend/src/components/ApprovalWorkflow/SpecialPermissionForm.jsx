@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, Search, Check, AlertCircle, ChevronDown, BookOpen } from 'lucide-react';
 import { CircularProgress } from '@mui/material';
+import ResponsiveSelect from '../common/ResponsiveSelect';
 
 export default function SpecialPermissionForm({ onClose, onSuccess }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -419,56 +420,24 @@ export default function SpecialPermissionForm({ onClose, onSuccess }) {
               <label style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: '#475569', letterSpacing: '0.5px' }}>
                 Batch <span style={{ color: '#EF4444' }}>*</span>
               </label>
-              <select
+              <ResponsiveSelect
                 value={selectedBatch}
                 onChange={(e) => setSelectedBatch(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: '12px',
-                  border: '1px solid #CBD5E1',
-                  fontSize: '13px',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                  fontFamily: 'inherit',
-                  backgroundColor: '#FFFFFF',
-                  cursor: 'pointer'
-                }}
-              >
-                {batches.length > 0 ? (
-                  batches.map(b => (
-                    <option key={b._id} value={b.code}>{b.code}</option>
-                  ))
-                ) : (
-                  <option value="BSCS-2024">BSCS-2024</option>
-                )}
-              </select>
+                className="w-full"
+                options={batches.length > 0 ? batches.map(b => ({ value: b.code, label: b.code })) : [{ value: 'BSCS-2024', label: 'BSCS-2024' }]}
+              />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <label style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: '#475569', letterSpacing: '0.5px' }}>
                 Target Semester <span style={{ color: '#EF4444' }}>*</span>
               </label>
-              <select
+              <ResponsiveSelect
                 value={selectedSemester}
                 onChange={(e) => setSelectedSemester(Number(e.target.value))}
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: '12px',
-                  border: '1px solid #CBD5E1',
-                  fontSize: '13px',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                  fontFamily: 'inherit',
-                  backgroundColor: '#FFFFFF',
-                  cursor: 'pointer'
-                }}
-              >
-                {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => (
-                  <option key={sem} value={sem}>Semester {sem}</option>
-                ))}
-              </select>
+                className="w-full"
+                options={[1, 2, 3, 4, 5, 6, 7, 8].map(sem => ({ value: sem, label: `Semester ${sem}` }))}
+              />
             </div>
           </div>
 
@@ -477,26 +446,16 @@ export default function SpecialPermissionForm({ onClose, onSuccess }) {
             <label style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: '#475569', letterSpacing: '0.5px' }}>
               Request Type <span style={{ color: '#EF4444' }}>*</span>
             </label>
-            <select
+            <ResponsiveSelect
               value={requestType}
               onChange={(e) => setRequestType(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px 14px',
-                borderRadius: '12px',
-                border: '1px solid #CBD5E1',
-                fontSize: '13px',
-                outline: 'none',
-                boxSizing: 'border-box',
-                fontFamily: 'inherit',
-                backgroundColor: '#FFFFFF',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="add">Course Registration (Add)</option>
-              <option value="drop">Course Drop</option>
-              <option value="withdrawal">Course Withdrawal</option>
-            </select>
+              className="w-full"
+              options={[
+                { value: 'add', label: 'Course Registration (Add)' },
+                { value: 'drop', label: 'Course Drop' },
+                { value: 'withdrawal', label: 'Course Withdrawal' }
+              ]}
+            />
           </div>
 
           {/* HEC Course Dropdown Selector */}

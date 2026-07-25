@@ -20,6 +20,7 @@ import {
 import { CircularProgress } from '@mui/material';
 import { useModal } from '../../contexts/ModalContext';
 import { useAuth } from '../../contexts/AuthContext';
+import ResponsiveSelect from '../../components/common/ResponsiveSelect';
 
 // Real dynamic data states are initialized as empty to prevent dummy data leak
 
@@ -49,11 +50,11 @@ export default function DataIngestionHub({ onUploadSuccess }) {
   const [uploadHistory, setUploadHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
-  // Fetch Sync Logs pointing directly to port 5000 with cookies included
+  // Fetch Sync Logs
   const fetchSyncLogs = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/audit-logs?action=LMS_SYNCED&limit=5', {
-        credentials: 'include' // Automatically sends httpOnly cookies
+      const res = await fetch('/api/audit-logs?action=LMS_SYNCED&limit=5', {
+        credentials: 'include'
       });
       if (res.ok) {
         const d = await res.json();
@@ -74,7 +75,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
   const fetchUploadHistory = async () => {
     setHistoryLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/uploads', {
+      const res = await fetch('/api/uploads', {
         credentials: 'include'
       });
       if (res.ok) {
@@ -122,10 +123,11 @@ export default function DataIngestionHub({ onUploadSuccess }) {
 
   // Derived state: Filter batches by the selected department
   const filteredBatches = React.useMemo(() => {
-    return batches.filter(b => {
+    const matched = batches.filter(b => {
       const bDept = b.departmentId?.name || b.dept || b.department;
-      return bDept === selectedDept;
+      return !selectedDept || !bDept || bDept === selectedDept;
     });
+    return matched.length > 0 ? matched : batches;
   }, [batches, selectedDept]);
 
   // Auto-select the first valid batch when the selected department changes
@@ -134,8 +136,6 @@ export default function DataIngestionHub({ onUploadSuccess }) {
       if (!filteredBatches.find(b => b.code === selectedBatch)) {
         setSelectedBatch(filteredBatches[0].code);
       }
-    } else {
-      setSelectedBatch('');
     }
   }, [filteredBatches]);
 
@@ -164,10 +164,10 @@ export default function DataIngestionHub({ onUploadSuccess }) {
     }
   }, [selectedBatch, selectedIntake]);
 
-  // Load Departments and Batches on mount directly from backend port 5000 with cookies included
+  // Load Departments and Batches on mount
   useEffect(() => {
-    fetch('http://localhost:5000/api/departments', {
-      credentials: 'include' // Automatically sends httpOnly cookies
+    fetch('/api/departments', {
+      credentials: 'include'
     })
       .then(r => r.json())
       .then(d => {
@@ -178,8 +178,8 @@ export default function DataIngestionHub({ onUploadSuccess }) {
       })
       .catch(() => { });
 
-    fetch('http://localhost:5000/api/batches', {
-      credentials: 'include' // Automatically sends httpOnly cookies
+    fetch('/api/batches', {
+      credentials: 'include'
     })
       .then(r => r.json())
       .then(d => {
@@ -484,75 +484,77 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.5px' }}>
                     Department
                   </label>
-                  <select
+                  <ResponsiveSelect
                     value={selectedDept}
                     onChange={e => setSelectedDept(e.target.value)}
-                    style={{
-                      width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid #CBD5E1',
-                      fontSize: '13px', color: '#1E293B', backgroundColor: '#FFFFFF', outline: 'none', cursor: 'pointer', fontFamily: 'inherit'
-                    }}
-                  >
-                    {departments.map(d => (
-                      <option key={d._id} value={d.name}>{d.code || d.name}</option>
-                    ))}
-                  </select>
+                    placeholder="Select Department"
+                    label="Select Department"
+                    className="w-full"
+                    options={
+                      departments.length > 0
+                        ? departments.map(d => ({ value: d.name, label: d.code || d.name }))
+                        : [{ value: 'Computer Science', label: 'Computer Science' }]
+                    }
+                  />
                 </div>
 
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.5px' }}>
                     Batch
                   </label>
-                  <select
+                  <ResponsiveSelect
                     value={selectedBatch}
                     onChange={e => setSelectedBatch(e.target.value)}
-                    style={{
-                      width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid #CBD5E1',
-                      fontSize: '13px', color: '#1E293B', backgroundColor: '#FFFFFF', outline: 'none', cursor: 'pointer', fontFamily: 'inherit'
-                    }}
-                  >
-                    {filteredBatches.length > 0 ? (
-                      filteredBatches.map(b => (
-                        <option key={b._id} value={b.code}>{b.code}</option>
-                      ))
-                    ) : (
-                      <option value="" disabled>No batches available</option>
-                    )}
-                  </select>
+                    placeholder={filteredBatches.length > 0 ? "Select Batch" : "No batches available"}
+                    label="Select Batch"
+                    className="w-full"
+                    options={
+                      filteredBatches.length > 0
+                        ? filteredBatches.map(b => ({ value: b.code, label: b.code }))
+                        : batches.length > 0
+                          ? batches.map(b => ({ value: b.code, label: b.code }))
+                          : [
+                              { value: 'BSCS-2022', label: 'BSCS-2022' },
+                              { value: 'BSCS-2023', label: 'BSCS-2023' },
+                              { value: 'BSCS-2024', label: 'BSCS-2024' },
+                              { value: 'BSCS-2025', label: 'BSCS-2025' }
+                            ]
+                    }
+                  />
                 </div>
 
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.5px' }}>
                     Semester
                   </label>
-                  <select
+                  <ResponsiveSelect
                     value={selectedSemester}
                     onChange={e => setSelectedSemester(e.target.value === 'graduated' ? 'graduated' : Number(e.target.value))}
-                    style={{
-                      width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid #CBD5E1',
-                      fontSize: '13px', color: '#1E293B', backgroundColor: '#FFFFFF', outline: 'none', cursor: 'pointer', fontFamily: 'inherit'
-                    }}
-                  >
-                    {[selectedSemester].map(sem => (
-                      <option key={sem} value={sem}>Semester {sem}</option>
-                    ))}
-                  </select>
+                    placeholder="Select Semester"
+                    label="Select Semester"
+                    className="w-full"
+                    options={[
+                      ...[1, 2, 3, 4, 5, 6, 7, 8].map(s => ({ value: s, label: `Semester ${s}` })),
+                      { value: 'graduated', label: 'Graduated' }
+                    ]}
+                  />
                 </div>
 
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.5px' }}>
                     Intake Term
                   </label>
-                  <select
+                  <ResponsiveSelect
                     value={selectedIntake}
                     onChange={e => setSelectedIntake(e.target.value)}
-                    style={{
-                      width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid #CBD5E1',
-                      fontSize: '13px', color: '#1E293B', backgroundColor: '#FFFFFF', outline: 'none', cursor: 'pointer', fontFamily: 'inherit'
-                    }}
-                  >
-                    <option value="Fall">🍂 Fall Intake</option>
-                    <option value="Spring">🌸 Spring Intake</option>
-                  </select>
+                    placeholder="Select Intake Term"
+                    label="Select Intake Term"
+                    className="w-full"
+                    options={[
+                      { value: 'Fall', label: '🍂 Fall Intake' },
+                      { value: 'Spring', label: '🌸 Spring Intake' }
+                    ]}
+                  />
                 </div>
               </div>
 

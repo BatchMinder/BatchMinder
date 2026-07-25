@@ -5,6 +5,7 @@ import {
   Search, RefreshCw, GraduationCap, BookOpen, Eye, X,
   Clock, Mail, ChevronRight
 } from 'lucide-react';
+import ResponsiveSelect from '../../components/common/ResponsiveSelect';
 
 export default function AdvisorMyBatch({ selectedBatch }) {
   const { user } = useAuth();
@@ -168,34 +169,26 @@ export default function AdvisorMyBatch({ selectedBatch }) {
           />
         </div>
         {/* Status Filter */}
-        <select
+        <ResponsiveSelect
           value={statusFilter}
           onChange={e => setStatusFilter(e.target.value)}
-          style={{
-            padding: '8px 12px', borderRadius: '8px', border: '1px solid #E2E8F0',
-            fontSize: '12px', fontWeight: 700, color: '#1E293B', outline: 'none',
-            backgroundColor: '#F8FAFC', cursor: 'pointer', fontFamily: 'inherit'
-          }}
-        >
-          <option value="">All Statuses</option>
-          <option value="good">Good Standing</option>
-          <option value="warning">Warning</option>
-          <option value="critical">Critical</option>
-        </select>
+          options={[
+            { value: '', label: 'All Statuses' },
+            { value: 'good', label: 'Good Standing' },
+            { value: 'warning', label: 'Warning' },
+            { value: 'critical', label: 'Critical' }
+          ]}
+        />
         {/* Intake Filter */}
-        <select
+        <ResponsiveSelect
           value={intakeFilter}
           onChange={e => setIntakeFilter(e.target.value)}
-          style={{
-            padding: '8px 12px', borderRadius: '8px', border: '1px solid #E2E8F0',
-            fontSize: '12px', fontWeight: 700, color: '#1E293B', outline: 'none',
-            backgroundColor: '#F8FAFC', cursor: 'pointer', fontFamily: 'inherit'
-          }}
-        >
-          <option value="">All Intakes</option>
-          <option value="Fall">Fall</option>
-          <option value="Spring">Spring</option>
-        </select>
+          options={[
+            { value: '', label: 'All Intakes' },
+            { value: 'Fall', label: 'Fall' },
+            { value: 'Spring', label: 'Spring' }
+          ]}
+        />
         <span style={{ marginLeft: 'auto', fontSize: '11px', fontWeight: 600, color: '#94A3B8' }}>
           {totalCount} students
         </span>

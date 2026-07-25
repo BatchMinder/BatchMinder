@@ -7,6 +7,7 @@ import Header from './Header';
 import { useModal } from '../../contexts/ModalContext';
 import { useDepartments } from '../../hooks/useDepartments';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button as MuiButton } from '@mui/material';
+import ResponsiveSelect from '../common/ResponsiveSelect';
 
 const ALLOCATION_OPTIONS = ['All Status', 'Allocated', 'Unassigned'];
 
@@ -367,8 +368,16 @@ export default function BatchAllocation({ setActiveNav }) {
                   }}
                 />
               </div>
-              <Dropdown value={deptFilter} options={DEPT_OPTIONS} onChange={setDept} />
-              <Dropdown value={allocFilter} options={ALLOCATION_OPTIONS} onChange={setAlloc} />
+              <ResponsiveSelect
+                value={deptFilter}
+                onChange={e => setDept(e.target.value)}
+                options={DEPT_OPTIONS.map(opt => ({ value: opt, label: opt }))}
+              />
+              <ResponsiveSelect
+                value={allocFilter}
+                onChange={e => setAlloc(e.target.value)}
+                options={ALLOCATION_OPTIONS.map(opt => ({ value: opt, label: opt }))}
+              />
             </div>
 
             {/* Table or States */}
@@ -398,7 +407,7 @@ export default function BatchAllocation({ setActiveNav }) {
               ) : filtered.length === 0 ? (
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px', color: '#94A3B8' }}>
                   <Layers size={32} color="#CBD5E1" style={{ marginBottom: '8px' }} />
-                  <span style={{ fontSize: '13px', fontWeight: 600 }}>No academic batches found.</span>
+                  <span style={{ fontSize: '13px', fontWeight: 600 }}>No academic batches match your filters.</span>
                 </div>
               ) : (
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -407,17 +416,19 @@ export default function BatchAllocation({ setActiveNav }) {
                       <th style={{ width: '34px', padding: '9px 13px' }}>
                         <input type="checkbox" style={{ cursor: 'pointer' }} />
                       </th>
-                      {['BATCH CODE','DEPARTMENT','ENROLLED STUDENTS','ASSIGNED ADVISOR','STATUS', 'ACTIONS'].map(col => (
+                      {['BATCH CODE','DEPARTMENT','ENROLLED STUDENTS','ASSIGNED ADVISOR','STATUS','ACTIONS'].map(col => (
                         <th key={col} style={{
                           padding: '9px 10px', textAlign: 'left',
                           fontSize: '9.5px', fontWeight: 800, color: '#94A3B8',
-                          letterSpacing: '0.7px', textTransform: 'uppercase', whiteSpace: 'nowrap'
-                        }}>{col}</th>
+                          letterSpacing: '0.5px', textTransform: 'uppercase'
+                        }}>
+                          {col}
+                        </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.slice((currentPage-1)*12, currentPage*12).map((b, i) => {
+                    {filtered.map(b => {
                       const isSel = selected.includes(b.id) || editingBatchId === b.id;
                       const isAlloc = b.advisor && b.advisor !== 'Unassigned';
                       const ss = STATUS_STYLE[isAlloc ? 'Allocated' : 'Unassigned'];
@@ -426,11 +437,11 @@ export default function BatchAllocation({ setActiveNav }) {
                           key={b.id}
                           style={{
                             borderTop: '1px solid #F1F5F9',
-                            backgroundColor: isSel ? '#EFF6FF' : (i % 2 === 0 ? '#FFFFFF' : '#FAFAFA'),
+                            backgroundColor: isSel ? '#EFF6FF' : 'transparent',
                             transition: 'background 0.1s'
                           }}
                           onMouseEnter={e => { if (!isSel) e.currentTarget.style.backgroundColor = '#F8FAFC'; }}
-                          onMouseLeave={e => { if (!isSel) e.currentTarget.style.backgroundColor = i % 2 === 0 ? '#FFFFFF' : '#FAFAFA'; }}
+                          onMouseLeave={e => { if (!isSel) e.currentTarget.style.backgroundColor = 'transparent'; }}
                         >
                           <td style={{ padding: '9px 13px' }} onClick={e => e.stopPropagation()}>
                             <input type="checkbox" checked={selected.includes(b.id)} onChange={() => toggleRow(b.id)} style={{ cursor: 'pointer' }} />
@@ -444,25 +455,15 @@ export default function BatchAllocation({ setActiveNav }) {
                           <td style={{ padding: '9px 10px', fontSize: '12px', color: '#475569' }}>{b.dept}</td>
                           <td style={{ padding: '9px 10px', fontSize: '12.5px', fontWeight: 700, color: '#1E293B' }}>{b.students} Students</td>
                           <td style={{ padding: '6px 10px' }} onClick={e => e.stopPropagation()}>
-                            <div style={{ position: 'relative', width: '170px' }}>
-                              <select
-                                value={b.advisor}
-                                onChange={e => handleInlineAdvisorChange(b.id, e.target.value)}
-                                style={{
-                                  width: '100%', padding: '5px 22px 5px 8px', borderRadius: '6px',
-                                  border: '1px solid #CBD5E1', fontSize: '11.5px', color: '#1E293B',
-                                  appearance: 'none', cursor: 'pointer', outline: 'none',
-                                  fontFamily: 'inherit', fontWeight: 600,
-                                  backgroundColor: 'rgba(37,99,235,0.03)'
-                                }}
-                              >
-                                <option value="Unassigned">Unassigned</option>
-                                {advisors.map(a => (
-                                  <option key={a.id} value={a.name}>{a.name}</option>
-                                ))}
-                              </select>
-                              <ChevronDown size={11} color="#64748B" style={{ position: 'absolute', right: '7px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-                            </div>
+                            <ResponsiveSelect
+                              value={b.advisor}
+                              onChange={e => handleInlineAdvisorChange(b.id, e.target.value)}
+                              className="w-44"
+                              options={[
+                                { value: 'Unassigned', label: 'Unassigned' },
+                                ...advisors.map(a => ({ value: a.name, label: a.name }))
+                              ]}
+                            />
                           </td>
                           <td style={{ padding: '9px 10px' }}>
                             <span style={{
@@ -614,40 +615,25 @@ export default function BatchAllocation({ setActiveNav }) {
 
                 <div>
                   <label style={labelStyle}>Department</label>
-                  <div style={{ position: 'relative' }}>
-                    <select
-                      value={form.dept}
-                      onChange={e => setForm(p => ({ ...p, dept: e.target.value }))}
-                      style={{ ...selectStyle }}
-                      disabled={departments.length === 0}
-                    >
-                      {departments.length === 0 ? (
-                        <option value="">No departments available — create one first</option>
-                      ) : (
-                        departments.map(d => (
-                          <option key={d.id} value={d.name}>{d.name} ({d.code})</option>
-                        ))
-                      )}
-                    </select>
-                    <ChevronDown size={12} color="#94A3B8" style={{ position: 'absolute', right: '9px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-                  </div>
+                  <ResponsiveSelect
+                    value={form.dept}
+                    onChange={e => setForm(p => ({ ...p, dept: e.target.value }))}
+                    className="w-full"
+                    options={departments.length === 0 ? [{ value: '', label: 'No departments available — create one first' }] : departments.map(d => ({ value: d.name, label: `${d.name} (${d.code})` }))}
+                  />
                 </div>
 
                 <div>
                   <label style={labelStyle}>Assign Advisor</label>
-                  <div style={{ position: 'relative' }}>
-                    <select
-                      value={form.advisor}
-                      onChange={e => setForm(p => ({ ...p, advisor: e.target.value }))}
-                      style={{ ...selectStyle }}
-                    >
-                      <option value="Unassigned">Unassigned</option>
-                      {advisors.map(a => (
-                        <option key={a.id} value={a.name}>{a.name}</option>
-                      ))}
-                    </select>
-                    <ChevronDown size={12} color="#94A3B8" style={{ position: 'absolute', right: '9px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-                  </div>
+                  <ResponsiveSelect
+                    value={form.advisor}
+                    onChange={e => setForm(p => ({ ...p, advisor: e.target.value }))}
+                    className="w-full"
+                    options={[
+                      { value: 'Unassigned', label: 'Unassigned' },
+                      ...advisors.map(a => ({ value: a.name, label: a.name }))
+                    ]}
+                  />
                 </div>
 
                 {departments.length === 0 && (
@@ -743,26 +729,24 @@ export default function BatchAllocation({ setActiveNav }) {
             </div>
             <div>
               <label style={labelStyle}>Department</label>
-              <div style={{ position: 'relative' }}>
-                <select value={form.dept} disabled={!!viewingBatchId} onChange={e => setForm(p => ({ ...p, dept: e.target.value }))} style={{ ...selectStyle, opacity: viewingBatchId ? 0.7 : 1, cursor: viewingBatchId ? 'not-allowed' : 'pointer' }}>
-                  {departments.length === 0 ? (
-                    <option value="">No departments available — create one first</option>
-                  ) : (
-                    departments.map(d => <option key={d.id} value={d.name}>{d.name} ({d.code})</option>)
-                  )}
-                </select>
-                <ChevronDown size={12} color="#94A3B8" style={{ position: 'absolute', right: '9px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-              </div>
+              <ResponsiveSelect
+                value={form.dept}
+                onChange={e => setForm(p => ({ ...p, dept: e.target.value }))}
+                className="w-full"
+                options={departments.length === 0 ? [{ value: '', label: 'No departments available — create one first' }] : departments.map(d => ({ value: d.name, label: `${d.name} (${d.code})` }))}
+              />
             </div>
             <div>
               <label style={labelStyle}>Assign Advisor</label>
-              <div style={{ position: 'relative' }}>
-                <select value={form.advisor} disabled={!!viewingBatchId} onChange={e => setForm(p => ({ ...p, advisor: e.target.value }))} style={{ ...selectStyle, opacity: viewingBatchId ? 0.7 : 1, cursor: viewingBatchId ? 'not-allowed' : 'pointer' }}>
-                  <option value="Unassigned">Unassigned</option>
-                  {advisors.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}
-                </select>
-                <ChevronDown size={12} color="#94A3B8" style={{ position: 'absolute', right: '9px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-              </div>
+              <ResponsiveSelect
+                value={form.advisor}
+                onChange={e => setForm(p => ({ ...p, advisor: e.target.value }))}
+                className="w-full"
+                options={[
+                  { value: 'Unassigned', label: 'Unassigned' },
+                  ...advisors.map(a => ({ value: a.name, label: a.name }))
+                ]}
+              />
             </div>
           </form>
           {editingBatchId && (

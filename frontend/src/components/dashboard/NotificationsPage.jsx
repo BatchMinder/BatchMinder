@@ -4,6 +4,7 @@ import {
   Check, Calendar, Info, ShieldAlert, RefreshCw, X
 } from 'lucide-react';
 import Header from './Header';
+import ResponsiveSelect from '../common/ResponsiveSelect';
 
 const SEVERITY_OPTIONS = ['All Severities', 'Critical', 'Warning', 'Info'];
 
@@ -528,34 +529,28 @@ export default function NotificationsPage({ setActiveNav }) {
 
                 <div>
                   <label style={labelStyle}>Severity Level</label>
-                  <div style={{ position: 'relative' }}>
-                    <select
-                      value={form.severity}
-                      onChange={e => setForm(p => ({ ...p, severity: e.target.value }))}
-                      style={selectStyle}
-                    >
-                      {SEVERITY_OPTIONS.slice(1).map(o => <option key={o}>{o}</option>)}
-                    </select>
-                    <ChevronDown size={12} color="#94A3B8" style={{ position: 'absolute', right: '9px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-                  </div>
+                  <ResponsiveSelect
+                    value={form.severity}
+                    onChange={e => setForm(p => ({ ...p, severity: e.target.value }))}
+                    className="w-full"
+                    options={SEVERITY_OPTIONS.slice(1).map(o => ({ value: o, label: o }))}
+                  />
                 </div>
 
                 <div>
                   <label style={labelStyle}>Broadcast Recipient Target</label>
-                  <div style={{ position: 'relative' }}>
-                    <select
-                      value={form.target}
-                      onChange={e => setForm(p => ({ ...p, target: e.target.value }))}
-                      style={selectStyle}
-                    >
-                      <option value="All Users">All Users</option>
-                      <option value="Advisors">Batch Advisors</option>
-                      <option value="HODs">HODs / Chairpersons</option>
-                      <option value="Admins">Administrators</option>
-                      <option value="Dean">Deans Only</option>
-                    </select>
-                    <ChevronDown size={12} color="#94A3B8" style={{ position: 'absolute', right: '9px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-                  </div>
+                  <ResponsiveSelect
+                    value={form.target}
+                    onChange={e => setForm(p => ({ ...p, target: e.target.value }))}
+                    className="w-full"
+                    options={[
+                      { value: 'All Users', label: 'All Users' },
+                      { value: 'Advisors', label: 'Batch Advisors' },
+                      { value: 'HODs', label: 'HODs / Chairpersons' },
+                      { value: 'Admins', label: 'Administrators' },
+                      { value: 'Dean', label: 'Deans Only' }
+                    ]}
+                  />
                 </div>
 
                 <button

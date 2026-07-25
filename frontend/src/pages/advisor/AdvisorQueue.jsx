@@ -5,6 +5,7 @@ import {
   ChevronDown, LayoutGrid, FileText, Download, X, AlertCircle, SlidersHorizontal
 } from 'lucide-react';
 import { CircularProgress } from '@mui/material';
+import ResponsiveSelect from '../../components/common/ResponsiveSelect';
 
 import PrerequisiteCheck from '../../components/ApprovalWorkflow/PrerequisiteCheck';
 import CreditHourMeter from '../../components/ApprovalWorkflow/CreditHourMeter';
@@ -296,12 +297,12 @@ export default function AdvisorQueue() {
                 { value: filterStatus, onChange: e => { setFilterStatus(e.target.value); setPage(1); }, opts: [['all','All Status'],['pending','Pending'],['approved','Approved'],['rejected','Rejected'],['escalated','Escalated']] },
                 { value: filterPriority, onChange: e => { setFilterPriority(e.target.value); setPage(1); }, opts: [['all','All Priority'],['high','High'],['medium','Medium'],['low','Low']] },
               ].map((sel, i) => (
-                <div key={i} className="relative">
-                  <select value={sel.value} onChange={sel.onChange} className="appearance-none bg-white border border-slate-200 text-xs font-bold text-slate-600 py-1.5 pl-3 pr-7 rounded-lg outline-none cursor-pointer">
-                    {sel.opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
-                  <ChevronDown className="w-3 h-3 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
+                <ResponsiveSelect
+                  key={i}
+                  value={sel.value}
+                  onChange={sel.onChange}
+                  options={sel.opts.map(([v, l]) => ({ value: v, label: l }))}
+                />
               ))}
               <button className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 text-white text-xs font-bold rounded-lg hover:bg-slate-700 transition-colors">
                 <SlidersHorizontal className="w-3 h-3" /> Filter
@@ -667,11 +668,15 @@ export default function AdvisorQueue() {
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-[11px] font-bold text-slate-600">Request Type *</label>
-                <select value={requestType} onChange={e => setRequestType(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white outline-none cursor-pointer">
-                  <option value="add">Course Registration</option>
-                  <option value="drop">Course Drop</option>
-                  <option value="withdrawal">Course Withdrawal</option>
-                </select>
+                <ResponsiveSelect
+                  value={requestType}
+                  onChange={e => setRequestType(e.target.value)}
+                  options={[
+                    { value: 'add', label: 'Course Registration' },
+                    { value: 'drop', label: 'Course Drop' },
+                    { value: 'withdrawal', label: 'Course Withdrawal' }
+                  ]}
+                />
               </div>
               {selectedStudent && (
                 <div className="flex flex-col gap-1.5 relative">

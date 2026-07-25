@@ -221,15 +221,15 @@ export default function CurriculumBoard() {
         {/* Batch Selection */}
         <div className="flex items-center gap-3">
           <span className="text-sm font-semibold text-slate-600">Active Curriculum:</span>
-          <select
+          <ResponsiveSelect
             value={selectedBatch}
             onChange={(e) => setSelectedBatch(e.target.value)}
-            className="py-1.5 px-4 border border-slate-200 rounded-lg text-sm font-bold focus:outline-none focus:border-brandAccent text-brandNavy bg-white shadow-sm"
-          >
-            <option value="2022">CS Batch 2022</option>
-            <option value="2023">CS Batch 2023</option>
-            <option value="2024">CS Batch 2024</option>
-          </select>
+            options={[
+              { value: '2022', label: 'CS Batch 2022' },
+              { value: '2023', label: 'CS Batch 2023' },
+              { value: '2024', label: 'CS Batch 2024' },
+            ]}
+          />
         </div>
       </div>
 
@@ -398,31 +398,28 @@ export default function CurriculumBoard() {
 
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Semester</label>
-                  <select
+                  <ResponsiveSelect
                     value={semester}
                     onChange={(e) => setSemester(e.target.value)}
-                    className="w-full py-2 px-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brandAccent text-slate-700 bg-white"
-                  >
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map(s => (
-                      <option key={s} value={s}>Semester {s}</option>
-                    ))}
-                  </select>
+                    className="w-full"
+                    options={[1, 2, 3, 4, 5, 6, 7, 8].map(s => ({ value: String(s), label: `Semester ${s}` }))}
+                  />
                 </div>
               </div>
 
               {/* Prerequisite course selection */}
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Prerequisite Course</label>
-                <select
+                <ResponsiveSelect
                   value={prereq}
                   onChange={(e) => setPrereq(e.target.value)}
-                  className="w-full py-2 px-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brandAccent text-slate-700 bg-white"
-                >
-                  <option value="None">None (No prerequisites)</option>
-                  {coursesList.map(course => (
-                    <option key={course.code} value={course.code}>{course.code} - {course.name}</option>
-                  ))}
-                </select>
+                  className="w-full"
+                  searchable
+                  options={[
+                    { value: 'None', label: 'None (No prerequisites)' },
+                    ...coursesList.map(course => ({ value: course.code, label: `${course.code} - ${course.name}` }))
+                  ]}
+                />
               </div>
 
               {/* Submit Button */}

@@ -19,6 +19,13 @@ export default function EditRequestModal({ request, onClose, onSuccess }) {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   useEffect(() => {
     fetch('/api/curriculums/hec')
       .then(r => r.json())
@@ -140,7 +147,7 @@ export default function EditRequestModal({ request, onClose, onSuccess }) {
           
           <div style={{ padding: '16px', backgroundColor: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Student Information</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '16px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Student Name</label>
                 <input
@@ -164,7 +171,7 @@ export default function EditRequestModal({ request, onClose, onSuccess }) {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '16px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>Request Type</label>
               <select
@@ -199,13 +206,22 @@ export default function EditRequestModal({ request, onClose, onSuccess }) {
               style={{
                 width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #CBD5E1',
                 fontSize: '13.5px', outline: 'none', backgroundColor: '#FFFFFF', textAlign: 'left',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer'
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer',
+                minWidth: 0
               }}
             >
-              <span style={{ fontWeight: courseCode ? 700 : 400, color: courseCode ? '#0F172A' : '#94A3B8' }}>
+              <span style={{ 
+                fontWeight: courseCode ? 700 : 400, 
+                color: courseCode ? '#0F172A' : '#94A3B8',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                flex: 1,
+                paddingRight: '8px'
+              }}>
                 {courseCode ? `${courseCode} – ${courseTitle || courseCode}` : '-- Select Curriculum Course --'}
               </span>
-              <ChevronDown size={15} color="#94A3B8" />
+              <ChevronDown size={15} color="#94A3B8" style={{ flexShrink: 0 }} />
             </button>
 
             {showCourseDropdown && (
@@ -247,7 +263,7 @@ export default function EditRequestModal({ request, onClose, onSuccess }) {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>Manual Course Details (Optional Override)</label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 2fr', gap: '12px' }}>
               <input
                 type="text"
                 placeholder="Course Code"

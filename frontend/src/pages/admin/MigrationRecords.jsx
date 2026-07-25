@@ -3,6 +3,7 @@ import { FileSpreadsheet, CheckCircle, Clock, AlertCircle, FileText, ArrowRightL
 import { format } from 'date-fns';
 import { CircularProgress } from '@mui/material';
 import Select from 'react-select';
+import ResponsiveSelect from '../../components/common/ResponsiveSelect';
 import MigrationAudit from '../migration/MigrationAudit';
 import STMUGradingScaleTable from '../../components/migration/STMUGradingScaleTable';
 
@@ -147,10 +148,13 @@ export default function MigrationRecords() {
       const res = await fetch(`/api/curriculums/batch/${batchId}`);
       if (res.ok) {
         const data = await res.json();
-        setCurriculum(data.data.curriculum);
+        setCurriculum(data.data?.curriculum || null);
+      } else {
+        setCurriculum(null);
       }
     } catch (e) {
       console.error(e);
+      setCurriculum(null);
     }
   };
 
@@ -484,26 +488,16 @@ export default function MigrationRecords() {
                       }}
                     />
                   </div>
-                  <select
+                  <ResponsiveSelect
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    style={{
-                      padding: '10px 14px',
-                      borderRadius: '10px',
-                      border: '1px solid #E2E8F0',
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      outline: 'none',
-                      backgroundColor: '#F8FAFC',
-                      color: '#0F172A',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <option value="all">All Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="approved">Approved</option>
-                    <option value="rejected">Rejected</option>
-                  </select>
+                    options={[
+                      { value: 'all', label: 'All Status' },
+                      { value: 'pending', label: 'Pending' },
+                      { value: 'approved', label: 'Approved' },
+                      { value: 'rejected', label: 'Rejected' }
+                    ]}
+                  />
                   <button
                     onClick={openNewRequestModal}
                     style={{
@@ -964,31 +958,25 @@ export default function MigrationRecords() {
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                     Target Department <span style={{ color: '#EF4444' }}>*</span>
                   </label>
-                  <select
+                  <ResponsiveSelect
                     value={newReq.departmentId}
                     onChange={(e) => setNewReq({ ...newReq, departmentId: e.target.value, batchId: '' })}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13.5px', outline: 'none', backgroundColor: '#fff' }}
-                  >
-                    <option value="">Select Department</option>
-                    {departmentsList.filter(d => ['CS', 'AI', 'SE', 'CY'].includes(d.code)).map(d => (
-                      <option key={d._id} value={d._id}>{d.name} ({d.code})</option>
-                    ))}
-                  </select>
+                    placeholder="Select Department"
+                    className="w-full"
+                    options={departmentsList.filter(d => ['CS', 'AI', 'SE', 'CY'].includes(d.code)).map(d => ({ value: d._id, label: `${d.name} (${d.code})` }))}
+                  />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                     Target Batch <span style={{ color: '#EF4444' }}>*</span>
                   </label>
-                  <select
+                  <ResponsiveSelect
                     value={newReq.batchId}
                     onChange={(e) => setNewReq({ ...newReq, batchId: e.target.value })}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13.5px', outline: 'none', backgroundColor: '#fff' }}
-                  >
-                    <option value="">Select Batch</option>
-                    {batchesList.filter(b => (b.departmentId === newReq.departmentId || b.departmentId?._id === newReq.departmentId)).map(b => (
-                      <option key={b._id} value={b._id}>{b.code}</option>
-                    ))}
-                  </select>
+                    placeholder="Select Batch"
+                    className="w-full"
+                    options={batchesList.filter(b => (b.departmentId === newReq.departmentId || b.departmentId?._id === newReq.departmentId)).map(b => ({ value: b._id, label: b.code }))}
+                  />
                 </div>
               </div>
 
@@ -1010,29 +998,27 @@ export default function MigrationRecords() {
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                     Semester at Source Institution
                   </label>
-                  <select
+                  <ResponsiveSelect
                     value={newReq.fromSemester}
                     onChange={(e) => setNewReq({ ...newReq, fromSemester: e.target.value })}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13.5px', outline: 'none', backgroundColor: '#fff' }}
-                  >
-                    <option value="">Select semester completed</option>
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map(s => (
-                      <option key={s} value={s}>Semester {s}</option>
-                    ))}
-                  </select>
+                    placeholder="Select semester completed"
+                    className="w-full"
+                    options={[1, 2, 3, 4, 5, 6, 7, 8].map(s => ({ value: String(s), label: `Semester ${s}` }))}
+                  />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                     STMU Intake Session
                   </label>
-                  <select
+                  <ResponsiveSelect
                     value={newReq.intakeSession || 'Spring'}
                     onChange={(e) => setNewReq({ ...newReq, intakeSession: e.target.value })}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13.5px', outline: 'none', backgroundColor: '#fff' }}
-                  >
-                    <option value="Spring">🌸 Spring Intake</option>
-                    <option value="Fall">🍂 Fall Intake</option>
-                  </select>
+                    className="w-full"
+                    options={[
+                      { value: 'Spring', label: '🌸 Spring Intake' },
+                      { value: 'Fall', label: '🍂 Fall Intake' }
+                    ]}
+                  />
                 </div>
               </div>
 

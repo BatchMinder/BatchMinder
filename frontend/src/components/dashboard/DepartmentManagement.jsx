@@ -7,6 +7,7 @@ import {
 import Header from './Header';
 import { useModal } from '../../contexts/ModalContext';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button as MuiButton } from '@mui/material';
+import ResponsiveSelect from '../common/ResponsiveSelect';
 
 const STATUS_OPTIONS = ['All Status', 'Active', 'Inactive'];
 
@@ -577,19 +578,15 @@ export default function DepartmentManagement({ setActiveNav }) {
 
                 <div>
                   <label style={labelStyle}>Chairperson / HOD</label>
-                  <div style={{ position: 'relative' }}>
-                    <select
-                      value={form.hod}
-                      onChange={e => setForm(p => ({ ...p, hod: e.target.value }))}
-                      style={{ ...selectStyle }}
-                    >
-                      <option value="Unassigned">Unassigned</option>
-                      {hodCandidates.map(c => (
-                        <option key={c.id} value={c.name}>{c.name}</option>
-                      ))}
-                    </select>
-                    <ChevronDown size={12} color="#94A3B8" style={{ position: 'absolute', right: '9px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-                  </div>
+                  <ResponsiveSelect
+                    value={form.hod}
+                    onChange={e => setForm(p => ({ ...p, hod: e.target.value }))}
+                    className="w-full"
+                    options={[
+                      { value: 'Unassigned', label: 'Unassigned' },
+                      ...hodCandidates.map(c => ({ value: c.name, label: c.name }))
+                    ]}
+                  />
                 </div>
 
                 <div>
@@ -605,17 +602,15 @@ export default function DepartmentManagement({ setActiveNav }) {
 
                 <div>
                   <label style={labelStyle}>Status</label>
-                  <div style={{ position: 'relative' }}>
-                    <select
-                      value={form.status}
-                      onChange={e => setForm(p => ({ ...p, status: e.target.value }))}
-                      style={{ ...selectStyle }}
-                    >
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                    </select>
-                    <ChevronDown size={12} color="#94A3B8" style={{ position: 'absolute', right: '9px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-                  </div>
+                  <ResponsiveSelect
+                    value={form.status}
+                    onChange={e => setForm(p => ({ ...p, status: e.target.value }))}
+                    className="w-full"
+                    options={[
+                      { value: 'Active', label: 'Active' },
+                      { value: 'Inactive', label: 'Inactive' }
+                    ]}
+                  />
                 </div>
 
                 <div>
@@ -707,13 +702,15 @@ export default function DepartmentManagement({ setActiveNav }) {
             </div>
             <div>
               <label style={labelStyle}>Chairperson / HOD</label>
-              <div style={{ position: 'relative' }}>
-                <select value={form.hod} disabled={!!viewingDeptId} onChange={e => setForm(p => ({ ...p, hod: e.target.value }))} style={{ ...selectStyle, opacity: viewingDeptId ? 0.7 : 1, cursor: viewingDeptId ? 'not-allowed' : 'pointer' }}>
-                  <option value="Unassigned">Unassigned</option>
-                  {hodCandidates.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                </select>
-                <ChevronDown size={12} color="#94A3B8" style={{ position: 'absolute', right: '9px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-              </div>
+              <ResponsiveSelect
+                value={form.hod}
+                onChange={e => setForm(p => ({ ...p, hod: e.target.value }))}
+                className="w-full"
+                options={[
+                  { value: 'Unassigned', label: 'Unassigned' },
+                  ...hodCandidates.map(c => ({ value: c.name, label: c.name }))
+                ]}
+              />
             </div>
             <div>
               <label style={labelStyle}>Established Year</label>
@@ -721,13 +718,15 @@ export default function DepartmentManagement({ setActiveNav }) {
             </div>
             <div>
               <label style={labelStyle}>Status</label>
-              <div style={{ position: 'relative' }}>
-                <select value={form.status} disabled={!!viewingDeptId} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} style={{ ...selectStyle, opacity: viewingDeptId ? 0.7 : 1, cursor: viewingDeptId ? 'not-allowed' : 'pointer' }}>
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
-                <ChevronDown size={12} color="#94A3B8" style={{ position: 'absolute', right: '9px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-              </div>
+              <ResponsiveSelect
+                value={form.status}
+                onChange={e => setForm(p => ({ ...p, status: e.target.value }))}
+                className="w-full"
+                options={[
+                  { value: 'Active', label: 'Active' },
+                  { value: 'Inactive', label: 'Inactive' }
+                ]}
+              />
             </div>
             <div>
               <label style={labelStyle}>Visual Accent Color</label>

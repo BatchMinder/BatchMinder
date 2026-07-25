@@ -5,6 +5,7 @@ import {
   FileText, Clock, AlertCircle, ArrowRight
 } from 'lucide-react';
 import { CircularProgress } from '@mui/material';
+import ResponsiveSelect from '../../components/common/ResponsiveSelect';
 import RequestDetail from '../../components/ApprovalWorkflow/RequestDetail';
 import SpecialPermissionForm from '../../components/ApprovalWorkflow/SpecialPermissionForm';
 
@@ -25,7 +26,7 @@ export default function HODQueue() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [requestTypeFilter, setRequestTypeFilter] = useState('');
+  const [requestTypeFilter, setRequestTypeFilter] = useState('all');
 
   // Split-pane selection state
   const [selectedRequest, setSelectedRequest] = useState(null);
@@ -77,7 +78,7 @@ export default function HODQueue() {
       (r.courseCode || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (r.courseTitle || '').toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesType = requestTypeFilter === '' || r.requestType === requestTypeFilter;
+    const matchesType = requestTypeFilter === '' || requestTypeFilter === 'all' || r.requestType === requestTypeFilter;
 
     return matchesSearch && matchesType;
   });
@@ -216,27 +217,16 @@ export default function HODQueue() {
             {/* Dropdown Filter by request type */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <SlidersHorizontal size={14} color="#64748B" />
-              <select
+              <ResponsiveSelect
                 value={requestTypeFilter}
                 onChange={(e) => setRequestTypeFilter(e.target.value)}
-                style={{
-                  padding: '8px 14px',
-                  borderRadius: '10px',
-                  border: '1px solid #CBD5E1',
-                  fontSize: '13px',
-                  color: '#475569',
-                  backgroundColor: '#FFFFFF',
-                  fontFamily: 'inherit',
-                  cursor: 'pointer',
-                  outline: 'none',
-                }}
-              >
-                <option value="">All Request Types</option>
-                <option value="Prerequisite Bypass">Prerequisite Bypass</option>
-                <option value="Credit Limit Extension">Credit Limit Extension</option>
-                <option value="Duplicate Course">Duplicate Course</option>
-                <option value="Other">Other</option>
-              </select>
+                options={[
+                  { value: 'all', label: 'All Request Types' },
+                  { value: 'add', label: 'Course Registration' },
+                  { value: 'drop', label: 'Course Drop' },
+                  { value: 'withdrawal', label: 'Course Withdrawal' }
+                ]}
+              />
             </div>
           </div>
 

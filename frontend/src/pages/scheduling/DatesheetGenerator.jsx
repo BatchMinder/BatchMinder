@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useModal } from "../../contexts/ModalContext";
+import ResponsiveSelect from "../../components/common/ResponsiveSelect";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import {
   RefreshCw, Info, AlertTriangle, CheckCircle, Search, Edit2,
@@ -284,17 +285,17 @@ export default function DatesheetGenerator({ setActiveNav }) {
           </div>
           <div className="flex flex-col gap-1 w-full">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Semester</label>
-            <div className="relative">
-              <select
-                value={selectedSemester}
-                onChange={e => setSelectedSemester(e.target.value)}
-                className="w-full appearance-none bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 py-2 px-3 rounded-lg outline-none cursor-pointer"
-              >
-                <option value="">All Semesters</option>
-                {[1, 2, 3, 4, 5, 6, 7, 8].map(s => <option key={s} value={s}>Semester {s}</option>)}
-              </select>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
+            <ResponsiveSelect
+              value={selectedSemester}
+              onChange={e => setSelectedSemester(e.target.value)}
+              placeholder="All Semesters"
+              label="Select Semester"
+              className="w-full"
+              options={[
+                { value: '', label: 'All Semesters' },
+                ...[1, 2, 3, 4, 5, 6, 7, 8].map(s => ({ value: s, label: `Semester ${s}` }))
+              ]}
+            />
           </div>
         </div>
         <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">

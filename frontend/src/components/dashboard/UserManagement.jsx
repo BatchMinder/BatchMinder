@@ -8,6 +8,7 @@ import { useDepartments } from '../../hooks/useDepartments';
 import Header from './Header';
 import { useModal } from '../../contexts/ModalContext';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button as MuiButton } from '@mui/material';
+import ResponsiveSelect from '../common/ResponsiveSelect';
 
 const ROLE_OPTIONS   = ['All Roles', 'Batch Advisor', 'HOD', 'Administrator', 'Dean'];
 const STATUS_OPTIONS = ['All Status', 'Active', 'Pending', 'Inactive'];
@@ -372,31 +373,25 @@ export default function UserManagement({ setActiveNav }) {
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 {/* Role select */}
-                <select
+                <ResponsiveSelect
                   value={roleFilter}
                   onChange={e => setRole(e.target.value)}
-                  style={{ padding: '7px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', color: '#475569', backgroundColor: '#FFFFFF', outline: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
-                >
-                  {ROLE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                </select>
+                  options={ROLE_OPTIONS.map(opt => ({ value: opt, label: opt }))}
+                />
 
                 {/* Department select */}
-                <select
+                <ResponsiveSelect
                   value={deptFilter}
                   onChange={e => setDept(e.target.value)}
-                  style={{ padding: '7px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', color: '#475569', backgroundColor: '#FFFFFF', outline: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
-                >
-                  {DEPT_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                </select>
+                  options={DEPT_OPTIONS.map(opt => ({ value: opt, label: opt }))}
+                />
 
                 {/* Status select */}
-                <select
+                <ResponsiveSelect
                   value={statusFilter}
                   onChange={e => setStatus(e.target.value)}
-                  style={{ padding: '7px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', color: '#475569', backgroundColor: '#FFFFFF', outline: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
-                >
-                  {STATUS_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                </select>
+                  options={STATUS_OPTIONS.map(opt => ({ value: opt, label: opt }))}
+                />
               </div>
             </div>
 
@@ -662,52 +657,39 @@ export default function UserManagement({ setActiveNav }) {
                 <div>
                   <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#94A3B8', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '4px' }}>Role</label>
                   <div style={{ position: 'relative' }}>
-                    <select
+                    <ResponsiveSelect
                       value={form.role}
                       onChange={e => setForm(p => ({ ...p, role: e.target.value }))}
-                      style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#475569', outline: 'none', cursor: 'pointer', appearance: 'none', fontFamily: 'inherit' }}
-                    >
-                      {ROLE_OPTIONS.slice(1).map(o => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                    <ChevronDown size={14} color="#94A3B8" style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                      className="w-full"
+                      options={ROLE_OPTIONS.slice(1).map(o => ({ value: o, label: o }))}
+                    />
                   </div>
-                </div>
 
                 <div>
                   <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#94A3B8', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '4px' }}>Department</label>
-                  <div style={{ position: 'relative' }}>
-                    <select
-                      value={form.dept}
-                      onChange={e => setForm(p => ({ ...p, dept: e.target.value }))}
-                      style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#475569', outline: 'none', cursor: departments.length === 0 ? 'not-allowed' : 'pointer', appearance: 'none', fontFamily: 'inherit' }}
-                      disabled={departments.length === 0}
-                    >
-                      {departments.length === 0 ? (
-                        <option value="">No departments available</option>
-                      ) : (
-                        departments.map(d => <option key={d.id} value={d.name}>{d.name} ({d.code})</option>)
-                      )}
-                    </select>
-                    <ChevronDown size={14} color="#94A3B8" style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-                  </div>
+                  <ResponsiveSelect
+                    value={form.dept}
+                    onChange={e => setForm(p => ({ ...p, dept: e.target.value }))}
+                    className="w-full"
+                    options={departments.length === 0 ? [{ value: '', label: 'No departments available' }] : departments.map(d => ({ value: d.name, label: `${d.name} (${d.code})` }))}
+                  />
                 </div>
 
                 <div>
                   <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#94A3B8', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '4px' }}>Assign Batch</label>
-                  <div style={{ position: 'relative' }}>
-                    <select
-                      value={form.batchId}
-                      onChange={e => setForm(p => ({ ...p, batchId: e.target.value }))}
-                      style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#475569', outline: 'none', cursor: batches.length === 0 ? 'not-allowed' : 'pointer', appearance: 'none', fontFamily: 'inherit' }}
-                      disabled={batches.length === 0}
-                    >
-                      <option value="">Select a batch (Unassigned)</option>
-                      {batches.map(b => (
-                        <option key={b.id} value={b.id}>{b.code} {b.advisor && b.advisor !== 'Unassigned' ? `(Assigned to ${b.advisor})` : '(Unassigned)'}</option>
-                      ))}
-                    </select>
-                    <ChevronDown size={14} color="#94A3B8" style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-                  </div>
+                  <ResponsiveSelect
+                    value={form.batchId}
+                    onChange={e => setForm(p => ({ ...p, batchId: e.target.value }))}
+                    className="w-full"
+                    options={[
+                      { value: '', label: 'Select a batch (Unassigned)' },
+                      ...batches.map(b => ({
+                        value: b.id,
+                        label: `${b.code} ${b.advisor && b.advisor !== 'Unassigned' ? `(Assigned to ${b.advisor})` : '(Unassigned)'}`
+                      }))
+                    ]}
+                  />
+                </div>
                 </div>
 
                 <div>
@@ -848,37 +830,36 @@ export default function UserManagement({ setActiveNav }) {
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#94A3B8', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '4px' }}>Role</label>
-              <div style={{ position: 'relative' }}>
-                <select value={form.role} disabled={!!viewingUserId} onChange={e => setForm(p => ({ ...p, role: e.target.value }))} style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#475569', outline: 'none', cursor: viewingUserId ? 'not-allowed' : 'pointer', appearance: 'none', fontFamily: 'inherit', opacity: viewingUserId ? 0.7 : 1 }}>
-                  {ROLE_OPTIONS.slice(1).map(o => <option key={o} value={o}>{o}</option>)}
-                </select>
-                <ChevronDown size={14} color="#94A3B8" style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-              </div>
+              <ResponsiveSelect
+                value={form.role}
+                onChange={e => setForm(p => ({ ...p, role: e.target.value }))}
+                className="w-full"
+                options={ROLE_OPTIONS.slice(1).map(o => ({ value: o, label: o }))}
+              />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#94A3B8', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '4px' }}>Department</label>
-              <div style={{ position: 'relative' }}>
-                <select value={form.dept} disabled={!!viewingUserId || departments.length === 0} onChange={e => setForm(p => ({ ...p, dept: e.target.value }))} style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#475569', outline: 'none', cursor: (viewingUserId || departments.length === 0) ? 'not-allowed' : 'pointer', appearance: 'none', fontFamily: 'inherit', opacity: viewingUserId ? 0.7 : 1 }}>
-                  {departments.length === 0 ? (
-                    <option value="">No departments available</option>
-                  ) : (
-                    departments.map(d => <option key={d.id} value={d.name}>{d.name} ({d.code})</option>)
-                  )}
-                </select>
-                <ChevronDown size={14} color="#94A3B8" style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-              </div>
+              <ResponsiveSelect
+                value={form.dept}
+                onChange={e => setForm(p => ({ ...p, dept: e.target.value }))}
+                className="w-full"
+                options={departments.length === 0 ? [{ value: '', label: 'No departments available' }] : departments.map(d => ({ value: d.name, label: `${d.name} (${d.code})` }))}
+              />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#94A3B8', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '4px' }}>Assign Batch</label>
-              <div style={{ position: 'relative' }}>
-                <select value={form.batchId} disabled={!!viewingUserId || batches.length === 0} onChange={e => setForm(p => ({ ...p, batchId: e.target.value }))} style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#475569', outline: 'none', cursor: (viewingUserId || batches.length === 0) ? 'not-allowed' : 'pointer', appearance: 'none', fontFamily: 'inherit', opacity: viewingUserId ? 0.7 : 1 }}>
-                  <option value="">Select a batch (Unassigned)</option>
-                  {batches.map(b => (
-                    <option key={b.id} value={b.id}>{b.code} {b.advisor && b.advisor !== 'Unassigned' ? `(Assigned to ${b.advisor})` : '(Unassigned)'}</option>
-                  ))}
-                </select>
-                <ChevronDown size={14} color="#94A3B8" style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-              </div>
+              <ResponsiveSelect
+                value={form.batchId}
+                onChange={e => setForm(p => ({ ...p, batchId: e.target.value }))}
+                className="w-full"
+                options={[
+                  { value: '', label: 'Select a batch (Unassigned)' },
+                  ...batches.map(b => ({
+                    value: b.id,
+                    label: `${b.code} ${b.advisor && b.advisor !== 'Unassigned' ? `(Assigned to ${b.advisor})` : '(Unassigned)'}`
+                  }))
+                ]}
+              />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#94A3B8', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '4px' }}>Employee ID</label>

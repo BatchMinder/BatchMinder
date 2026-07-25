@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
   Search, ShieldAlert, ShieldCheck, AlertTriangle, 
-  X, Eye, BookOpen, Clock, Mail, Calendar, GraduationCap
+  X, Eye, BookOpen, Clock, Mail, Calendar, GraduationCap, Award
 } from 'lucide-react';
 import { CircularProgress } from '@mui/material';
 import AcademicSummary from '../../pages/students/AcademicSummary';
 import DegreeProgress from '../../pages/students/DegreeProgress';
+import ResponsiveSelect from '../common/ResponsiveSelect';
 
 export default function AdvisorStudents({ selectedBatch }) {
   const { user } = useAuth();
@@ -124,7 +125,7 @@ export default function AdvisorStudents({ selectedBatch }) {
         backgroundColor: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         flexWrap: 'wrap', gap: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: '280px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: '280px', flexWrap: 'wrap' }}>
           <div style={{ position: 'relative', width: '100%', maxWidth: '360px' }}>
             <Search size={15} color="#94A3B8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
             <input
@@ -140,34 +141,26 @@ export default function AdvisorStudents({ selectedBatch }) {
             />
           </div>
 
-          <select
+          <ResponsiveSelect
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
-            style={{
-              padding: '8px 16px', borderRadius: '8px', border: '1px solid #CBD5E1',
-              fontSize: '13px', outline: 'none', color: '#475569', cursor: 'pointer',
-              backgroundColor: '#FFFFFF', fontFamily: 'inherit'
-            }}
-          >
-            <option value="">All Academic Standings</option>
-            <option value="good">Good Standing</option>
-            <option value="warning">Warning Standing</option>
-            <option value="critical">Critical Standing</option>
-          </select>
+            options={[
+              { value: '', label: 'All Academic Standings' },
+              { value: 'good', label: 'Good Standing' },
+              { value: 'warning', label: 'Warning Standing' },
+              { value: 'critical', label: 'Critical Standing' }
+            ]}
+          />
           
-          <select
+          <ResponsiveSelect
             value={intakeFilter}
             onChange={e => setIntakeFilter(e.target.value)}
-            style={{
-              padding: '8px 16px', borderRadius: '8px', border: '1px solid #CBD5E1',
-              fontSize: '13px', outline: 'none', color: '#475569', cursor: 'pointer',
-              backgroundColor: '#FFFFFF', fontFamily: 'inherit'
-            }}
-          >
-            <option value="">All Intakes</option>
-            <option value="Fall">Fall</option>
-            <option value="Spring">Spring</option>
-          </select>
+            options={[
+              { value: '', label: 'All Intakes' },
+              { value: 'Fall', label: 'Fall' },
+              { value: 'Spring', label: 'Spring' }
+            ]}
+          />
         </div>
 
         <span style={{ fontSize: '13px', color: '#64748B', fontWeight: 500 }}>
@@ -354,213 +347,83 @@ export default function AdvisorStudents({ selectedBatch }) {
                 <>
                   {/* Stats highlights */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div style={{ padding: '12px', borderRadius: '10px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', textAlign: 'center' }}>
-                  <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>Academic Standing</span>
-                  <p style={{
-                    margin: '4px 0 0', fontSize: '13px', fontWeight: 800,
-                    color: selectedStudent.cgpaStatus === 'good' ? '#10B981' : selectedStudent.cgpaStatus === 'warning' ? '#F59E0B' : '#EF4444'
-                  }}>
-                    {selectedStudent.cgpaStatus.toUpperCase()}
-                  </p>
-                </div>
-                <div style={{ padding: '12px', borderRadius: '10px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', textAlign: 'center' }}>
-                  <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>Cumulative CGPA</span>
-                  <p style={{ margin: '4px 0 0', fontSize: '14px', fontWeight: 800, color: '#1E293B' }}>
-                    {selectedStudent.currentSemester === 1 ? 'N/A' : selectedStudent.cgpa.toFixed(2)}
-                  </p>
-                </div>
-                <div style={{ padding: '12px', borderRadius: '10px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', textAlign: 'center' }}>
-                  <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>Current Semester</span>
-                  <p style={{ margin: '4px 0 0', fontSize: '14px', fontWeight: 800, color: '#1E293B' }}>
-                    Semester {selectedStudent.currentSemester}
-                  </p>
-                </div>
-              </div>
-
-              {/* Extra Details */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', color: '#475569' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Mail size={14} color="#94A3B8" />
-                  <span>Email: <b>{selectedStudent.email || 'No email attached'}</b></span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Calendar size={14} color="#94A3B8" />
-                  <span>Enrollment Date: <b>{new Date(selectedStudent.enrolledAt).toLocaleDateString()}</b></span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Clock size={14} color="#94A3B8" />
-                  <span>Account Status: <b style={{ color: selectedStudent.status === 'active' ? '#10B981' : '#64748B' }}>{selectedStudent.status.toUpperCase()}</b></span>
-                </div>
-              </div>
-
-              {/* Degree Progress Section */}
-              {degreeProgress && (
-                <div style={{
-                  padding: '16px', borderRadius: '12px', border: '1px solid #E2E8F0',
-                  backgroundColor: '#FFFFFF', display: 'flex', flexDirection: 'column', gap: '10px',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <GraduationCap size={16} color="#10B981" />
-                    <span style={{ fontSize: '13px', fontWeight: 800, color: '#1E293B' }}>Degree Completion Progress</span>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-3" style={{ marginTop: '4px' }}>
-                    <div>
-                      <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Completed Credits:</span>
-                      <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 800, color: '#1E293B' }}>{degreeProgress.completedCredits} CH</p>
+                    <div style={{ padding: '12px', borderRadius: '10px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', textAlign: 'center' }}>
+                      <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>Academic Standing</span>
+                      <p style={{
+                        margin: '4px 0 0', fontSize: '13px', fontWeight: 800,
+                        color: selectedStudent.cgpaStatus === 'good' ? '#10B981' : selectedStudent.cgpaStatus === 'warning' ? '#F59E0B' : '#EF4444'
+                      }}>
+                        {(selectedStudent.cgpaStatus || 'GOOD').toUpperCase()}
+                      </p>
                     </div>
-                    <div>
-                      <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Remaining Credits:</span>
-                      <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 800, color: '#4F46E5' }}>{degreeProgress.remainingCredits} CH</p>
+                    <div style={{ padding: '12px', borderRadius: '10px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', textAlign: 'center' }}>
+                      <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>Cumulative CGPA</span>
+                      <p style={{ margin: '4px 0 0', fontSize: '14px', fontWeight: 800, color: '#1E293B' }}>
+                        {selectedStudent.currentSemester === 1 ? 'N/A' : (selectedStudent.cgpa || 0).toFixed(2)}
+                      </p>
+                    </div>
+                    <div style={{ padding: '12px', borderRadius: '10px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', textAlign: 'center' }}>
+                      <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>Current Semester</span>
+                      <p style={{ margin: '4px 0 0', fontSize: '14px', fontWeight: 800, color: '#1E293B' }}>
+                        Semester {selectedStudent.currentSemester}
+                      </p>
                     </div>
                   </div>
 
-                  <div style={{ marginTop: '8px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Completion Ratio</span>
-                      <span style={{ fontSize: '11.5px', color: '#10B981', fontWeight: 800 }}>{degreeProgress.completionPercentage}%</span>
+                  {/* Extra Details */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', color: '#475569' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Mail size={14} color="#94A3B8" />
+                      <span>Email: <b>{selectedStudent.email || 'No email attached'}</b></span>
                     </div>
-                    <div style={{ width: '100%', height: '8px', backgroundColor: '#F1F5F9', borderRadius: '4px', overflow: 'hidden' }}>
-                      <div style={{
-                        width: `${degreeProgress.completionPercentage}%`, height: '100%',
-                        backgroundColor: '#10B981', borderRadius: '4px', transition: 'width 0.5s ease-out'
-                      }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Calendar size={14} color="#94A3B8" />
+                      <span>Enrollment Date: <b>{new Date(selectedStudent.enrolledAt).toLocaleDateString()}</b></span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Clock size={14} color="#94A3B8" />
+                      <span>Account Status: <b style={{ color: selectedStudent.status === 'active' ? '#10B981' : '#64748B' }}>{selectedStudent.status.toUpperCase()}</b></span>
                     </div>
                   </div>
-                </div>
-              )}
 
-
-
-              {/* Courses Enrollments Grouped by Semester */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <h5 style={{ margin: '0', fontSize: '13px', fontWeight: 800, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <BookOpen size={14} color="#64748B" /> Academic History & Semester Results
-                </h5>
-                {(!selectedStudent.courses || selectedStudent.courses.length === 0) ? (
-                  <p style={{ margin: 0, fontSize: '13px', color: '#94A3B8', fontStyle: 'italic' }}>
-                    No course records registered for this student.
-                  </p>
-                ) : (() => {
-                  const gradePointsMap = {
-                    'A': 4.0,
-                    'A-': 3.7,
-                    'B+': 3.3,
-                    'B': 3.0,
-                    'B-': 2.7,
-                    'C+': 2.3,
-                    'C': 2.0,
-                    'C-': 1.7,
-                    'D': 1.0,
-                    'F': 0.0
-                  };
-
-                  const calculateGPA = (semesterCourses) => {
-                    let totalCredits = 0;
-                    let totalGradePoints = 0;
-                    let hasGradedCourse = false;
-
-                    semesterCourses.forEach(c => {
-                      if (c.enrollmentStatus === 'completed' && gradePointsMap[c.grade] !== undefined) {
-                        totalCredits += c.creditHours;
-                        totalGradePoints += c.creditHours * gradePointsMap[c.grade];
-                        hasGradedCourse = true;
-                      } else if (c.enrollmentStatus === 'failed') {
-                        totalCredits += c.creditHours;
-                        totalGradePoints += c.creditHours * 0.0;
-                        hasGradedCourse = true;
-                      }
-                    });
-
-                    if (!hasGradedCourse || totalCredits === 0) return 'N/A';
-                    return (totalGradePoints / totalCredits).toFixed(2);
-                  };
-
-                  const coursesBySemester = {};
-                  selectedStudent.courses.forEach(c => {
-                    const sem = c.semester || 1;
-                    if (!coursesBySemester[sem]) {
-                      coursesBySemester[sem] = [];
-                    }
-                    coursesBySemester[sem].push(c);
-                  });
-
-                  return Object.keys(coursesBySemester)
-                    .sort((a, b) => Number(a) - Number(b))
-                    .map(sem => {
-                      const semCourses = coursesBySemester[sem];
-                      const semGpa = calculateGPA(semCourses);
+                  {/* Degree Progress Section */}
+                  {degreeProgress && (
+                    <div style={{
+                      padding: '16px', borderRadius: '12px', border: '1px solid #E2E8F0',
+                      backgroundColor: '#FFFFFF', display: 'flex', flexDirection: 'column', gap: '10px',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <GraduationCap size={16} color="#10B981" />
+                        <span style={{ fontSize: '13px', fontWeight: 800, color: '#1E293B' }}>Degree Completion Progress</span>
+                      </div>
                       
-                      return (
-                        <div key={sem} style={{ display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid #E2E8F0', borderRadius: '10px', overflow: 'hidden' }}>
-                          {/* Semester Subheader */}
-                          <div style={{
-                            padding: '10px 16px',
-                            backgroundColor: '#F8FAFC',
-                            borderBottom: '1px solid #E2E8F0',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center'
-                          }}>
-                            <span style={{ fontSize: '12px', fontWeight: 800, color: '#1B3A6B' }}>
-                              SEMESTER {sem}
-                            </span>
-                            <span style={{
-                              fontSize: '11px',
-                              fontWeight: 800,
-                              padding: '2px 8px',
-                              borderRadius: '20px',
-                              backgroundColor: semGpa === 'N/A' ? '#F1F5F9' : '#EFF6FF',
-                              color: semGpa === 'N/A' ? '#64748B' : '#1E40AF',
-                              border: `1px solid ${semGpa === 'N/A' ? '#E2E8F0' : '#BFDBFE'}`
-                            }}>
-                              GPA: {semGpa}
-                            </span>
-                          </div>
-
-                          {/* Semester Table */}
-                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
-                            <thead>
-                              <tr style={{ borderBottom: '1px solid #F1F5F9', backgroundColor: '#FAFAFA' }}>
-                                <th style={{ padding: '6px 16px', fontWeight: 700, color: '#475569', fontSize: '11px' }}>Code</th>
-                                <th style={{ padding: '6px 16px', fontWeight: 700, color: '#475569', fontSize: '11px' }}>Course Title</th>
-                                <th style={{ padding: '6px 16px', fontWeight: 700, color: '#475569', fontSize: '11px' }}>Credits</th>
-                                <th style={{ padding: '6px 16px', fontWeight: 700, color: '#475569', fontSize: '11px' }}>Grade</th>
-                                <th style={{ padding: '6px 16px', fontWeight: 700, color: '#475569', fontSize: '11px' }}>Status</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {semCourses.map((c, idx) => (
-                                <tr key={idx} style={{ borderBottom: idx < semCourses.length - 1 ? '1px solid #F1F5F9' : 'none' }}>
-                                  <td style={{ padding: '8px 16px', fontWeight: 600, color: '#1E293B' }}>{c.courseCode}</td>
-                                  <td style={{ padding: '8px 16px', color: '#334155' }}>{c.courseTitle}</td>
-                                  <td style={{ padding: '8px 16px', color: '#64748B' }}>{c.creditHours} Hrs</td>
-                                  <td style={{ padding: '8px 16px', fontWeight: 700, color: c.grade === 'F' ? '#EF4444' : '#1E293B' }}>{c.grade}</td>
-                                  <td style={{ padding: '8px 16px' }}>
-                                    <span style={{
-                                      display: 'inline-block',
-                                      padding: '2px 8px',
-                                      borderRadius: '12px',
-                                      fontSize: '9px',
-                                      fontWeight: 700,
-                                      textTransform: 'uppercase',
-                                      color: c.enrollmentStatus === 'completed' ? '#047857' : c.enrollmentStatus === 'failed' ? '#B91C1C' : '#1E40AF',
-                                      backgroundColor: c.enrollmentStatus === 'completed' ? '#D1FAE5' : c.enrollmentStatus === 'failed' ? '#FEE2E2' : '#DBEAFE'
-                                    }}>
-                                      {c.enrollmentStatus}
-                                    </span>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                      <div className="grid grid-cols-2 gap-3" style={{ marginTop: '4px' }}>
+                        <div>
+                          <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Completed Credits:</span>
+                          <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 800, color: '#1E293B' }}>{degreeProgress.completedCredits} CH</p>
                         </div>
-                      );
-                    });
-                })()}
-              </div>
-              </>
+                        <div>
+                          <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Remaining Credits:</span>
+                          <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 800, color: '#4F46E5' }}>{degreeProgress.remainingCredits} CH</p>
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                          <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Completion Ratio</span>
+                          <span style={{ fontSize: '11.5px', color: '#10B981', fontWeight: 800 }}>{degreeProgress.completionPercentage}%</span>
+                        </div>
+                        <div style={{ width: '100%', height: '8px', backgroundColor: '#F1F5F9', borderRadius: '4px', overflow: 'hidden' }}>
+                          <div style={{
+                            width: `${degreeProgress.completionPercentage}%`, height: '100%',
+                            backgroundColor: '#10B981', borderRadius: '4px', transition: 'width 0.5s ease-out'
+                          }} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               {detailTab === 'academic' && (

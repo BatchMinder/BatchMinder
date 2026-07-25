@@ -5,6 +5,7 @@ import {
   CheckCircle, ChevronRight, Activity, Calendar, ShieldAlert, AlertCircle, Sparkles, Users
 } from 'lucide-react';
 import { CircularProgress } from '@mui/material';
+import ResponsiveSelect from '../../components/common/ResponsiveSelect';
 
 export default function AdvisorRiskDashboard() {
   const { user } = useAuth();
@@ -171,32 +172,26 @@ export default function AdvisorRiskDashboard() {
               />
             </div>
 
-            <select
+            <ResponsiveSelect
               value={filterStanding}
               onChange={e => setFilterStanding(e.target.value)}
-              style={{
-                padding: '8px 14px', borderRadius: '10px', border: '1px solid #CBD5E1',
-                fontSize: '13px', color: '#475569', backgroundColor: '#FFFFFF', cursor: 'pointer', outline: 'none', fontFamily: 'inherit'
-              }}
-            >
-              <option value="all">All Standings</option>
-              <option value="good">Good Standing</option>
-              <option value="warning">Warning</option>
-              <option value="critical">Critical Risk</option>
-            </select>
+              options={[
+                { value: 'all', label: 'All Standings' },
+                { value: 'good', label: 'Good Standing' },
+                { value: 'warning', label: 'Warning' },
+                { value: 'critical', label: 'Critical Risk' }
+              ]}
+            />
 
-            <select
+            <ResponsiveSelect
               value={filterIntake}
               onChange={e => setFilterIntake(e.target.value)}
-              style={{
-                padding: '8px 14px', borderRadius: '10px', border: '1px solid #CBD5E1',
-                fontSize: '13px', color: '#475569', backgroundColor: '#FFFFFF', cursor: 'pointer', outline: 'none', fontFamily: 'inherit'
-              }}
-            >
-              <option value="all">All Intakes</option>
-              <option value="Fall">Fall</option>
-              <option value="Spring">Spring</option>
-            </select>
+              options={[
+                { value: 'all', label: 'All Intakes' },
+                { value: 'Fall', label: 'Fall' },
+                { value: 'Spring', label: 'Spring' }
+              ]}
+            />
           </div>
 
           {/* Student Table */}

@@ -18,6 +18,7 @@ import {
 } from '../../services/reportService';
 import { downloadBatchTranscripts } from '../../services/transcriptService';
 import { CircularProgress } from '@mui/material';
+import ResponsiveSelect from '../../components/common/ResponsiveSelect';
 
 export default function AdvisorReporting() {
   const { user } = useAuth();
@@ -497,10 +498,14 @@ export default function AdvisorReporting() {
             <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '18px', paddingBottom: '12px', borderBottom: '1px solid #F1F5F9' }}>
                 <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 700 }}>Batch Enrollment Statistics</h4>
-                <select value={filterBatch} onChange={e => setFilterBatch(e.target.value)} style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #E2E8F0', fontSize: '11px', fontWeight: 700 }}>
-                  <option value="all">All Batches</option>
-                  {batchOptions.map(b => <option key={b} value={b}>{b}</option>)}
-                </select>
+                <ResponsiveSelect
+                  value={filterBatch}
+                  onChange={e => setFilterBatch(e.target.value)}
+                  options={[
+                    { value: 'all', label: 'All Batches' },
+                    ...batchOptions.map(b => ({ value: b, label: b }))
+                  ]}
+                />
               </div>
               <div style={{ height: '300px' }}>
                 <ResponsiveContainer width="100%" height="100%">
@@ -551,39 +556,61 @@ export default function AdvisorReporting() {
             {/* Department */}
             <div>
               <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: '6px' }}>Department</label>
-              <select value={filterDept} onChange={e => setFilterDept(e.target.value)} style={{ width: '100%', padding: '8px 10px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12.5px', outline: 'none', fontFamily: 'inherit' }}>
-                <option value="all">All Departments</option>
-                {departments.map(d => <option key={d._id} value={d.name}>{d.name}</option>)}
-              </select>
+              <ResponsiveSelect
+                value={filterDept}
+                onChange={e => setFilterDept(e.target.value)}
+                className="w-full"
+                options={[
+                  { value: 'all', label: 'All Departments' },
+                  ...departments.map(d => ({ value: d.name, label: d.name }))
+                ]}
+              />
             </div>
 
             {/* Batch */}
             <div>
               <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: '6px' }}>Batch</label>
-              <select value={filterQueryBatch} onChange={e => setFilterQueryBatch(e.target.value)} style={{ width: '100%', padding: '8px 10px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12.5px', outline: 'none', fontFamily: 'inherit' }}>
-                <option value="all">All Batches</option>
-                {batches.map(b => <option key={b._id} value={b.code}>{b.code}</option>)}
-              </select>
+              <ResponsiveSelect
+                value={filterQueryBatch}
+                onChange={e => setFilterQueryBatch(e.target.value)}
+                className="w-full"
+                options={[
+                  { value: 'all', label: 'All Batches' },
+                  ...batches.map(b => ({ value: b.code, label: b.code }))
+                ]}
+              />
             </div>
 
             {/* Semester */}
             <div>
               <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: '6px' }}>Semester</label>
-              <select value={filterSemester} onChange={e => setFilterSemester(e.target.value)} style={{ width: '100%', padding: '8px 10px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12.5px', outline: 'none', fontFamily: 'inherit' }}>
-                <option value="all">All Semesters</option>
-                {[1, 2, 3, 4, 5, 6, 7, 8].map(s => <option key={s} value={s}>Semester {s}</option>)}
-              </select>
+              <ResponsiveSelect
+                value={filterSemester}
+                onChange={e => setFilterSemester(e.target.value)}
+                placeholder="All Semesters"
+                label="Select Semester"
+                className="w-full"
+                options={[
+                  { value: 'all', label: 'All Semesters' },
+                  ...[1, 2, 3, 4, 5, 6, 7, 8].map(s => ({ value: s, label: `Semester ${s}` }))
+                ]}
+              />
             </div>
 
             {/* Standing */}
             <div>
               <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: '6px' }}>Standing</label>
-              <select value={filterStanding} onChange={e => setFilterStanding(e.target.value)} style={{ width: '100%', padding: '8px 10px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12.5px', outline: 'none', fontFamily: 'inherit' }}>
-                <option value="all">All Standings</option>
-                <option value="good_standing">Good Standing</option>
-                <option value="warning">Warning</option>
-                <option value="critical">Critical</option>
-              </select>
+              <ResponsiveSelect
+                value={filterStanding}
+                onChange={e => setFilterStanding(e.target.value)}
+                className="w-full"
+                options={[
+                  { value: 'all', label: 'All Standings' },
+                  { value: 'good_standing', label: 'Good Standing' },
+                  { value: 'warning', label: 'Warning' },
+                  { value: 'critical', label: 'Critical' }
+                ]}
+              />
             </div>
 
             {/* GPA Ranges */}

@@ -6,6 +6,8 @@ import {
   ChevronDown, AlertTriangle, User, Layers, Info, X
 } from 'lucide-react';
 import Header from './Header';
+import ResponsiveSelect from '../common/ResponsiveSelect';
+import CustomDatePicker from '../common/CustomDatePicker';
 
 // Pretty-print metadata changes or general key-values
 const renderMetadataDetails = (meta, fallbackDescription = '') => {
@@ -271,145 +273,88 @@ export default function AuditLogsPage({ setActiveNav }) {
         {/* Filters Panel */}
         <div style={{
           backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0',
-          borderRadius: '12px', padding: isMobile ? '10px 14px' : '14px 20px',
+          borderRadius: '12px', padding: isMobile ? '10px 12px' : '14px 20px',
           display: 'flex', flexDirection: 'column', gap: '12px',
-          boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
-          position: 'relative', zIndex: 1000
+          boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
         }}>
-          <div
-            onClick={() => isMobile && setShowFiltersMobile(!showFiltersMobile)}
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              cursor: isMobile ? 'pointer' : 'default',
-              userSelect: 'none'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Filters:
-              </span>
-              {isMobile && (
-                <span style={{ fontSize: '11px', color: '#2563EB', fontWeight: 700 }}>
-                  ({showFiltersMobile ? 'Tap to hide' : 'Tap to show & edit'})
-                </span>
-              )}
-            </div>
-            {isMobile && (
-              <ChevronDown
-                size={14}
-                color="#64748B"
-                style={{
-                  transform: showFiltersMobile ? 'rotate(180deg)' : 'rotate(0deg)',
-                  transition: 'transform 0.2s ease'
-                }}
-              />
-            )}
-          </div>
-
-          {(!isMobile || showFiltersMobile) && (
-            <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 ${isDean ? 'xl:grid-cols-5' : ''} gap-4`} style={{
-              borderTop: isMobile ? '1px solid #F1F5F9' : 'none',
-              paddingTop: isMobile ? '12px' : 0,
-              width: '100%'
-            }}>
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2 sm:gap-3" style={{ width: '100%' }}>
 
               {isDean && (
                 <>
                   {/* Department Filter */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Department</span>
-                    <div style={{ position: 'relative' }}>
-                      <CustomSelect
-                        value={deptFilter}
-                        onChange={(val) => { setDeptFilter(val); setCurrentPage(1); }}
-                        options={[
-                          { value: 'All Departments', label: 'All Departments' },
-                          ...departments.map(d => ({ value: d.name, label: d.name }))
-                        ]}
-                      />
-                    </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '10.5px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Department</span>
+                    <ResponsiveSelect
+                      value={deptFilter}
+                      onChange={(e) => { setDeptFilter(e.target.value); setCurrentPage(1); }}
+                      className="w-full"
+                      options={[
+                        { value: 'All Departments', label: 'All Departments' },
+                        ...departments.map(d => ({ value: d.name, label: d.name }))
+                      ]}
+                    />
                   </div>
 
                   {/* Batch Filter */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Batch</span>
-                    <div style={{ position: 'relative' }}>
-                      <CustomSelect
-                        value={batchFilter}
-                        onChange={(val) => { setBatchFilter(val); setCurrentPage(1); }}
-                        options={[
-                          { value: 'All Batches', label: 'All Batches' },
-                          ...batches.map(b => ({ value: b.code, label: b.code }))
-                        ]}
-                      />
-                    </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '10.5px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Batch</span>
+                    <ResponsiveSelect
+                      value={batchFilter}
+                      onChange={(e) => { setBatchFilter(e.target.value); setCurrentPage(1); }}
+                      className="w-full"
+                      options={[
+                        { value: 'All Batches', label: 'All Batches' },
+                        ...batches.map(b => ({ value: b.code, label: b.code }))
+                      ]}
+                    />
                   </div>
                 </>
               )}
 
-              {/* Date Range Filters (Middle Columns) */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Start Date</span>
-                <input
-                  type="date"
+              {/* Date Range Filters (Side-by-side on mobile) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ fontSize: '10.5px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Start Date</span>
+                <CustomDatePicker
                   value={startDateFilter}
                   onChange={e => { setStartDateFilter(e.target.value); setCurrentPage(1); }}
-                  style={{
-                    width: '100%',
-                    padding: '7px 12px', borderRadius: '8px', border: '1px solid #E2E8F0',
-                    fontSize: '12px', fontWeight: 600, color: '#1E293B', outline: 'none',
-                    backgroundColor: '#FAFAFA', fontFamily: 'inherit',
-                    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.01)'
-                  }}
+                  placeholder="Start Date"
                 />
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>End Date</span>
-                <input
-                  type="date"
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ fontSize: '10.5px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>End Date</span>
+                <CustomDatePicker
                   value={endDateFilter}
                   onChange={e => { setEndDateFilter(e.target.value); setCurrentPage(1); }}
-                  style={{
-                    width: '100%',
-                    padding: '7px 12px', borderRadius: '8px', border: '1px solid #E2E8F0',
-                    fontSize: '12px', fontWeight: 600, color: '#1E293B', outline: 'none',
-                    backgroundColor: '#FAFAFA', fontFamily: 'inherit',
-                    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.01)'
-                  }}
+                  placeholder="End Date"
                 />
               </div>
 
-              {/* Action Filter (Last Column) */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Action</span>
-                <div style={{ position: 'relative' }}>
-                  <CustomSelect
-                    value={actionFilter}
-                    onChange={(val) => { setActionFilter(val); setCurrentPage(1); }}
-                    options={[
-                      { value: '', label: 'All Actions' },
-                      { value: 'STUDENT_CREATED', label: 'Student Created' },
-                      { value: 'STUDENT_UPDATED', label: 'Student Updated' },
-                      { value: 'STUDENT_DELETED', label: 'Student Deleted' },
-                      { value: 'UPLOAD_VALIDATED', label: 'CSV Upload Validated' },
-                      { value: 'UPLOAD_IMPORTED', label: 'CSV Upload Imported' },
-                      { value: 'CURRICULUM_UPDATED', label: 'Curriculum Updated' },
-                      { value: 'MIGRATION_CREATED', label: 'Migration Created' },
-                      { value: 'MIGRATION_DECIDED', label: 'Migration Decided' },
-                      { value: 'BATCH_CREATED', label: 'Batch Created' },
-                      { value: 'BATCH_UPDATED', label: 'Batch Updated' },
-                      { value: 'PROFILE_UPDATED', label: 'Profile Updated' },
-                      { value: 'PROFILE_PICTURE_UPLOADED', label: 'Profile Picture Uploaded' },
-                      { value: 'PROFILE_PICTURE_DELETED', label: 'Profile Picture Deleted' }
-                    ]}
-                  />
-                </div>
+              {/* Action Filter */}
+              <div className="col-span-2 sm:col-span-1" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ fontSize: '10.5px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Action</span>
+                <ResponsiveSelect
+                  value={actionFilter}
+                  onChange={(e) => { setActionFilter(e.target.value); setCurrentPage(1); }}
+                  className="w-full"
+                  options={[
+                    { value: '', label: 'All Actions' },
+                    { value: 'STUDENT_CREATED', label: 'Student Created' },
+                    { value: 'STUDENT_UPDATED', label: 'Student Updated' },
+                    { value: 'STUDENT_DELETED', label: 'Student Deleted' },
+                    { value: 'UPLOAD_VALIDATED', label: 'CSV Upload Validated' },
+                    { value: 'UPLOAD_IMPORTED', label: 'CSV Upload Imported' },
+                    { value: 'CURRICULUM_UPDATED', label: 'Curriculum Updated' },
+                    { value: 'MIGRATION_CREATED', label: 'Migration Created' },
+                    { value: 'MIGRATION_DECIDED', label: 'Migration Decided' },
+                    { value: 'BATCH_CREATED', label: 'Batch Created' },
+                    { value: 'BATCH_UPDATED', label: 'Batch Updated' },
+                    { value: 'PROFILE_UPDATED', label: 'Profile Updated' },
+                    { value: 'PROFILE_PICTURE_UPLOADED', label: 'Profile Picture Uploaded' },
+                  ]}
+                />
               </div>
             </div>
-          )}
         </div>
 
         {/* Table Box */}

@@ -4,6 +4,7 @@ import {
   ShieldCheck, Lock, Activity, Users, Shield, Bell, Calendar
 } from 'lucide-react';
 import Header from './Header';
+import ResponsiveSelect from '../common/ResponsiveSelect';
 
 const INITIAL_ROLES = [
   { id: 1, name: 'Dean', scope: 'System-wide', status: 'Active', color: '#E11D48', permissions: ['manage_users', 'manage_depts', 'manage_batches', 'view_audits', 'approve_migrations', 'edit_curriculum', 'view_students'] },
@@ -396,24 +397,12 @@ export default function RolesPermissions({ setActiveNav }) {
                             <td style={{ padding: '10px 16px', fontSize: '11.5px', color: '#475569' }}>{u.dept}</td>
                             <td style={{ padding: '6px 16px' }} onClick={e => e.stopPropagation()}>
                               {/* Direct role allocation dropdown */}
-                              <div style={{ position: 'relative', width: '160px' }}>
-                                <select
-                                  value={toUiRoleName(u.role)}
-                                  onChange={e => handleUserRoleChange(u.id, toApiPayloadRole(e.target.value))}
-                                  style={{
-                                    width: '100%', padding: '5px 22px 5px 8px', borderRadius: '6px',
-                                    border: '1px solid #CBD5E1', fontSize: '11.5px', color: '#1E293B',
-                                    appearance: 'none', cursor: 'pointer', outline: 'none',
-                                    fontFamily: 'inherit', fontWeight: 600,
-                                    backgroundColor: 'rgba(37,99,235,0.03)'
-                                  }}
-                                >
-                                  {roles.map(r => (
-                                    <option key={r.id} value={r.name}>{r.name}</option>
-                                  ))}
-                                </select>
-                                <ChevronDown size={11} color="#64748B" style={{ position: 'absolute', right: '7px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-                              </div>
+                              <ResponsiveSelect
+                                value={toUiRoleName(u.role)}
+                                onChange={e => handleUserRoleChange(u.id, toApiPayloadRole(e.target.value))}
+                                className="w-40"
+                                options={roles.map(r => ({ value: r.name, label: r.name }))}
+                              />
                             </td>
                             <td style={{ padding: '10px 16px' }}>
                               <span style={{
@@ -548,23 +537,12 @@ export default function RolesPermissions({ setActiveNav }) {
                 {/* Form assign role */}
                 <form onSubmit={handleSaveAssignment} style={{ marginBottom: '16px' }}>
                   <label style={labelStyle}>Assign New Role</label>
-                  <div style={{ position: 'relative', marginBottom: '10px' }}>
-                    <select
-                      value={toUiRoleName(selectedUser.role)}
-                      onChange={e => handleUserRoleChange(selectedUser.id, toApiPayloadRole(e.target.value))}
-                      style={{
-                        width: '100%', padding: '7px 28px 7px 10px', borderRadius: '7px',
-                        border: '1px solid #E2E8F0', fontSize: '12px', color: '#1E293B',
-                        outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
-                        appearance: 'none', cursor: 'pointer', backgroundColor: '#FFFFFF'
-                      }}
-                    >
-                      {roles.map(r => (
-                        <option key={r.id} value={r.name}>{r.name}</option>
-                      ))}
-                    </select>
-                    <ChevronDown size={12} color="#94A3B8" style={{ position: 'absolute', right: '9px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-                  </div>
+                  <ResponsiveSelect
+                    value={toUiRoleName(selectedUser.role)}
+                    onChange={e => handleUserRoleChange(selectedUser.id, toApiPayloadRole(e.target.value))}
+                    className="w-full mb-2.5"
+                    options={roles.map(r => ({ value: r.name, label: r.name }))}
+                  />
 
                   <button
                     type="submit"

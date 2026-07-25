@@ -36,17 +36,42 @@ export const getCurriculumByBatch = async (req, res) => {
 
     const { batchId } = req.params;
 
-    const curriculum = await Curriculum.findOne({
-      batchId,
-      departmentId: scope.departmentId,
-      status: 'active',
-    }).populate('departmentId', 'name code').populate('batchId', 'code');
+    // 1. Try finding curriculum explicitly assigned by batchId
+    let curriculum = await Curriculum.findOne({ batchId, status: 'active' })
+      .populate('departmentId', 'name code')
+      .populate('batchId', 'code');
 
     if (!curriculum) {
-      return res.status(404).json({ message: 'No active curriculum found for this batch' });
+      curriculum = await Curriculum.findOne({ batchId })
+        .populate('departmentId', 'name code')
+        .populate('batchId', 'code');
     }
 
-    res.status(200).json({ status: 'success', data: { curriculum } });
+    // 2. Fallback: Lookup batch's department and find active department curriculum (e.g. HEC 2025)
+    if (!curriculum) {
+      const batchDoc = await Batch.findById(batchId);
+      if (batchDoc) {
+        if (batchDoc.curriculumVersionId) {
+          curriculum = await Curriculum.findById(batchDoc.curriculumVersionId)
+            .populate('departmentId', 'name code')
+            .populate('batchId', 'code');
+        }
+        if (!curriculum && batchDoc.departmentId) {
+          curriculum = await Curriculum.findOne({ departmentId: batchDoc.departmentId, status: 'active' })
+            .populate('departmentId', 'name code')
+            .populate('batchId', 'code');
+        }
+      }
+    }
+
+    // 3. Fallback: Return any active HEC curriculum
+    if (!curriculum) {
+      curriculum = await Curriculum.findOne({ status: 'active' })
+        .populate('departmentId', 'name code')
+        .populate('batchId', 'code');
+    }
+
+    res.status(200).json({ status: 'success', data: { curriculum: curriculum || null } });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

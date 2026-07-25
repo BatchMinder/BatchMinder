@@ -12,6 +12,7 @@ import {
   Filter,
   Eye
 } from 'lucide-react';
+import ResponsiveSelect from '../../components/common/ResponsiveSelect';
 import { 
   Dialog, 
   DialogTitle, 
@@ -181,44 +182,47 @@ export default function RecordsDirectory() {
         {/* Status Filter */}
         <div className="lg:col-span-3 flex items-center gap-2">
           <Filter className="h-4 w-4 text-slate-400 hidden sm:inline" />
-          <select
+          <ResponsiveSelect
             value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-            className="w-full py-2 px-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brandAccent text-slate-700 bg-white"
-          >
-            <option value="All">All Statuses</option>
-            <option value="Good">Good Standing</option>
-            <option value="Warning">Warning (≤ 2.1)</option>
-            <option value="Critical">Critical (&lt; 2.0)</option>
-          </select>
+            className="w-full"
+            options={[
+              { value: 'All', label: 'All Statuses' },
+              { value: 'Good', label: 'Good Standing' },
+              { value: 'Warning', label: 'Warning (≤ 2.1)' },
+              { value: 'Critical', label: 'Critical (< 2.0)' },
+            ]}
+          />
         </div>
 
         {/* Batch Filter */}
         <div className="lg:col-span-2 flex items-center gap-2">
-          <select
+          <ResponsiveSelect
             value={batchFilter}
             onChange={(e) => { setBatchFilter(e.target.value); setCurrentPage(1); }}
-            className="w-full py-2 px-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brandAccent text-slate-700 bg-white"
-          >
-            <option value="All">All Batches</option>
-            <option value="2022">Batch 2022</option>
-            <option value="2023">Batch 2023</option>
-            <option value="2024">Batch 2024</option>
-          </select>
+            className="w-full"
+            options={[
+              { value: 'All', label: 'All Batches' },
+              { value: '2022', label: 'Batch 2022' },
+              { value: '2023', label: 'Batch 2023' },
+              { value: '2024', label: 'Batch 2024' },
+              { value: '2025', label: 'Batch 2025' },
+            ]}
+          />
         </div>
 
         {/* Rows Limit Selection */}
         <div className="lg:col-span-3 flex items-center justify-start lg:justify-end gap-2 text-sm text-slate-500">
           <span>Show:</span>
-          <select
-            value={pageSize}
+          <ResponsiveSelect
+            value={String(pageSize)}
             onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
-            className="py-1 px-2 border border-slate-200 rounded text-sm focus:outline-none text-slate-700 bg-white"
-          >
-            <option value={25}>25 Rows</option>
-            <option value={50}>50 Rows</option>
-            <option value={100}>100 Rows</option>
-          </select>
+            options={[
+              { value: '25', label: '25 Rows' },
+              { value: '50', label: '50 Rows' },
+              { value: '100', label: '100 Rows' },
+            ]}
+          />
         </div>
 
       </div>

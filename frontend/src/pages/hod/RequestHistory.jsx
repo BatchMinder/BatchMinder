@@ -4,6 +4,7 @@ import { CircularProgress } from '@mui/material';
 import StatusBadge from '../../components/ApprovalWorkflow/StatusBadge';
 import RequestDetail from '../../components/ApprovalWorkflow/RequestDetail';
 import EditRequestModal from '../../components/ApprovalWorkflow/EditRequestModal';
+import ResponsiveSelect from '../../components/common/ResponsiveSelect';
 
 export default function RequestHistory() {
   const [history, setHistory] = useState([]);
@@ -136,26 +137,16 @@ export default function RequestHistory() {
           </div>
 
           {/* Decision Status Dropdown Filter */}
-          <select
+          <ResponsiveSelect
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            style={{
-              padding: '8px 14px',
-              borderRadius: '10px',
-              border: '1px solid #CBD5E1',
-              fontSize: '13px',
-              color: '#475569',
-              backgroundColor: '#FFFFFF',
-              fontFamily: 'inherit',
-              cursor: 'pointer',
-              outline: 'none',
-            }}
-          >
-            <option value="">All Decisions</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-            <option value="special_granted">Special Granted</option>
-          </select>
+            options={[
+              { value: '', label: 'All Decision Statuses' },
+              { value: 'approved', label: 'Approved' },
+              { value: 'rejected', label: 'Rejected' },
+              { value: 'escalated', label: 'Escalated to Dean' }
+            ]}
+          />
         </div>
 
         {/* Requests History Table */}
@@ -229,29 +220,6 @@ export default function RequestHistory() {
                       </td>
                       <td style={{ padding: '14px 24px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setEditingRequest(r); }}
-                            style={{
-                              padding: '6px 14px',
-                              borderRadius: '8px',
-                              border: '1px solid #F59E0B',
-                              backgroundColor: '#FFFFFF',
-                              color: '#F59E0B',
-                              fontSize: '12px',
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              fontFamily: 'inherit',
-                              transition: 'all 0.15s',
-                            }}
-                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#F59E0B'; e.currentTarget.style.color = '#FFFFFF'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#FFFFFF'; e.currentTarget.style.color = '#F59E0B'; }}
-                          >
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
-                            <span>Edit</span>
-                          </button>
                           <button
                             onClick={() => setSelectedRequest(r)}
                             style={{

@@ -142,25 +142,16 @@ export default function Batches({ setActiveNav }) {
 
   return (
     <div>
-      <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ padding: '10px 16px', backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: '#1E40AF', fontWeight: 500, flex: 1, marginRight: canManageBatches ? 16 : 0 }}>
-          <Info size={18} color="#2563EB" />
+      <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="p-2.5 sm:px-4 sm:py-2.5 bg-blue-50/80 border border-blue-200 rounded-xl flex items-center gap-2.5 text-xs sm:text-sm text-blue-900 font-medium flex-1 min-w-0">
+          <Info size={18} className="text-blue-600 shrink-0" />
           <span>Viewing Computer Science department batches, student enrollment counts, and assigned batch advisors. Click any batch to view its enrolled students.</span>
         </div>
 
         {canManageBatches && (
           <button
             onClick={() => { resetForm(); setShowForm(true); }}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px',
-              background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
-              color: '#fff', border: 'none', borderRadius: 10,
-              fontWeight: 700, fontSize: 13, cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(37,99,235,0.2)',
-              transition: 'all 0.15s ease', whiteSpace: 'nowrap'
-            }}
-            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(37,99,235,0.3)'; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(37,99,235,0.2)'; }}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md transition-all cursor-pointer shrink-0"
           >
             <Plus size={16} /> New Batch
           </button>
@@ -168,82 +159,66 @@ export default function Batches({ setActiveNav }) {
       </div>
 
       {success && (
-        <div style={{ padding: 12, backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, fontSize: 13, color: '#166534' }}>
+        <div className="p-3 bg-green-50 border border-green-200 rounded-xl flex items-center gap-2 mb-4 text-xs font-medium text-green-800">
           Batch saved successfully.
         </div>
       )}
 
       {/* Form Modal */}
       {showForm && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15,23,42,0.5)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
-        }}>
-          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 32, width: 480, maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#0F172A' }}>{editing ? 'Edit Batch' : 'New Batch'}</h2>
-              <button onClick={() => setShowForm(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8' }}><X size={20} /></button>
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-fadeIn">
+          <div className="bg-white rounded-2xl p-5 sm:p-7 w-full max-w-md shadow-2xl animate-scaleIn border border-slate-100">
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="m-0 text-base sm:text-lg font-bold text-slate-900">{editing ? 'Edit Batch' : 'New Batch'}</h2>
+              <button onClick={() => setShowForm(false)} className="p-1 rounded-full text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="flex flex-col gap-4">
               <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Batch Code</label>
-                <input value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} placeholder="e.g. BSCS-2022" style={{ width: '100%', padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, outline: 'none' }} />
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Batch Code</label>
+                <input value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} placeholder="e.g. BSCS-2022" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" />
               </div>
               <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Department</label>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Department</label>
                 <Select
                   options={deptOpts}
                   value={deptOpts.find(o => o.value === form.departmentId) || null}
                   onChange={o => setForm(f => ({ ...f, departmentId: o?.value || '' }))}
                   placeholder="Select department"
                   styles={{
-                    control: (base) => ({ ...base, borderRadius: 8, borderColor: '#E2E8F0', minHeight: 40 }),
+                    control: (base) => ({ ...base, borderRadius: 8, borderColor: '#E2E8F0', minHeight: 38, fontSize: '12px' }),
                   }}
                 />
               </div>
               <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Advisor</label>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Advisor</label>
                 <Select
                   options={advisorOpts}
                   value={advisorOpts.find(o => o.value === form.advisor) || advisorOpts.find(o => o.label === form.advisor) || { value: 'Unassigned', label: 'Unassigned' }}
                   onChange={o => setForm(f => ({ ...f, advisor: o?.value || 'Unassigned' }))}
                   placeholder="Select advisor"
                   styles={{
-                    control: (base) => ({ ...base, borderRadius: 8, borderColor: '#E2E8F0', minHeight: 40 }),
+                    control: (base) => ({ ...base, borderRadius: 8, borderColor: '#E2E8F0', minHeight: 38, fontSize: '12px' }),
                   }}
                 />
               </div>
               <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Start Year</label>
-                <input type="number" value={form.startYear} onChange={e => setForm(f => ({ ...f, startYear: Number(e.target.value) }))} min={2000} max={2100} style={{ width: '100%', padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, outline: 'none' }} />
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Start Year</label>
+                <input type="number" value={form.startYear} onChange={e => setForm(f => ({ ...f, startYear: Number(e.target.value) }))} min={2000} max={2100} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" />
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+            <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setShowForm(false)}
-                style={{
-                  flex: 1, padding: '10px', borderRadius: 10, border: '1px solid #E2E8F0',
-                  backgroundColor: '#F8FAFC', color: '#64748B', fontWeight: 600, fontSize: 13, cursor: 'pointer',
-                  transition: 'all 0.15s'
-                }}
-                onMouseEnter={e => e.currentTarget.style.backgroundColor = '#F1F5F9'}
-                onMouseLeave={e => e.currentTarget.style.backgroundColor = '#F8FAFC'}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 font-semibold text-xs cursor-pointer hover:bg-slate-100 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
                 disabled={saving}
-                style={{
-                  flex: 1, padding: '10px', borderRadius: 10, border: 'none',
-                  background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)', color: '#fff',
-                  fontWeight: 700, fontSize: 13,
-                  boxShadow: '0 4px 12px rgba(37,99,235,0.2)',
-                  cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1,
-                  transition: 'all 0.15s'
-                }}
+                className="flex-1 py-2.5 rounded-xl border-none bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold text-xs cursor-pointer shadow-md hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 transition-all"
               >
                 {saving ? 'Saving...' : editing ? 'Update Batch' : 'Create Batch'}
               </button>
@@ -252,65 +227,57 @@ export default function Batches({ setActiveNav }) {
         </div>
       )}
 
-      {/* Batch Cards */}
+      {/* Batch Cards Grid */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 40, color: '#94A3B8' }}>Loading batches...</div>
+        <div className="text-center py-10 text-slate-400 text-xs">Loading batches...</div>
       ) : batches.length === 0 ? (
-        <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: 12, padding: 40, textAlign: 'center', color: '#94A3B8' }}>No batches found.</div>
+        <div className="bg-white border border-slate-200 rounded-xl p-10 text-center text-slate-400 text-xs">No batches found.</div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {batches.map(b => (
-            <div key={b._id} style={{
-              backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: 16,
-              padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between'
-            }}>
+            <div key={b._id} className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-between overflow-hidden min-w-0">
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <Layers size={16} color="#2563EB" />
-                      <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#0F172A' }}>{b.code}</h3>
+                <div className="flex justify-between items-start mb-3 gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Layers size={16} className="text-blue-600 shrink-0" />
+                      <h3 className="m-0 text-base font-bold text-slate-900 truncate">{b.code}</h3>
                     </div>
-                    <div style={{ fontSize: 12, color: '#64748B', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <User size={13} color="#94A3B8" /> {b.advisor && b.advisor !== 'Unassigned' ? `Advisor: ${b.advisor}` : 'No Advisor Assigned'}
+                    <div className="text-xs text-slate-500 mt-1 flex items-center gap-1 min-w-0">
+                      <User size={13} className="text-slate-400 shrink-0" /> 
+                      <span className="truncate">{b.advisor && b.advisor !== 'Unassigned' ? `Advisor: ${b.advisor}` : 'No Advisor Assigned'}</span>
                     </div>
                   </div>
                   {canManageBatches && (
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button onClick={() => openEdit(b)} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #E2E8F0', backgroundColor: '#F8FAFC', cursor: 'pointer', color: '#475569', transition: 'all 0.15s' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#EFF6FF'} onMouseLeave={e => e.currentTarget.style.backgroundColor = '#F8FAFC'}><Edit3 size={14} /></button>
-                      <button onClick={() => handleDelete(b._id)} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #FEE2E2', backgroundColor: '#FEF2F2', cursor: 'pointer', color: '#EF4444', transition: 'all 0.15s' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#FEE2E2'} onMouseLeave={e => e.currentTarget.style.backgroundColor = '#FEF2F2'}><Trash2 size={14} /></button>
+                    <div className="flex gap-1 shrink-0">
+                      <button onClick={() => openEdit(b)} className="p-1.5 sm:px-2 sm:py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-blue-50 text-slate-600 transition-colors"><Edit3 size={14} /></button>
+                      <button onClick={() => handleDelete(b._id)} className="p-1.5 sm:px-2 sm:py-1.5 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 text-red-500 transition-colors"><Trash2 size={14} /></button>
                     </div>
                   )}
                 </div>
 
-                <div style={{ display: 'flex', gap: 16, marginBottom: 12, fontSize: 12 }}>
-                  <span style={{ color: '#64748B' }}>Start Year <strong style={{ color: '#0F172A' }}>{b.startYear}</strong></span>
-                  <span style={{ color: '#64748B' }}>Status <strong style={{ color: b.status === 'Allocated' ? '#16A34A' : '#94A3B8' }}>{b.status}</strong></span>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mb-3 text-xs">
+                  <span className="text-slate-500">Start Year <strong className="text-slate-900">{b.startYear}</strong></span>
+                  <span className="text-slate-500">Status <strong className={b.status === 'Allocated' ? 'text-green-600 font-bold' : 'text-slate-400'}>{b.status}</strong></span>
                 </div>
               </div>
 
               <div>
-                <div style={{ padding: '8px 12px', borderRadius: 8, backgroundColor: '#F8FAFC', fontSize: 12, color: '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Users size={14} color="#94A3B8" /> {b.dept || 'CS'}
+                {/* Department & Student Count Pill */}
+                <div className="p-2 sm:px-3 sm:py-2 rounded-lg bg-slate-50 text-xs text-slate-600 flex flex-wrap items-center justify-between gap-1.5 mb-2.5 min-w-0 overflow-hidden">
+                  <span className="flex items-center gap-1.5 min-w-0 truncate">
+                    <Users size={14} className="text-slate-400 shrink-0" /> 
+                    <span className="truncate font-medium">{b.dept || 'Computer Science'}</span>
                   </span>
-                  <strong style={{ color: '#2563EB', fontWeight: 700 }}>{b.studentCount || b.students || 0} Students</strong>
+                  <strong className="text-blue-600 font-bold shrink-0">{b.studentCount || b.students || 0} Students</strong>
                 </div>
 
                 <button
                   onClick={() => handleViewStudents(b)}
-                  style={{
-                    width: '100%', padding: '9px 14px',
-                    backgroundColor: '#EFF6FF', color: '#2563EB',
-                    border: '1px solid #BFDBFE', borderRadius: '10px',
-                    fontSize: '12px', fontWeight: 700, cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                    transition: 'all 0.15s ease'
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#2563EB'; e.currentTarget.style.color = '#fff'; }}
-                  onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#EFF6FF'; e.currentTarget.style.color = '#2563EB'; }}
+                  className="w-full py-2 px-3 bg-blue-50 hover:bg-blue-600 text-blue-600 hover:text-white border border-blue-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer min-w-0 overflow-hidden"
                 >
-                  <Users size={14} /> Show Batch Students ({b.studentCount || b.students || 0})
+                  <Users size={14} className="shrink-0" /> 
+                  <span className="truncate">Show Batch Students ({b.studentCount || b.students || 0})</span>
                 </button>
               </div>
             </div>
@@ -320,83 +287,82 @@ export default function Batches({ setActiveNav }) {
 
       {/* Batch Enrolled Students Modal */}
       {selectedBatchForModal && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15,23,42,0.5)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px'
-        }}>
-          <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '28px', width: '740px', maxWidth: '95vw', maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', borderBottom: '1px solid #F1F5F9', paddingBottom: '14px' }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 800, color: '#2563EB', backgroundColor: '#EFF6FF', padding: '3px 8px', borderRadius: '6px', textTransform: 'uppercase' }}>
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-fadeIn">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden border border-slate-100 animate-scaleIn">
+            <div className="flex justify-between items-start mb-4 border-b border-slate-100 pb-3 gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-xs font-extrabold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md uppercase shrink-0">
                     {selectedBatchForModal.code}
                   </span>
-                  <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>Batch Enrolled Students</h2>
+                  <h2 className="m-0 text-base sm:text-lg font-extrabold text-slate-900 truncate">Batch Enrolled Students</h2>
                 </div>
-                <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#64748B' }}>
+                <p className="m-0 mt-1 text-xs text-slate-500 truncate">
                   Department: <strong>{selectedBatchForModal.dept || 'Computer Science'}</strong> • Advisor: <strong>{selectedBatchForModal.advisor || 'Unassigned'}</strong>
                 </p>
               </div>
-              <button onClick={() => setSelectedBatchForModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8' }}>
+              <button onClick={() => setSelectedBatchForModal(null)} className="p-1 rounded-full text-slate-400 hover:text-slate-600 transition-colors shrink-0">
                 <X size={20} />
               </button>
             </div>
 
-            <div style={{ flex: 1, overflowY: 'auto', marginBottom: '16px' }}>
+            <div className="flex-1 overflow-y-auto mb-4 thin-scrollbar">
               {loadingBatchStudents ? (
-                <div style={{ textAlign: 'center', padding: '40px', color: '#94A3B8', fontSize: '13px' }}>Loading enrolled students...</div>
+                <div className="text-center py-10 text-slate-400 text-xs">Loading enrolled students...</div>
               ) : batchStudents.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px', color: '#94A3B8', fontSize: '13px' }}>No students currently enrolled in this batch.</div>
+                <div className="text-center py-10 text-slate-400 text-xs">No students currently enrolled in this batch.</div>
               ) : (
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid #E2E8F0', color: '#64748B', fontWeight: 600, textAlign: 'left' }}>
-                      <th style={{ padding: '10px 8px' }}>ROLL NUMBER</th>
-                      <th style={{ padding: '10px 8px' }}>NAME</th>
-                      <th style={{ padding: '10px 8px' }}>EMAIL</th>
-                      <th style={{ padding: '10px 8px' }}>SEMESTER</th>
-                      <th style={{ padding: '10px 8px' }}>CGPA</th>
-                      <th style={{ padding: '10px 8px', textAlign: 'right' }}>STATUS</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {batchStudents.map(s => (
-                      <tr key={s._id || s.id} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                        <td style={{ padding: '10px 8px', fontWeight: 700, color: '#2563EB' }}>{s.rollNumber || s.studentID}</td>
-                        <td style={{ padding: '10px 8px', color: '#0F172A', fontWeight: 600 }}>{s.name || s.studentName}</td>
-                        <td style={{ padding: '10px 8px', color: '#64748B', fontSize: '12px' }}>{s.email}</td>
-                        <td style={{ padding: '10px 8px', color: '#64748B' }}>Semester {s.currentSemester || s.semester || 1}</td>
-                        <td style={{ padding: '10px 8px', fontWeight: 700, color: (s.cgpa || 0) >= 3.0 ? '#10B981' : (s.cgpa || 0) >= 2.0 ? '#F59E0B' : '#EF4444' }}>
-                          {s.cgpa ? Number(s.cgpa).toFixed(2) : 'N/A'}
-                        </td>
-                        <td style={{ padding: '10px 8px', textAlign: 'right' }}>
-                          <span style={{ padding: '3px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 600, backgroundColor: s.status === 'active' ? '#D1FAE5' : '#FEF3C7', color: s.status === 'active' ? '#059669' : '#D97706' }}>
-                            {(s.status || 'active').toUpperCase()}
-                          </span>
-                        </td>
+                <div className="overflow-x-auto thin-scrollbar">
+                  <table className="w-full min-w-[500px] border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-slate-500 font-semibold text-left">
+                        <th className="py-2.5 px-2">ROLL NUMBER</th>
+                        <th className="py-2.5 px-2">NAME</th>
+                        <th className="py-2.5 px-2">EMAIL</th>
+                        <th className="py-2.5 px-2">SEMESTER</th>
+                        <th className="py-2.5 px-2">CGPA</th>
+                        <th className="py-2.5 px-2 text-right">STATUS</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {batchStudents.map(s => (
+                        <tr key={s._id || s.id} className="border-b border-slate-100 hover:bg-slate-50/60 transition-colors">
+                          <td className="py-2.5 px-2 font-bold text-blue-600">{s.rollNumber || s.studentID}</td>
+                          <td className="py-2.5 px-2 font-semibold text-slate-900">{s.name || s.studentName}</td>
+                          <td className="py-2.5 px-2 text-slate-500 text-[11px]">{s.email}</td>
+                          <td className="py-2.5 px-2 text-slate-500">Semester {s.currentSemester || s.semester || 1}</td>
+                          <td className={`py-2.5 px-2 font-bold ${(s.cgpa || 0) >= 3.0 ? 'text-emerald-600' : (s.cgpa || 0) >= 2.0 ? 'text-amber-500' : 'text-red-500'}`}>
+                            {s.cgpa ? Number(s.cgpa).toFixed(2) : 'N/A'}
+                          </td>
+                          <td className="py-2.5 px-2 text-right">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${s.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                              {(s.status || 'active').toUpperCase()}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '14px', borderTop: '1px solid #F1F5F9' }}>
-              <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 500 }}>
-                Total Enrolled: <strong style={{ color: '#0F172A' }}>{batchStudents.length} Students</strong>
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 pt-3 border-t border-slate-100">
+              <span className="text-xs text-slate-500">
+                Total Enrolled: <strong className="text-slate-900">{batchStudents.length} Students</strong>
               </span>
-              <div style={{ display: 'flex', gap: '10px' }}>
+              <div className="flex gap-2">
                 {setActiveNav && (
                   <button
                     onClick={() => { setSelectedBatchForModal(null); setActiveNav('students'); }}
-                    style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid #DBEAFE', backgroundColor: '#EFF6FF', color: '#2563EB', fontWeight: 600, fontSize: '12px', cursor: 'pointer' }}
+                    className="flex-1 sm:flex-none px-3 py-2 rounded-lg border border-blue-200 bg-blue-50 text-blue-600 font-semibold text-xs hover:bg-blue-100 transition-colors cursor-pointer"
                   >
                     Open in Student Directory
                   </button>
                 )}
                 <button
                   onClick={() => setSelectedBatchForModal(null)}
-                  style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #E2E8F0', backgroundColor: '#F8FAFC', color: '#475569', fontWeight: 600, fontSize: '12px', cursor: 'pointer' }}
+                  className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 font-semibold text-xs hover:bg-slate-100 transition-colors cursor-pointer"
                 >
                   Close
                 </button>

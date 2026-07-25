@@ -59,30 +59,58 @@ html {
   scrollbar-color: #cbd5e1 transparent;
 }
 
-/* ── Mobile-Responsive Modal Fix ── */
+/* ── Mobile-Responsive Modal & Select Sheet Fix ── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slideUp {
+  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-scaleIn {
+  animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 @media (max-width: 640px) {
-  /* All fixed-overlay modal backdrops: add safe padding */
+  /* All fixed-overlay modal backdrops: add safe padding & prevent top clipping */
   div[style*="position: fixed"][style*="inset: 0"] {
-    padding: 16px !important;
+    padding: 12px !important;
     box-sizing: border-box !important;
   }
 
   /* All direct children of modal overlays (the modal boxes themselves) */
   div[style*="position: fixed"][style*="inset: 0"] > div,
   div[style*="position: fixed"][style*="inset: 0"] > form {
-    max-width: calc(100vw - 32px) !important;
-    max-height: calc(100vh - 32px) !important;
+    max-width: calc(100vw - 24px) !important;
+    max-height: calc(100vh - 36px) !important;
     overflow-y: auto !important;
     width: 100% !important;
-    margin: 0 auto !important;
+    margin: auto !important;
     box-sizing: border-box !important;
   }
 
   /* MUI Dialog paper override for mobile */
   .MuiDialog-paper {
-    margin: 16px !important;
-    max-width: calc(100vw - 32px) !important;
-    max-height: calc(100vh - 32px) !important;
+    margin: 12px !important;
+    max-width: calc(100vw - 24px) !important;
+    max-height: calc(100vh - 36px) !important;
     width: 100% !important;
   }
 }
+

@@ -16,6 +16,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useModal } from '../../contexts/ModalContext';
 import AcademicSummary from '../../pages/students/AcademicSummary';
 import DegreeProgress from '../../pages/students/DegreeProgress';
+import ResponsiveSelect from '../../components/common/ResponsiveSelect';
 
 export default function StudentRecords({ setActiveNav }) {
   const { user } = useAuth();
@@ -516,65 +517,67 @@ export default function StudentRecords({ setActiveNav }) {
               </div>
 
               {/* Department Dropdown */}
-              <select
+              <ResponsiveSelect
                 value={deptFilter}
                 onChange={e => { setDeptFilter(e.target.value); setPage(1); }}
-                style={{ padding: '7px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', backgroundColor: '#FFFFFF', color: '#475569', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}
-              >
-                <option value="">All Departments</option>
-                {departments.map(d => (
-                  <option key={d._id} value={d.name}>{d.code || d.name}</option>
-                ))}
-              </select>
+                placeholder="All Departments"
+                label="Select Department"
+                options={[
+                  { value: '', label: 'All Departments' },
+                  ...departments.map(d => ({ value: d.name, label: d.code || d.name }))
+                ]}
+              />
 
               {/* Batch Dropdown */}
-              <select
+              <ResponsiveSelect
                 value={batchFilter}
                 onChange={e => { setBatchFilter(e.target.value); setPage(1); }}
-                style={{ padding: '7px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', backgroundColor: '#FFFFFF', color: '#475569', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}
-              >
-                <option value="">All Batches</option>
-                {batches.map(b => (
-                  <option key={b._id} value={b.code}>{b.code}</option>
-                ))}
-              </select>
+                placeholder="All Batches"
+                label="Select Batch"
+                options={[
+                  { value: '', label: 'All Batches' },
+                  ...batches.map(b => ({ value: b.code, label: b.code }))
+                ]}
+              />
 
               {/* Semester Dropdown */}
-              <select
+              <ResponsiveSelect
                 value={semesterFilter}
                 onChange={e => { setSemesterFilter(e.target.value); setPage(1); }}
-                style={{ padding: '7px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', backgroundColor: '#FFFFFF', color: '#475569', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}
-              >
-                <option value="">All Semesters</option>
-                {(() => {
-                  const options = [1, 2, 3, 4, 5, 6, 7, 8, 'graduated'];
-                  return options.map(sem => (
-                    <option key={sem} value={sem}>{sem === 'graduated' ? 'Graduated' : `Semester ${sem}`}</option>
-                  ));
-                })()}
-              </select>
+                placeholder="All Semesters"
+                label="Select Semester"
+                options={[
+                  { value: '', label: 'All Semesters' },
+                  ...[1, 2, 3, 4, 5, 6, 7, 8].map(sem => ({ value: sem, label: `Semester ${sem}` })),
+                  { value: 'graduated', label: 'Graduated' }
+                ]}
+              />
 
               {/* Session Dropdown */}
-              <select
+              <ResponsiveSelect
                 value={sessionFilter}
                 onChange={e => { setSessionFilter(e.target.value); setPage(1); }}
-                style={{ padding: '7px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', backgroundColor: '#FFFFFF', color: '#475569', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}
-              >
-                <option value="">All Intake Terms</option>
-                <option value="Spring">Spring Intake</option>
-                <option value="Fall">Fall Intake</option>
-              </select>
+                placeholder="All Intake Terms"
+                label="Select Intake Term"
+                options={[
+                  { value: '', label: 'All Intake Terms' },
+                  { value: 'Spring', label: 'Spring Intake' },
+                  { value: 'Fall', label: 'Fall Intake' }
+                ]}
+              />
 
               {/* Status Dropdown */}
-              <select
+              <ResponsiveSelect
                 value={statusFilter}
                 onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
-                style={{ padding: '7px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', backgroundColor: '#FFFFFF', color: '#475569', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}
-              >
-                <option value="">All Statuses</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
+                placeholder="All Statuses"
+                label="Select Status"
+                options={[
+                  { value: '', label: 'All Statuses' },
+                  { value: 'active', label: 'Active' },
+                  { value: 'inactive', label: 'Inactive' }
+                ]}
+              />
             </div>
 
             <button
@@ -1090,57 +1093,53 @@ export default function StudentRecords({ setActiveNav }) {
                     <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
                       Department *
                     </label>
-                    <select
-                      required
+                    <ResponsiveSelect
                       value={formData.departmentId}
                       onChange={e => {
                         const newDeptId = e.target.value;
                         const newRoll = generateNextRollNumber(newDeptId, formData.batchId, formData.intakeSession);
                         setFormData(f => ({ ...f, departmentId: newDeptId, rollNumber: newRoll }));
                       }}
-                      style={{ width: '100%', padding: '10px 12px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', backgroundColor: '#fff', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}
-                    >
-                      <option value="">Select Department...</option>
-                      {departments.map(d => <option key={d._id} value={d._id}>{d.name}</option>)}
-                    </select>
+                      placeholder="Select Department..."
+                      className="w-full"
+                      options={departments.map(d => ({ value: d._id, label: d.name }))}
+                    />
                   </div>
 
                   <div>
                     <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
                       Batch *
                     </label>
-                    <select
-                      required
+                    <ResponsiveSelect
                       value={formData.batchId}
                       onChange={e => {
                         const newBatchId = e.target.value;
                         const newRoll = generateNextRollNumber(formData.departmentId, newBatchId, formData.intakeSession);
                         setFormData(f => ({ ...f, batchId: newBatchId, rollNumber: newRoll }));
                       }}
-                      style={{ width: '100%', padding: '10px 12px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', backgroundColor: '#fff', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}
-                    >
-                      <option value="">Select Batch...</option>
-                      {batches.map(b => <option key={b._id} value={b._id}>{b.code}</option>)}
-                    </select>
+                      placeholder="Select Batch..."
+                      className="w-full"
+                      options={batches.map(b => ({ value: b._id, label: b.code }))}
+                    />
                   </div>
 
                   <div>
                     <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
                       Intake Term *
                     </label>
-                    <select
-                      required
+                    <ResponsiveSelect
                       value={formData.intakeSession || 'Fall'}
                       onChange={e => {
                         const newSession = e.target.value;
                         const newRoll = generateNextRollNumber(formData.departmentId, formData.batchId, newSession);
                         setFormData(f => ({ ...f, intakeSession: newSession, rollNumber: newRoll }));
                       }}
-                      style={{ width: '100%', padding: '10px 12px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', backgroundColor: '#fff', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}
-                    >
-                      <option value="Fall">🍂 Fall Intake</option>
-                      <option value="Spring">🌸 Spring Intake</option>
-                    </select>
+                      className="w-full"
+                      options={[
+                        { value: 'Fall', label: '🍂 Fall Intake' },
+                        { value: 'Spring', label: '🌸 Spring Intake' }
+                      ]}
+                    />
                   </div>
                 </div>
 
@@ -1150,16 +1149,12 @@ export default function StudentRecords({ setActiveNav }) {
                     <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
                       Current Semester *
                     </label>
-                    <select
-                      required
+                    <ResponsiveSelect
                       value={formData.currentSemester || 1}
                       onChange={e => setFormData(f => ({ ...f, currentSemester: Number(e.target.value) }))}
-                      style={{ width: '100%', padding: '10px 12px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', backgroundColor: '#fff', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}
-                    >
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(sem => (
-                        <option key={sem} value={sem}>Semester {sem}</option>
-                      ))}
-                    </select>
+                      className="w-full"
+                      options={[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(sem => ({ value: sem, label: `Semester ${sem}` }))}
+                    />
                   </div>
 
                   <div>
@@ -1238,38 +1233,46 @@ export default function StudentRecords({ setActiveNav }) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Department *</label>
-                    <select required value={editForm.departmentId} onChange={e => setEditForm(f => ({ ...f, departmentId: e.target.value }))}
-                      style={{ width: '100%', padding: '10px 12px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', backgroundColor: '#fff', outline: 'none', fontFamily: 'inherit' }}>
-                      <option value="">Select...</option>
-                      {departments.map(d => <option key={d._id} value={d._id}>{d.name}</option>)}
-                    </select>
+                    <ResponsiveSelect
+                      value={editForm.departmentId}
+                      onChange={e => setEditForm(f => ({ ...f, departmentId: e.target.value }))}
+                      placeholder="Select..."
+                      className="w-full"
+                      options={departments.map(d => ({ value: d._id, label: d.name }))}
+                    />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Batch *</label>
-                    <select required value={editForm.batchId} onChange={e => setEditForm(f => ({ ...f, batchId: e.target.value }))}
-                      style={{ width: '100%', padding: '10px 12px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', backgroundColor: '#fff', outline: 'none', fontFamily: 'inherit' }}>
-                      <option value="">Select...</option>
-                      {batches.map(b => <option key={b._id} value={b._id}>{b.code}</option>)}
-                    </select>
+                    <ResponsiveSelect
+                      value={editForm.batchId}
+                      onChange={e => setEditForm(f => ({ ...f, batchId: e.target.value }))}
+                      placeholder="Select..."
+                      className="w-full"
+                      options={batches.map(b => ({ value: b._id, label: b.code }))}
+                    />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Semester *</label>
-                    <select required value={editForm.currentSemester || 1} onChange={e => setEditForm(f => ({ ...f, currentSemester: Number(e.target.value) }))}
-                      style={{ width: '100%', padding: '10px 12px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', backgroundColor: '#fff', outline: 'none', fontFamily: 'inherit' }}>
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(sem => (
-                        <option key={sem} value={sem}>Semester {sem}</option>
-                      ))}
-                    </select>
+                    <ResponsiveSelect
+                      value={editForm.currentSemester || 1}
+                      onChange={e => setEditForm(f => ({ ...f, currentSemester: Number(e.target.value) }))}
+                      className="w-full"
+                      options={[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(sem => ({ value: sem, label: `Semester ${sem}` }))}
+                    />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Intake Term *</label>
-                    <select required value={editForm.intakeSession || 'Fall'} onChange={e => setEditForm(f => ({ ...f, intakeSession: e.target.value }))}
-                      style={{ width: '100%', padding: '10px 12px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', backgroundColor: '#fff', outline: 'none', fontFamily: 'inherit' }}>
-                      <option value="Fall">🍂 Fall Intake</option>
-                      <option value="Spring">🌸 Spring Intake</option>
-                    </select>
+                    <ResponsiveSelect
+                      value={editForm.intakeSession || 'Fall'}
+                      onChange={e => setEditForm(f => ({ ...f, intakeSession: e.target.value }))}
+                      className="w-full"
+                      options={[
+                        { value: 'Fall', label: '🍂 Fall Intake' },
+                        { value: 'Spring', label: '🌸 Spring Intake' }
+                      ]}
+                    />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1280,11 +1283,15 @@ export default function StudentRecords({ setActiveNav }) {
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Status *</label>
-                    <select required value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))}
-                      style={{ width: '100%', padding: '10px 12px', border: '1px solid #CBD5E1', borderRadius: '10px', fontSize: '13px', backgroundColor: '#fff', outline: 'none', fontFamily: 'inherit' }}>
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                    </select>
+                    <ResponsiveSelect
+                      value={editForm.status}
+                      onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))}
+                      className="w-full"
+                      options={[
+                        { value: 'active', label: 'Active' },
+                        { value: 'inactive', label: 'Inactive' }
+                      ]}
+                    />
                   </div>
                 </div>
               </div>

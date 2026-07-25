@@ -7,6 +7,7 @@ import {
   Filter, Eye, Download, Calendar, User, Building2, AlertTriangle, Printer
 } from 'lucide-react';
 import { CircularProgress } from '@mui/material';
+import ResponsiveSelect from '../../components/common/ResponsiveSelect';
 
 export default function MigrationAudit() {
   const [migrations, setMigrations] = useState([]);
@@ -232,8 +233,8 @@ export default function MigrationAudit() {
       <div className="grid grid-cols-1 md:grid-cols-[1fr_200px] gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
         
         {/* Search */}
-        <div style={{ position: 'relative' }}>
-          <span style={{ position: 'absolute', insetY: 0, left: 0, paddingLeft: '12px', display: 'flex', alignItems: 'center', pointerEvents: 'none', color: '#94A3B8' }}>
+        <div className="relative">
+          <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
             <Search size={16} />
           </span>
           <input
@@ -241,29 +242,23 @@ export default function MigrationAudit() {
             placeholder="Search by Student Name, Roll Number, or Source Institution..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            style={{
-              width: '100%', padding: '9px 12px 9px 38px', border: '1px solid #E2E8F0',
-              borderRadius: '8px', fontSize: '13px', outline: 'none', fontFamily: 'inherit'
-            }}
+            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm outline-none bg-white text-slate-800 focus:border-blue-500"
           />
         </div>
 
-        {/* Status Filter */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
           <Filter size={15} color="#94A3B8" />
-          <select
+          <ResponsiveSelect
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            style={{
-              flex: 1, padding: '9px 12px', border: '1px solid #E2E8F0',
-              borderRadius: '8px', fontSize: '13px', backgroundColor: '#fff', outline: 'none', fontFamily: 'inherit'
-            }}
-          >
-            <option value="all">All Decision Statuses</option>
-            <option value="approved">Approved / Equated</option>
-            <option value="rejected">Rejected / Credit Losses</option>
-            <option value="pending">Pending Evaluation</option>
-          </select>
+            className="w-full"
+            options={[
+              { value: 'all', label: 'All Decision Statuses' },
+              { value: 'approved', label: 'Approved / Equated' },
+              { value: 'rejected', label: 'Rejected / Credit Losses' },
+              { value: 'pending', label: 'Pending Evaluation' }
+            ]}
+          />
         </div>
 
       </div>

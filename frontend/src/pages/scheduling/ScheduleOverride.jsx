@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { Edit2, Plus, Trash2, X, Info, AlertTriangle, CheckCircle, ClipboardList, Clock } from "lucide-react";
 import { useModal } from "../../contexts/ModalContext";
+import ResponsiveSelect from "../../components/common/ResponsiveSelect";
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const TIMESLOTS = [
@@ -793,16 +794,13 @@ function ScheduleOverride({ initialTab = "timetable" }) {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1">Room Location</label>
-                  <select
+                  <ResponsiveSelect
                     value={room}
                     onChange={(e) => setRoom(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-slate-800 focus:border-blue-500 outline-none bg-white"
-                  >
-                    <option value="">Select Room</option>
-                    {ROOMS.map(r => (
-                      <option key={r} value={r}>{r}</option>
-                    ))}
-                  </select>
+                    placeholder="Select Room"
+                    className="w-full"
+                    options={ROOMS.map(r => ({ value: r, label: r }))}
+                  />
                 </div>
                 <div>
                   <label className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1">
@@ -824,29 +822,23 @@ function ScheduleOverride({ initialTab = "timetable" }) {
                   <label className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1">
                     {activeTab === "timetable" ? "Day" : "Date"}
                   </label>
-                  <select
+                  <ResponsiveSelect
                     value={slotDayOrDate}
                     onChange={(e) => setSlotDayOrDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-slate-800 focus:border-blue-500 outline-none bg-white"
-                  >
-                    {(activeTab === "timetable" ? DAYS : DATES).map(val => (
-                      <option key={val} value={val}>{val}</option>
-                    ))}
-                  </select>
+                    className="w-full"
+                    options={(activeTab === "timetable" ? DAYS : DATES).map(val => ({ value: val, label: val }))}
+                  />
                 </div>
                 <div>
                   <label className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1">
                     {activeTab === "timetable" ? "Time Slot" : "Exam Slot"}
                   </label>
-                  <select
+                  <ResponsiveSelect
                     value={slotTimeOrPeriod}
                     onChange={(e) => setSlotTimeOrPeriod(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-slate-800 focus:border-blue-500 outline-none bg-white"
-                  >
-                    {(activeTab === "timetable" ? TIMESLOTS : EXAMSLOTS).map(val => (
-                      <option key={val} value={val}>{val}</option>
-                    ))}
-                  </select>
+                    className="w-full"
+                    options={(activeTab === "timetable" ? TIMESLOTS : EXAMSLOTS).map(val => ({ value: val, label: val }))}
+                  />
                 </div>
               </div>
 

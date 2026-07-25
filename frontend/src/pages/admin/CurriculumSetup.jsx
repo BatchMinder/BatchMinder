@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BookOpen, Building2, Layers, GitCompare, FileEdit, Trash2, Eye, Plus, ArrowRightLeft, Clock, X } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { format } from 'date-fns';
+import ResponsiveSelect from '../../components/common/ResponsiveSelect';
 
 const COLORS = ['#2563EB', '#F59E0B', '#10B981', '#8B5CF6'];
 
@@ -267,16 +268,14 @@ export default function CurriculumSetup() {
                       onChange={e => setSearchQuery(e.target.value)}
                       style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '13px', outline: 'none' }} 
                     />
-                    <select 
+                    <ResponsiveSelect 
                       value={departmentFilter}
                       onChange={e => setDepartmentFilter(e.target.value)}
-                      style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '13px', outline: 'none', backgroundColor: '#fff' }}
-                    >
-                      <option value="all">All Departments</option>
-                      {departments.map(d => (
-                        <option key={d._id} value={d._id}>{d.name}</option>
-                      ))}
-                    </select>
+                      options={[
+                        { value: 'all', label: 'All Departments' },
+                        ...departments.map(d => ({ value: d._id, label: d.name }))
+                      ]}
+                    />
                   </div>
                 </div>
                 <div style={{ overflowX: 'auto' }}>
@@ -368,16 +367,14 @@ export default function CurriculumSetup() {
         <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Course List {selectedCurriculum && `(v${selectedCurriculum.version})`}</h3>
-            <select 
+            <ResponsiveSelect 
               value={semesterFilter}
               onChange={e => setSemesterFilter(e.target.value)}
-              style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', outline: 'none', backgroundColor: '#fff' }}
-            >
-              <option value="all">All Semesters</option>
-              {[1, 2, 3, 4, 5, 6, 7, 8].map(s => (
-                 <option key={s} value={s}>Semester {s}</option>
-              ))}
-            </select>
+              options={[
+                { value: 'all', label: 'All Semesters' },
+                ...[1, 2, 3, 4, 5, 6, 7, 8].map(s => ({ value: String(s), label: `Semester ${s}` }))
+              ]}
+            />
           </div>
           <div style={{ overflowX: 'auto', flex: 1 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
@@ -485,26 +482,23 @@ export default function CurriculumSetup() {
             <form onSubmit={handleAddCurriculumSubmit} style={{ padding: '24px' }}>
               <div style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Batch Code</label>
-                <select 
-                  required 
+                <ResponsiveSelect 
                   value={addForm.batchId} 
                   onChange={e => setAddForm({...addForm, batchId: e.target.value})} 
-                  style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #E2E8F0', fontSize: '14px', outline: 'none', backgroundColor: '#fff' }}
-                >
-                  <option value="">Select Batch</option>
-                  {batches.map(b => (
-                    <option key={b._id} value={b._id}>{b.code}</option>
-                  ))}
-                </select>
+                  className="w-full"
+                  placeholder="Select Batch"
+                  options={batches.map(b => ({ value: b._id, label: b.code }))}
+                />
               </div>
               <div style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Department</label>
-                <select required value={addForm.departmentId} onChange={e => setAddForm({...addForm, departmentId: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #E2E8F0', fontSize: '14px', outline: 'none', backgroundColor: '#fff' }}>
-                  <option value="">Select Department</option>
-                  {departments.map(d => (
-                    <option key={d._id} value={d._id}>{d.name}</option>
-                  ))}
-                </select>
+                <ResponsiveSelect 
+                  value={addForm.departmentId} 
+                  onChange={e => setAddForm({...addForm, departmentId: e.target.value})} 
+                  className="w-full"
+                  placeholder="Select Department"
+                  options={departments.map(d => ({ value: d._id, label: d.name }))}
+                />
               </div>
               <div style={{ marginBottom: '24px' }}>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Version</label>
