@@ -2,14 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   Layers, Hourglass, CheckCircle2, XCircle, ExternalLink, Search, Plus, RefreshCw,
-  ChevronDown, LayoutGrid, FileText, Download, X, AlertCircle, SlidersHorizontal
+  ChevronDown, X, AlertCircle, SlidersHorizontal
 } from 'lucide-react';
 import { CircularProgress } from '@mui/material';
 import ResponsiveSelect from '../../components/common/ResponsiveSelect';
 
 import PrerequisiteCheck from '../../components/ApprovalWorkflow/PrerequisiteCheck';
-import CreditHourMeter from '../../components/ApprovalWorkflow/CreditHourMeter';
 import DuplicateWarning from '../../components/ApprovalWorkflow/DuplicateWarning';
+import EditRequestModal from '../../components/ApprovalWorkflow/EditRequestModal';
 
 // ─── Avatar color palette ─────────────────────────────────────────────────────
 const AVATAR_COLORS = [
@@ -49,6 +49,63 @@ const getPriorityBadge = (p = 'Medium') => {
   return 'bg-amber-100 text-amber-700';
 };
 const isActionable = (status = '') => status.toLowerCase().includes('pending');
+const formatDate = (d) => d ? new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+
+// ─── Real (2-level) approval workflow, driven by the actual request state ─────
+// Matches the backend ApprovalRequest status enum — pending -> advisor_approved/
+// advisor_rejected -> approved/rejected/special_granted/returned_for_edit.
+// There is no Registrar/Final-Confirmation step in the schema, so only these
+// two levels are rendered.
+const getWorkflowSteps = (req) => {
+  const raw = req.rawStatus || '';
+  const advisorDone = raw !== 'pending';
+  const advisorApproved = advisorDone && raw !== 'advisor_rejected';
+  const hodDone = ['approved', 'rejected', 'special_granted'].includes(raw);
+
+  return [
+    {
+      n: 1,
+      label: 'Advisor Review',
+      name: req.advisorDecision?.decidedBy?.name || req.advisorId?.name || 'Unassigned',
+      date: formatDate(req.advisorDecision?.decidedAt),
+      active: !advisorDone,
+      statusLabel: !advisorDone ? 'Pending' : advisorApproved ? 'Approved' : 'Rejected',
+    },
+    {
+      n: 2,
+      label: 'HOD Approval',
+      name: req.hodDecision?.decidedBy?.name || (advisorApproved ? 'Awaiting Assignment' : '—'),
+      date: formatDate(req.hodDecision?.decidedAt),
+      active: advisorApproved && !hodDone,
+      statusLabel: !advisorDone ? 'Not Started' : !advisorApproved ? 'Skipped' : !hodDone ? 'Pending' : raw === 'rejected' ? 'Rejected' : 'Approved',
+    },
+  ];
+};
+
+// ─── Real approval history, driven by actual submission/decision timestamps ──
+const getHistoryEvents = (req) => {
+  const events = [
+    { label: 'Request Submitted', sub: req.studentName, time: formatDate(req.createdAt), dot: '#10B981' },
+  ];
+  if (req.advisorDecision?.decidedAt) {
+    events.push({
+      label: req.rawStatus === 'advisor_rejected' ? 'Rejected by Advisor' : req.rawStatus === 'returned_for_edit' ? 'Returned by Advisor' : 'Approved by Advisor',
+      sub: req.advisorDecision.decidedBy?.name || req.advisorId?.name || 'Advisor',
+      time: formatDate(req.advisorDecision.decidedAt),
+      dot: '#3B82F6',
+    });
+  }
+  if (req.hodDecision?.decidedAt) {
+    events.push({
+      label: req.rawStatus === 'rejected' ? 'Rejected by HOD' : req.rawStatus === 'special_granted' ? 'Special Permission Granted' : 'Approved by HOD',
+      sub: req.hodDecision.decidedBy?.name || 'HOD',
+      time: formatDate(req.hodDecision.decidedAt),
+      dot: '#3B82F6',
+    });
+  }
+  const withTags = events.map((ev, i) => ({ n: i + 1, tag: i === events.length - 1 && isActionable(req.status) ? 'Current Step' : undefined, ...ev }));
+  return withTags.reverse();
+};
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function AdvisorQueue() {
@@ -70,6 +127,7 @@ export default function AdvisorQueue() {
 
   // Submit modal state
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [showResubmitModal, setShowResubmitModal] = useState(false);
   const [studentSearch, setStudentSearch] = useState('');
   const [searchingStudents, setSearchingStudents] = useState(false);
   const [studentsList, setStudentsList] = useState([]);
@@ -163,7 +221,7 @@ export default function AdvisorQueue() {
       const remarksText = remarks.trim();
       const res = await fetch(endpoint, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
@@ -179,7 +237,7 @@ export default function AdvisorQueue() {
   const handleCourseChange = (e) => {
     const val = e.target.value; setSelectedCourseId(val);
     if (!val) { setCourseCode(''); setCourseTitle(''); setCreditHours(3); return; }
-    const list = requestType === 'add' ? eligibleCourses.curriculumCourses : eligibleCourses.enrolledCourses;
+    const list = (requestType === 'add' || requestType === 'special_permission') ? eligibleCourses.curriculumCourses : eligibleCourses.enrolledCourses;
     const m = list.find(c => (c._id === val || (c.courseCode || c.code) === val));
     if (m) { setCourseCode(m.courseCode || m.code || ''); setCourseTitle(m.courseTitle || m.title || ''); setCreditHours(Number(m.creditHours)); }
   };
@@ -188,6 +246,7 @@ export default function AdvisorQueue() {
     e.preventDefault();
     if (!selectedStudent) { setSubmitError('Please select a student.'); return; }
     if (!courseCode.trim() || !courseTitle.trim()) { setSubmitError('Please select a subject.'); return; }
+    if (requestType === 'special_permission' && !justification.trim()) { setSubmitError('Justification is required for special permission requests.'); return; }
     setSubmitError(''); setSubmitLoading(true);
     try {
       const res = await fetch('/api/advisor/requests', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ studentId: selectedStudent._id, courseCode: courseCode.trim().toUpperCase(), courseTitle: courseTitle.trim(), creditHours: Number(creditHours), requestType, justification: justification.trim() }) });
@@ -278,221 +337,221 @@ export default function AdvisorQueue() {
         {/* Requests Queue Card */}
         <div className="order-1 xl:col-start-1 xl:row-start-1 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden min-w-0">
 
-            {/* Table Header */}
-            <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="text-sm font-extrabold text-slate-800">Requests Queue</h2>
-              {selectedRequest && <span className="text-xs font-bold text-slate-500">{selectedReqId}</span>}
+          {/* Table Header */}
+          <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+            <h2 className="text-sm font-extrabold text-slate-800">Requests Queue</h2>
+            {selectedRequest && <span className="text-xs font-bold text-slate-500">{selectedReqId}</span>}
+          </div>
+
+          {/* Filters */}
+          <div className="px-4 py-2.5 border-b border-slate-100 flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[180px]">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input type="text" placeholder="Search by student, ID or request type..." value={searchQuery}
+                onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
+                className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none placeholder-slate-400" />
             </div>
+            {[
+              { value: filterType, onChange: e => { setFilterType(e.target.value); setPage(1); }, opts: [['all', 'All Request Types'], ['add', 'Course Registration'], ['drop', 'Course Drop'], ['withdrawal', 'Course Withdrawal']] },
+              { value: filterStatus, onChange: e => { setFilterStatus(e.target.value); setPage(1); }, opts: [['all', 'All Status'], ['pending', 'Pending'], ['approved', 'Approved'], ['rejected', 'Rejected'], ['escalated', 'Escalated']] },
+              { value: filterPriority, onChange: e => { setFilterPriority(e.target.value); setPage(1); }, opts: [['all', 'All Priority'], ['high', 'High'], ['medium', 'Medium'], ['low', 'Low']] },
+            ].map((sel, i) => (
+              <ResponsiveSelect
+                key={i}
+                value={sel.value}
+                onChange={sel.onChange}
+                options={sel.opts.map(([v, l]) => ({ value: v, label: l }))}
+              />
+            ))}
+            <button className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 text-white text-xs font-bold rounded-lg hover:bg-slate-700 transition-colors">
+              <SlidersHorizontal className="w-3 h-3" /> Filter
+            </button>
+          </div>
 
-            {/* Filters */}
-            <div className="px-4 py-2.5 border-b border-slate-100 flex flex-wrap items-center gap-2">
-              <div className="relative flex-1 min-w-[180px]">
-                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input type="text" placeholder="Search by student, ID or request type..." value={searchQuery}
-                  onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
-                  className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none placeholder-slate-400" />
-              </div>
-              {[
-                { value: filterType, onChange: e => { setFilterType(e.target.value); setPage(1); }, opts: [['all','All Request Types'],['add','Course Registration'],['drop','Course Drop'],['withdrawal','Course Withdrawal']] },
-                { value: filterStatus, onChange: e => { setFilterStatus(e.target.value); setPage(1); }, opts: [['all','All Status'],['pending','Pending'],['approved','Approved'],['rejected','Rejected'],['escalated','Escalated']] },
-                { value: filterPriority, onChange: e => { setFilterPriority(e.target.value); setPage(1); }, opts: [['all','All Priority'],['high','High'],['medium','Medium'],['low','Low']] },
-              ].map((sel, i) => (
-                <ResponsiveSelect
-                  key={i}
-                  value={sel.value}
-                  onChange={sel.onChange}
-                  options={sel.opts.map(([v, l]) => ({ value: v, label: l }))}
-                />
-              ))}
-              <button className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 text-white text-xs font-bold rounded-lg hover:bg-slate-700 transition-colors">
-                <SlidersHorizontal className="w-3 h-3" /> Filter
-              </button>
-            </div>
+          {/* Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse whitespace-nowrap">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 font-extrabold uppercase tracking-widest text-[9px]">
+                  <th className="px-4 py-3">Request ID</th>
+                  <th className="px-4 py-3">Student</th>
+                  <th className="px-4 py-3">Request Type</th>
+                  <th className="px-4 py-3">Course / Detail</th>
+                  <th className="px-4 py-3">Requested On</th>
+                  <th className="px-4 py-3">Priority</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 text-right">Next Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {loading ? (
+                  <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-400"><CircularProgress size={16} /></td></tr>
+                ) : pagedRequests.length === 0 ? (
+                  <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-400 text-xs">No requests found.</td></tr>
+                ) : pagedRequests.map(req => {
+                  const isSelected = selectedRequest?.id === req.id;
+                  const priority = req.priority || (req.type?.toLowerCase().includes('add') ? 'High' : 'Medium');
+                  const stLabel = getStatusLabel(req.status);
+                  const avatarColor = getAvatarColor(req.studentName);
+                  const initials = getInitials(req.studentName);
+                  const reqId = `REQ-2026-${req.id.slice(-4).toUpperCase()}`;
+                  const actionable = isActionable(req.status);
+                  const typeLabel = req.type?.toLowerCase().includes('add') ? 'Course Registration' : (req.type || '');
 
-            {/* Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse whitespace-nowrap">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 font-extrabold uppercase tracking-widest text-[9px]">
-                    <th className="px-4 py-3">Request ID</th>
-                    <th className="px-4 py-3">Student</th>
-                    <th className="px-4 py-3">Request Type</th>
-                    <th className="px-4 py-3">Course / Detail</th>
-                    <th className="px-4 py-3">Requested On</th>
-                    <th className="px-4 py-3">Priority</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3 text-right">Next Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {loading ? (
-                    <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-400"><CircularProgress size={16} /></td></tr>
-                  ) : pagedRequests.length === 0 ? (
-                    <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-400 text-xs">No requests found.</td></tr>
-                  ) : pagedRequests.map(req => {
-                    const isSelected = selectedRequest?.id === req.id;
-                    const priority = req.priority || (req.type?.toLowerCase().includes('add') ? 'High' : 'Medium');
-                    const stLabel = getStatusLabel(req.status);
-                    const avatarColor = getAvatarColor(req.studentName);
-                    const initials = getInitials(req.studentName);
-                    const reqId = `REQ-2026-${req.id.slice(-4).toUpperCase()}`;
-                    const actionable = isActionable(req.status);
-                    const typeLabel = req.type?.toLowerCase().includes('add') ? 'Course Registration' : (req.type || '');
-
-                    return (
-                      <tr key={req.id} onClick={() => handleSelectRequest(req)}
-                        className={`cursor-pointer transition-colors ${isSelected ? 'bg-blue-50/50' : 'hover:bg-slate-50/40'}`}>
-                        <td className="px-4 py-3 font-bold text-slate-700 text-[11px]">{reqId}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-extrabold shrink-0"
-                              style={{ backgroundColor: avatarColor.bg, color: avatarColor.text }}>
-                              {initials}
-                            </div>
-                            <div>
-                              <p className="font-extrabold text-slate-800 text-[11px] leading-tight">{req.studentName}</p>
-                              <p className="text-[9px] text-slate-400 font-medium">{req.rollNo}</p>
-                            </div>
+                  return (
+                    <tr key={req.id} onClick={() => handleSelectRequest(req)}
+                      className={`cursor-pointer transition-colors ${isSelected ? 'bg-blue-50/50' : 'hover:bg-slate-50/40'}`}>
+                      <td className="px-4 py-3 font-bold text-slate-700 text-[11px]">{reqId}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-extrabold shrink-0"
+                            style={{ backgroundColor: avatarColor.bg, color: avatarColor.text }}>
+                            {initials}
                           </div>
-                        </td>
-                        <td className="px-4 py-3 font-medium text-slate-600 text-[11px]">{typeLabel}</td>
-                        <td className="px-4 py-3">
-                          <p className="font-bold text-slate-800 text-[11px]">{req.courseCode}</p>
-                        </td>
-                        <td className="px-4 py-3 text-slate-500 text-[11px]">May 22, 2026</td>
-                        <td className="px-4 py-3">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${getPriorityBadge(priority)}`}>{priority}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${getStatusBadge(req.status)}`}>{stLabel}</span>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          {actionable
-                            ? <button type="button" onClick={(e) => { e.stopPropagation(); handleSelectRequest(req); }} className="px-2.5 py-1 border border-blue-300 text-blue-600 text-[10px] font-bold rounded hover:bg-blue-50 cursor-pointer transition-colors">Review</button>
-                            : <button type="button" onClick={(e) => { e.stopPropagation(); handleSelectRequest(req); }} className="text-slate-400 text-[10px] font-bold cursor-pointer hover:underline bg-transparent border-none">View</button>
-                          }
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          <div>
+                            <p className="font-extrabold text-slate-800 text-[11px] leading-tight">{req.studentName}</p>
+                            <p className="text-[9px] text-slate-400 font-medium">{req.rollNo}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 font-medium text-slate-600 text-[11px]">{typeLabel}</td>
+                      <td className="px-4 py-3">
+                        <p className="font-bold text-slate-800 text-[11px]">{req.courseCode}</p>
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 text-[11px]">May 22, 2026</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${getPriorityBadge(priority)}`}>{priority}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${getStatusBadge(req.status)}`}>{stLabel}</span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {actionable
+                          ? <button type="button" onClick={(e) => { e.stopPropagation(); handleSelectRequest(req); }} className="px-2.5 py-1 border border-blue-300 text-blue-600 text-[10px] font-bold rounded hover:bg-blue-50 cursor-pointer transition-colors">Review</button>
+                          : <button type="button" onClick={(e) => { e.stopPropagation(); handleSelectRequest(req); }} className="text-slate-400 text-[10px] font-bold cursor-pointer hover:underline bg-transparent border-none">View</button>
+                        }
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
 
-            {/* Pagination */}
-            <div className="px-4 py-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-4 text-[11px] text-slate-500 font-medium">
-              <span>Showing {totalFiltered === 0 ? 0 : (page-1)*PAGE_SIZE+1} to {Math.min(page*PAGE_SIZE, totalFiltered)} of {totalFiltered} requests</span>
-              <div className="flex flex-wrap items-center gap-1">
-                <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page===1} className="w-6 h-6 flex items-center justify-center rounded border border-slate-200 hover:bg-slate-100 disabled:opacity-30">‹</button>
-                {Array.from({ length: Math.min(totalPages, 3) }, (_, i) => i+1).map(n => (
-                  <button key={n} onClick={() => setPage(n)} className={`w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold border ${page===n ? 'bg-[#2563EB] text-white border-[#2563EB]' : 'border-slate-200 hover:bg-slate-100'}`}>{n}</button>
-                ))}
-                {totalPages > 3 && <span className="text-slate-400">...</span>}
-                {totalPages > 3 && <button onClick={() => setPage(totalPages)} className={`w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold border ${page===totalPages ? 'bg-[#2563EB] text-white border-[#2563EB]' : 'border-slate-200 hover:bg-slate-100'}`}>{totalPages}</button>}
-                <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page===totalPages} className="w-6 h-6 flex items-center justify-center rounded border border-slate-200 hover:bg-slate-100 disabled:opacity-30">›</button>
-              </div>
+          {/* Pagination */}
+          <div className="px-4 py-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-4 text-[11px] text-slate-500 font-medium">
+            <span>Showing {totalFiltered === 0 ? 0 : (page - 1) * PAGE_SIZE + 1} to {Math.min(page * PAGE_SIZE, totalFiltered)} of {totalFiltered} requests</span>
+            <div className="flex flex-wrap items-center gap-1">
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="w-6 h-6 flex items-center justify-center rounded border border-slate-200 hover:bg-slate-100 disabled:opacity-30">‹</button>
+              {Array.from({ length: Math.min(totalPages, 3) }, (_, i) => i + 1).map(n => (
+                <button key={n} onClick={() => setPage(n)} className={`w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold border ${page === n ? 'bg-[#2563EB] text-white border-[#2563EB]' : 'border-slate-200 hover:bg-slate-100'}`}>{n}</button>
+              ))}
+              {totalPages > 3 && <span className="text-slate-400">...</span>}
+              {totalPages > 3 && <button onClick={() => setPage(totalPages)} className={`w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold border ${page === totalPages ? 'bg-[#2563EB] text-white border-[#2563EB]' : 'border-slate-200 hover:bg-slate-100'}`}>{totalPages}</button>}
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="w-6 h-6 flex items-center justify-center rounded border border-slate-200 hover:bg-slate-100 disabled:opacity-30">›</button>
             </div>
+          </div>
         </div>
 
         {/* ── Bottom: Approval Workflow + History + Remarks (when request selected) ── */}
         {selectedRequest && (
           <div className="order-3 xl:col-start-1 xl:row-start-2 grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4 min-w-0">
 
-              {/* Approval Workflow */}
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-                <h4 className="text-xs font-extrabold text-slate-700 mb-4">Approval Workflow</h4>
-                <div className="relative pl-6 space-y-4 before:absolute before:left-[10px] before:top-3 before:bottom-0 before:w-px before:bg-slate-200">
-                  {[
-                    { n: 1, label: 'Advisor Review (Current)', name: 'Dr. Fatima Malik', date: 'May 22, 2026', active: true },
-                    { n: 2, label: 'HOD Approval', name: 'Dr. Ahmed Raza', date: '', active: false },
-                    { n: 3, label: 'Registrar Verification', name: 'Registrar Office', date: '', active: false },
-                    { n: 4, label: 'Final Confirmation', name: 'System', date: '', active: false },
-                  ].map((step) => (
-                    <div key={step.n} className={`relative flex gap-3 items-start ${step.active ? '' : 'opacity-50'}`}>
-                      <div className={`absolute left-[-24px] w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-extrabold border-2 border-white shadow ${step.active ? 'bg-[#2563EB] text-white' : 'bg-slate-200 text-slate-500'}`}>
-                        {step.n}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className={`text-[11px] font-extrabold leading-tight ${step.active ? 'text-[#0F172A]' : 'text-slate-600'}`}>{step.label}</span>
-                          <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded uppercase shrink-0">Pending</span>
-                        </div>
-                        <p className="text-[10px] text-slate-400 mt-0.5">{step.name}</p>
-                        {step.date && <p className="text-[9px] text-slate-300">{step.date}</p>}
-                      </div>
+            {/* Approval Workflow */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+              <h4 className="text-xs font-extrabold text-slate-700 mb-4">Approval Workflow</h4>
+              <div className="relative pl-6 space-y-4 before:absolute before:left-[10px] before:top-3 before:bottom-0 before:w-px before:bg-slate-200">
+                {getWorkflowSteps(selectedRequest).map((step) => (
+                  <div key={step.n} className={`relative flex gap-3 items-start ${step.active ? '' : 'opacity-50'}`}>
+                    <div className={`absolute left-[-24px] w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-extrabold border-2 border-white shadow ${step.active ? 'bg-[#2563EB] text-white' : 'bg-slate-200 text-slate-500'}`}>
+                      {step.n}
                     </div>
-                  ))}
-                </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={`text-[11px] font-extrabold leading-tight ${step.active ? 'text-[#0F172A]' : 'text-slate-600'}`}>{step.label}{step.active && ' (Current)'}</span>
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase shrink-0 ${getStatusBadge(step.statusLabel)}`}>{step.statusLabel}</span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-0.5">{step.name}</p>
+                      {step.date && <p className="text-[9px] text-slate-300">{step.date}</p>}
+                    </div>
+                  </div>
+                ))}
               </div>
+            </div>
 
-              {/* Approval History */}
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-                <h4 className="text-xs font-extrabold text-slate-700 mb-4">Approval History</h4>
-                <div className="relative pl-6 space-y-4 before:absolute before:left-[10px] before:top-3 before:bottom-0 before:w-px before:bg-slate-200">
-                  {[
-                    { n: 1, label: 'Pending with Advisor', sub: 'Dr. Fatima Malik', time: 'May 22, 2026, 10:15 AM', tag: 'Current Step', dot: '#3B82F6' },
-                    { n: 2, label: 'Request Submitted', sub: selectedRequest.studentName, time: 'May 22, 2026, 10:15 AM', dot: '#10B981' },
-                    { n: 3, label: 'Auto Validation', sub: 'System Check', time: 'May 22, 2026, 10:16 AM', dot: '#94A3B8' },
-                  ].map((ev) => (
-                    <div key={ev.n} className="relative flex gap-3 items-start">
-                      <div className="absolute left-[-24px] w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-extrabold border-2 border-white shadow text-white" style={{ backgroundColor: ev.dot }}>
-                        {ev.n}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[11px] font-extrabold text-slate-700 leading-tight">{ev.label}</span>
-                          {ev.tag && <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">{ev.tag}</span>}
-                        </div>
-                        <p className="text-[10px] text-slate-500 mt-0.5">{ev.sub}</p>
-                        <p className="text-[9px] text-slate-400">{ev.time}</p>
-                      </div>
+            {/* Approval History */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+              <h4 className="text-xs font-extrabold text-slate-700 mb-4">Approval History</h4>
+              <div className="relative pl-6 space-y-4 before:absolute before:left-[10px] before:top-3 before:bottom-0 before:w-px before:bg-slate-200">
+                {getHistoryEvents(selectedRequest).map((ev) => (
+                  <div key={ev.n} className="relative flex gap-3 items-start">
+                    <div className="absolute left-[-24px] w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-extrabold border-2 border-white shadow text-white" style={{ backgroundColor: ev.dot }}>
+                      {ev.n}
                     </div>
-                  ))}
-                </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[11px] font-extrabold text-slate-700 leading-tight">{ev.label}</span>
+                        {ev.tag && <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">{ev.tag}</span>}
+                      </div>
+                      <p className="text-[10px] text-slate-500 mt-0.5">{ev.sub}</p>
+                      <p className="text-[9px] text-slate-400">{ev.time}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
+            </div>
 
-              {/* Advisor Remarks + Next Action */}
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex flex-col justify-between gap-3 min-w-0 overflow-hidden">
-                <div>
-                  <h4 className="text-xs font-extrabold text-slate-700 mb-1.5">Advisor Remarks</h4>
-                  <p className="text-[10px] text-slate-400 mb-2">Add your remarks (optional)</p>
-                  <div className="border border-slate-200 rounded-xl p-3 bg-slate-50 flex flex-col">
-                    <textarea
-                      value={remarks}
-                      onChange={e => { if (e.target.value.length <= 500) { setRemarks(e.target.value); setActionError(''); } }}
-                      placeholder="Enter remarks about this request..."
-                      className="w-full min-h-[70px] text-[11px] text-slate-700 outline-none resize-none bg-transparent placeholder-slate-400"
-                    />
-                    <div className="flex justify-end mt-1">
-                      <span className="text-[9px] text-slate-400">{remarks.length} / 500</span>
-                    </div>
+            {/* Advisor Remarks + Next Action */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex flex-col justify-between gap-3 min-w-0 overflow-hidden">
+              <div>
+                <h4 className="text-xs font-extrabold text-slate-700 mb-1.5">Advisor Remarks</h4>
+                <p className="text-[10px] text-slate-400 mb-2">Add your remarks (optional)</p>
+                <div className="border border-slate-200 rounded-xl p-3 bg-slate-50 flex flex-col">
+                  <textarea
+                    value={remarks}
+                    onChange={e => { if (e.target.value.length <= 500) { setRemarks(e.target.value); setActionError(''); } }}
+                    placeholder="Enter remarks about this request..."
+                    className="w-full min-h-[70px] text-[11px] text-slate-700 outline-none resize-none bg-transparent placeholder-slate-400"
+                  />
+                  <div className="flex justify-end mt-1">
+                    <span className="text-[9px] text-slate-400">{remarks.length} / 500</span>
                   </div>
                 </div>
-                {actionError && (
-                  <div className="flex items-center gap-1.5 text-rose-600 bg-rose-50 p-2 rounded-lg border border-rose-100 text-[10px] font-bold">
-                    <AlertCircle className="w-3 h-3 shrink-0" /> {actionError}
-                  </div>
-                )}
-                {isActionable(selectedRequest.status) ? (
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-extrabold text-slate-600 uppercase tracking-widest mb-2">Next Action</p>
-                    <div className="flex flex-col sm:flex-row gap-2 w-full min-w-0">
-                      <button onClick={() => handleResolveAction(true)} disabled={actionLoading}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer disabled:opacity-50 min-w-0">
-                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Approve</span>
-                      </button>
-                      <button onClick={() => handleResolveAction(false)} disabled={actionLoading}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-rose-300 hover:bg-rose-50 text-rose-600 text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer min-w-0">
-                        <X className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Reject</span>
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-center">
-                    <p className="text-[11px] font-bold text-slate-500">This request has already been processed.</p>
-                  </div>
-                )}
               </div>
+              {actionError && (
+                <div className="flex items-center gap-1.5 text-rose-600 bg-rose-50 p-2 rounded-lg border border-rose-100 text-[10px] font-bold">
+                  <AlertCircle className="w-3 h-3 shrink-0" /> {actionError}
+                </div>
+              )}
+              {selectedRequest.rawStatus === 'returned_for_edit' ? (
+                <div className="min-w-0">
+                  <p className="text-[10px] font-extrabold text-slate-600 uppercase tracking-widest mb-2">Next Action</p>
+                  <p className="text-[10px] text-slate-500 mb-2">This request was returned for edit. Revise the details and resubmit it to re-enter your review queue.</p>
+                  <button onClick={() => setShowResubmitModal(true)}
+                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer min-w-0">
+                    <RefreshCw className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Revise &amp; Resubmit</span>
+                  </button>
+                </div>
+              ) : isActionable(selectedRequest.status) ? (
+                <div className="min-w-0">
+                  <p className="text-[10px] font-extrabold text-slate-600 uppercase tracking-widest mb-2">Next Action</p>
+                  <div className="flex flex-col sm:flex-row gap-2 w-full min-w-0">
+                    <button onClick={() => handleResolveAction(true)} disabled={actionLoading}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer disabled:opacity-50 min-w-0">
+                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Approve</span>
+                    </button>
+                    <button onClick={() => handleResolveAction(false)} disabled={actionLoading}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-rose-300 hover:bg-rose-50 text-rose-600 text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer min-w-0">
+                      <X className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Reject</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-center">
+                  <p className="text-[11px] font-bold text-slate-500">This request has already been processed.</p>
+                </div>
+              )}
+            </div>
 
           </div>
         )}
@@ -616,7 +675,7 @@ export default function AdvisorQueue() {
                       );
                       const currentEnrolled = activeEnrolled.reduce((sum, c) => sum + (c.creditHours || 3), 0);
                       const maxLimit = selectedStudent.cgpa >= 3.5 ? 21 : (selectedStudent.cgpa < 2.0 && selectedStudent.currentSemester > 1) ? 12 : 18;
-                      const addedCH = requestType === 'add' ? (creditHours || 0) : -(creditHours || 0);
+                      const addedCH = (requestType === 'add' || requestType === 'special_permission') ? (creditHours || 0) : -(creditHours || 0);
                       const projectedCH = Math.max(0, currentEnrolled + (selectedCourseId ? addedCH : 0));
                       const isFulfilled = projectedCH === maxLimit;
                       const isExceeded = projectedCH > maxLimit;
@@ -625,11 +684,10 @@ export default function AdvisorQueue() {
                         <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
                           <div className="flex justify-between items-center text-xs">
                             <span className="font-extrabold text-slate-700">Credit Hour Meter</span>
-                            <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${
-                              isExceeded ? 'bg-rose-100 text-rose-700 border border-rose-200' :
+                            <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${isExceeded ? 'bg-rose-100 text-rose-700 border border-rose-200' :
                               isFulfilled ? 'bg-amber-100 text-amber-800 border border-amber-200' :
-                              'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                            }`}>
+                                'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                              }`}>
                               {isExceeded ? '🛑 Exceeds Max Limit' : isFulfilled ? '⚠️ Limit Fulfilled (100%)' : '✅ Within Credit Limit'}
                             </span>
                           </div>
@@ -674,7 +732,8 @@ export default function AdvisorQueue() {
                   options={[
                     { value: 'add', label: 'Course Registration' },
                     { value: 'drop', label: 'Course Drop' },
-                    { value: 'withdrawal', label: 'Course Withdrawal' }
+                    { value: 'withdrawal', label: 'Course Withdrawal' },
+                    { value: 'special_permission', label: 'Special Permission' }
                   ]}
                 />
               </div>
@@ -698,10 +757,10 @@ export default function AdvisorQueue() {
 
                       {showSubjectDropdown && (
                         <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-[180px] overflow-y-auto divide-y divide-slate-100">
-                          {(requestType === 'add' ? eligibleCourses.curriculumCourses : eligibleCourses.enrolledCourses).length === 0 ? (
+                          {((requestType === 'add' || requestType === 'special_permission') ? eligibleCourses.curriculumCourses : eligibleCourses.enrolledCourses).length === 0 ? (
                             <div className="p-3 text-xs text-slate-400 text-center">No available subjects found</div>
                           ) : (
-                            (requestType === 'add' ? eligibleCourses.curriculumCourses : eligibleCourses.enrolledCourses).map(c => {
+                            ((requestType === 'add' || requestType === 'special_permission') ? eligibleCourses.curriculumCourses : eligibleCourses.enrolledCourses).map(c => {
                               const id = c._id || c.code || c.courseCode;
                               const code = c.courseCode || c.code;
                               const title = c.courseTitle || c.title;
@@ -735,9 +794,16 @@ export default function AdvisorQueue() {
                   <p>Code: <b>{courseCode}</b></p><p>Title: <b>{courseTitle}</b></p><p>Credits: <b>{creditHours} CH</b></p>
                 </div>
               )}
+              {courseCode && (requestType === 'add' || requestType === 'special_permission') && selectedStudent && (() => {
+                const activeEnrolled = (eligibleCourses.enrolledCourses || []).filter(c =>
+                  c.status === 'enrolled' || c.enrollmentStatus === 'enrolled' || c.grade === 'IP' || c.semester === selectedStudent.currentSemester
+                );
+                const hasDuplicate = activeEnrolled.some(c => (c.courseCode || c.code || '').toUpperCase() === courseCode.toUpperCase());
+                return <DuplicateWarning hasDuplicate={hasDuplicate} courseCode={courseCode} />;
+              })()}
               <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-bold text-slate-600">Justification Remarks</label>
-                <textarea placeholder="Enter academic justification..." value={justification} onChange={e => setJustification(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none resize-y min-h-[50px] bg-slate-50" />
+                <label className="text-[11px] font-bold text-slate-600">Justification Remarks{requestType === 'special_permission' ? ' *' : ''}</label>
+                <textarea placeholder={requestType === 'special_permission' ? 'Required: explain why this override should be granted...' : 'Enter academic justification...'} value={justification} onChange={e => setJustification(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none resize-y min-h-[50px] bg-slate-50" />
               </div>
               {submitError && <div className="flex items-center gap-2 text-rose-600 bg-rose-50 p-2.5 rounded-lg border border-rose-200 text-[11px] font-bold"><AlertCircle className="w-3.5 h-3.5" /> {submitError}</div>}
               <div className="flex gap-2 justify-end pt-2 border-t border-slate-100">
@@ -749,6 +815,15 @@ export default function AdvisorQueue() {
             </form>
           </div>
         </div>
+      )}
+
+      {showResubmitModal && selectedRequest && (
+        <EditRequestModal
+          request={selectedRequest}
+          mode="advisor"
+          onClose={() => setShowResubmitModal(false)}
+          onSuccess={() => { setShowResubmitModal(false); setSelectedRequest(null); setEvalStudent(null); fetchRequests(); }}
+        />
       )}
 
     </div>

@@ -23,6 +23,7 @@ export const validateApprovalRequest = async (studentId, courseCode, courseTitle
     if (hasActiveEnrollment) {
       return {
         isValid: false,
+        failureType: 'duplicate',
         reason: `Duplicate course detected: Student is already active in ${courseCode.toUpperCase()} for this semester.`
       };
     }
@@ -37,6 +38,7 @@ export const validateApprovalRequest = async (studentId, courseCode, courseTitle
     if (hasPendingRequest) {
       return {
         isValid: false,
+        failureType: 'duplicate',
         reason: `Duplicate request: Student already has a pending or approved request to add ${courseCode.toUpperCase()}.`
       };
     }
@@ -59,6 +61,7 @@ export const validateApprovalRequest = async (studentId, courseCode, courseTitle
     if (hasPendingRequest) {
       return {
         isValid: false,
+        failureType: 'duplicate',
         reason: `Duplicate request: Student already has a pending ${requestType} request for ${courseCode.toUpperCase()}.`
       };
     }
@@ -115,7 +118,10 @@ export const validateApprovalRequest = async (studentId, courseCode, courseTitle
       .filter(c => c.enrollmentStatus === 'enrolled')
       .reduce((sum, c) => sum + c.creditHours, 0);
 
-    const limit = 18; // Default Cap Limit
+    // Cap is configured per department (Department.creditHourCap); falls back
+    // to 18 CH if the department record is missing the field or unreachable.
+    const department = await Department.findById(student.departmentId);
+    const limit = department?.creditHourCap || 18;
     const projected = currentCredits + creditHours;
 
     if (projected > limit) {
@@ -163,6 +169,7 @@ export const createAdvisorRequest = async (req, res, next) => {
     const validation = await validateApprovalRequest(studentId, courseCode, courseTitle, creditHours, requestType);
     let prereqCheck = 'Passed';
     let validationFailureReason = '';
+    let duplicateWarning = '';
 
     if (!validation.isValid) {
       if (validation.isFutureSemester) {
@@ -181,6 +188,9 @@ export const createAdvisorRequest = async (req, res, next) => {
       // whether to override, with mandatory justification, at resolveHODDecision.
       prereqCheck = 'Failed';
       validationFailureReason = validation.reason;
+      if (validation.failureType === 'duplicate') {
+        duplicateWarning = validation.reason;
+      }
     }
 
     let isBacklog = false;
@@ -210,7 +220,7 @@ export const createAdvisorRequest = async (req, res, next) => {
       currentApproverRole: 'advisor',
       submittedBy: req.user._id,
       prereqCheck,
-      duplicateWarning: '',
+      duplicateWarning,
       validationFailureReason,
       overrideJustification: '',
       isBacklog
@@ -294,18 +304,20 @@ export const resolveAdvisorDecision = async (req, res, next) => {
       });
     }
 
+    const isReturned = !isApprove && remarks && remarks.trim().startsWith('[Returned for Edit]');
+
     if (isApprove) {
       request.status = 'advisor_approved';
       request.currentApproverRole = 'hod';
+    } else if (isReturned) {
+      // The advisor is both the submitter and the Level-1 approver (no student
+      // login exists), so a "returned for edit" request comes right back to the
+      // advisor to revise and resubmit — see resubmitAdvisorRequest below.
+      request.status = 'returned_for_edit';
+      request.currentApproverRole = 'advisor';
     } else {
-      const isReturned = remarks && remarks.trim().startsWith('[Returned for Edit]');
-      if (isReturned) {
-        request.status = 'returned_for_edit';
-        request.currentApproverRole = 'student';
-      } else {
-        request.status = 'advisor_rejected';
-        request.currentApproverRole = 'none';
-      }
+      request.status = 'advisor_rejected';
+      request.currentApproverRole = 'none';
     }
 
     request.advisorDecision = {
@@ -320,7 +332,6 @@ export const resolveAdvisorDecision = async (req, res, next) => {
     const student = await Student.findById(request.studentId);
 
     // Log audit
-    const isReturned = remarks && remarks.trim().startsWith('[Returned for Edit]');
     await logAudit({
       actorId: req.user._id,
       actorRole: req.user.role,
@@ -381,6 +392,8 @@ export const listAdvisorRequests = async (req, res, next) => {
     const requests = await ApprovalRequest.find(filter)
       .populate('studentId', 'name rollNumber cgpa currentSemester')
       .populate('advisorId', 'name email')
+      .populate('advisorDecision.decidedBy', 'name')
+      .populate('hodDecision.decidedBy', 'name')
       .sort({ createdAt: -1 });
 
     // Enforce search dynamically on populated data if search string exists
@@ -405,6 +418,8 @@ export const listAdvisorRequests = async (req, res, next) => {
         .filter(c => c.enrollmentStatus === 'enrolled')
         .reduce((sum, c) => sum + c.creditHours, 0) : 0;
 
+      const maxCredits = student ? ((await Department.findById(student.departmentId))?.creditHourCap || 18) : 18;
+
       let prerequisites = [];
       if (student) {
         const curriculum = await resolveCurriculumForStudent(student);
@@ -428,8 +443,7 @@ export const listAdvisorRequests = async (req, res, next) => {
 
       const validations = {
         currentCredits,
-        maxCredits: 18,
-        hasDuplicate: false, // passed validation pre-submission, so default false
+        maxCredits,
         prerequisites
       };
 
@@ -448,15 +462,19 @@ export const listAdvisorRequests = async (req, res, next) => {
         courseCredits: r.creditHours,
         creditHours: r.creditHours,
         status: r.status === 'pending' ? 'Pending Advisor' : r.status === 'advisor_approved' ? 'Forwarded to HOD' : r.status === 'approved' ? 'Approved' : r.status === 'rejected' ? 'Rejected' : r.status,
+        rawStatus: r.status,
         justification: r.justification,
         advisorRemarks: r.advisorRemarks,
         hodRemarks: r.hodRemarks,
+        advisorDecision: r.advisorDecision,
+        hodDecision: r.hodDecision,
         validations,
         studentId: r.studentId,
         advisorId: r.advisorId,
         departmentId: r.departmentId,
         batchId: r.batchId,
-        createdAt: r.createdAt
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt
       };
     }));
 
@@ -491,7 +509,7 @@ export const createHODSpecialPermission = async (req, res, next) => {
 
     // Security check: Verify HOD is HOD of the student's department
     const isHOD = req.user.departmentIds && req.user.departmentIds.some(id => id.toString() === student.departmentId.toString());
-    if (!isHOD && req.user.role !== 'dean') {
+    if (!isHOD) {
       return res.status(403).json({
         status: 'error',
         message: 'Access denied: You are not authorized for this student\'s department.'
@@ -502,6 +520,7 @@ export const createHODSpecialPermission = async (req, res, next) => {
     const validation = await validateApprovalRequest(studentId, courseCode, courseTitle, creditHours, 'special_permission');
     let prereqCheck = 'Passed';
     let isOverridden = false;
+    let duplicateWarning = '';
 
     if (!validation.isValid) {
       if (validation.isFutureSemester) {
@@ -511,11 +530,16 @@ export const createHODSpecialPermission = async (req, res, next) => {
         });
       }
 
+      if (validation.failureType === 'duplicate') {
+        duplicateWarning = validation.reason;
+      }
+
       const { overrideJustification } = req.body;
-      // This route is HOD-only (restrictTo('admin', 'dean')), so override authority
-      // here is exactly the doc's "HOD overrides with justification" — Dean (Super
-      // Admin) is included since it can act as HOD for any department.
-      const canOverride = req.user.role === 'admin' || req.user.role === 'dean';
+      // FE-21: Special permission overrides are strictly HOD-only. This route is
+      // restrictTo('admin') at the router level (Dean has no Level-2 authority
+      // per FE-20's "no Dean or other administrative roles" rule), so req.user
+      // is always the HOD here.
+      const canOverride = req.user.role === 'admin';
 
       if (canOverride && overrideJustification && overrideJustification.trim() !== '') {
         prereqCheck = 'Overridden';
@@ -563,7 +587,7 @@ export const createHODSpecialPermission = async (req, res, next) => {
       },
       hodRemarks: remarks ? remarks.trim() : 'Directly granted by HOD.',
       prereqCheck,
-      duplicateWarning: '',
+      duplicateWarning,
       overrideJustification: isOverridden ? req.body.overrideJustification.trim() : '',
       isBacklog
     });
@@ -608,8 +632,11 @@ export const createHODSpecialPermission = async (req, res, next) => {
       });
     }
 
-    // Notify Advisor
-    if (advisorId && advisorId.toString() !== req.user._id.toString()) {
+    // Notify Advisor. HOD and Advisor are always distinct accounts (each role
+    // is its own User document, even under email-based "hat-switching" per the
+    // Scope Doc), so a same-account check here would never actually trigger —
+    // the batch's assigned advisor is always notified.
+    if (advisorId) {
       await logNotification({
         recipientId: advisorId,
         recipientRole: 'advisor',
@@ -721,7 +748,7 @@ export const resolveHODDecision = async (req, res, next) => {
 
     // Security check
     const isHOD = req.user.departmentIds && req.user.departmentIds.some(did => did.toString() === request.departmentId.toString());
-    if (!isHOD && req.user.role !== 'dean') {
+    if (!isHOD) {
       return res.status(403).json({
         status: 'error',
         message: 'Access denied: You are not authorized for this student\'s department.'
@@ -771,8 +798,11 @@ export const resolveHODDecision = async (req, res, next) => {
         request.overrideJustification = overrideJustification.trim();
       }
 
-      // Perform course action adjustments based on request type
-      if (request.requestType === 'add') {
+      // Perform course action adjustments based on request type. Special
+      // permission requests submitted through the normal Advisor -> HOD chain
+      // (FE-19/FR-4.3) are course-registration overrides, so they add the
+      // course on HOD approval the same way a plain 'add' request does.
+      if (request.requestType === 'add' || request.requestType === 'special_permission') {
         student.courses.push({
           courseCode: request.courseCode,
           courseTitle: request.courseTitle,
@@ -905,22 +935,114 @@ export const getRequestDetails = async (req, res, next) => {
   }
 };
 
+// PUT: advisor revises a request that was returned_for_edit and resubmits it
+// back into their own Level-1 queue as 'pending'. This is the consumer for the
+// returned_for_edit state (Module 4 gap: previously routed to a nonexistent
+// 'student' role with nothing able to act on it).
+export const resubmitAdvisorRequest = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { courseCode, courseTitle, creditHours, requestType, justification } = req.body;
+
+    const request = await ApprovalRequest.findById(id);
+    if (!request) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Request not found.'
+      });
+    }
+
+    // Security check: only the assigned advisor for this request's batch may resubmit it
+    const assignedBatches = req.user.assignedBatchIds || [];
+    const hasAccess = assignedBatches.some(bid => bid.toString() === request.batchId.toString());
+    if (!hasAccess) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Access denied: You are not assigned to this student\'s batch.'
+      });
+    }
+
+    if (request.status !== 'returned_for_edit') {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Only requests currently returned for edit can be resubmitted.'
+      });
+    }
+
+    if (courseCode !== undefined) request.courseCode = courseCode.trim().toUpperCase();
+    if (courseTitle !== undefined) request.courseTitle = courseTitle.trim();
+    if (creditHours !== undefined) request.creditHours = creditHours;
+    if (requestType !== undefined) request.requestType = requestType;
+    if (justification !== undefined) request.justification = justification;
+
+    // Re-run the same business validations a fresh submission would go through
+    const validation = await validateApprovalRequest(
+      request.studentId,
+      request.courseCode,
+      request.courseTitle,
+      request.creditHours,
+      request.requestType
+    );
+
+    if (!validation.isValid && validation.isFutureSemester) {
+      return res.status(400).json({
+        status: 'error',
+        message: validation.reason
+      });
+    }
+
+    request.prereqCheck = validation.isValid ? 'Passed' : 'Failed';
+    request.validationFailureReason = validation.isValid ? '' : validation.reason;
+    request.duplicateWarning = (!validation.isValid && validation.failureType === 'duplicate') ? validation.reason : '';
+    request.overrideJustification = '';
+
+    request.status = 'pending';
+    request.currentApproverRole = 'advisor';
+    request.advisorDecision = { decidedBy: undefined, decidedAt: undefined, remarks: '' };
+    request.advisorRemarks = '';
+
+    await request.save();
+
+    await logAudit({
+      actorId: req.user._id,
+      actorRole: req.user.role,
+      action: 'REQUEST_RESUBMITTED',
+      targetType: 'ApprovalRequest',
+      targetId: request._id.toString(),
+      departmentId: request.departmentId.toString(),
+      batchId: request.batchId.toString(),
+      metadata: { description: 'Advisor revised and resubmitted a returned request.' }
+    });
+
+    const populated = await ApprovalRequest.findById(request._id)
+      .populate('studentId', 'name rollNumber cgpa currentSemester')
+      .populate('advisorId', 'name email');
+
+    res.status(200).json({
+      status: 'success',
+      data: { request: populated }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const updateApprovalRequest = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { studentName, rollNumber, justification, courseCode, courseTitle, creditHours, requestType } = req.body;
-    
+
     const request = await ApprovalRequest.findById(id).populate('studentId');
     if (!request) {
       return res.status(404).json({ status: 'error', message: 'Request not found' });
     }
-    
+
     if (justification !== undefined) request.justification = justification;
     if (courseCode !== undefined) request.courseCode = courseCode;
     if (courseTitle !== undefined) request.courseTitle = courseTitle;
     if (creditHours !== undefined) request.creditHours = creditHours;
     if (requestType !== undefined) request.requestType = requestType;
-    
+
     await request.save();
 
     if (request.studentId && (studentName || rollNumber)) {
@@ -931,7 +1053,7 @@ export const updateApprovalRequest = async (req, res, next) => {
         await student.save();
       }
     }
-    
+
     res.status(200).json({ status: 'success', data: request });
   } catch (error) {
     next(error);

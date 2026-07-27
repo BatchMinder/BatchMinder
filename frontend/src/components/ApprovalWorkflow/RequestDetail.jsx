@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Calendar, AlertTriangle, ShieldCheck, User, Info, FileText } from 'lucide-react';
+import { X, AlertTriangle, ShieldCheck, Info, FileText } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import ApprovalActions from './ApprovalActions';
 
@@ -86,7 +86,7 @@ export default function RequestDetail({ request, userRole = 'hod', onClose, onAc
 
       {/* Content */}
       <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        
+
         {/* Student Profile Overview */}
         <div
           style={{

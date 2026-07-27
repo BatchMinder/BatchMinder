@@ -46,7 +46,7 @@ const approvalRequestSchema = new mongoose.Schema({
   justification: {
     type: String,
     required: [
-      function() {
+      function () {
         return this.requestType === 'special_permission';
       },
       'Justification is required for special permission requests'
@@ -82,6 +82,7 @@ const approvalRequestSchema = new mongoose.Schema({
   hodRemarks: { type: String, default: '' },
   prereqCheck: { type: String, default: '' },
   duplicateWarning: { type: String, default: '' },
+  validationFailureReason: { type: String, default: '' },
   overrideJustification: { type: String, default: '' },
   isBacklog: { type: Boolean, default: false }
 }, {

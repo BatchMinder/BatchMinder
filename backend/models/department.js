@@ -29,6 +29,15 @@ const departmentSchema = new mongoose.Schema({
     type: Number,
     required: [true, 'Please specify established year'],
   },
+  // FR-4.5 / FE-19: max credit hours a student may carry in a semester.
+  // Previously hardcoded to 18 in approvalRequestController.js — now
+  // configurable per department so it can be tuned to STMU's actual policy
+  // without a code change.
+  creditHourCap: {
+    type: Number,
+    default: 18,
+    min: 1,
+  },
   status: {
     type: String,
     enum: ['Active', 'Inactive'],

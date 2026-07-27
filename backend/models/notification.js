@@ -6,11 +6,6 @@ const notificationSchema = new mongoose.Schema({
     ref: 'User',
     required: false
   },
-  targetUserID: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: false
-  },
   recipientRole: {
     type: String,
     required: false

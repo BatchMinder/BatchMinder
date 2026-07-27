@@ -144,7 +144,7 @@ export default function RequestHistory() {
               { value: '', label: 'All Decision Statuses' },
               { value: 'approved', label: 'Approved' },
               { value: 'rejected', label: 'Rejected' },
-              { value: 'escalated', label: 'Escalated to Dean' }
+              { value: 'special_granted', label: 'Special Granted' }
             ]}
           />
         </div>

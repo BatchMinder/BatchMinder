@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   Search, SlidersHorizontal, Plus, RefreshCw,
-  FileText, Clock, AlertCircle, ArrowRight
+  Clock, ArrowRight
 } from 'lucide-react';
 import { CircularProgress } from '@mui/material';
 import ResponsiveSelect from '../../components/common/ResponsiveSelect';

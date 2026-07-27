@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Check, AlertCircle, ChevronDown } from 'lucide-react';
 import { CircularProgress } from '@mui/material';
 
-export default function EditRequestModal({ request, onClose, onSuccess }) {
+export default function EditRequestModal({ request, onClose, onSuccess, mode = 'hod' }) {
   const [studentName, setStudentName] = useState(request.studentId?.name || '');
   const [rollNumber, setRollNumber] = useState(request.studentId?.rollNumber || '');
   const [justification, setJustification] = useState(request.justification || '');
@@ -11,7 +11,7 @@ export default function EditRequestModal({ request, onClose, onSuccess }) {
   const [courseTitle, setCourseTitle] = useState(request.courseTitle || '');
   const [creditHours, setCreditHours] = useState(request.creditHours || 3);
   const [requestType, setRequestType] = useState(request.requestType || 'add');
-  
+
   const [curriculumCourses, setCurriculumCourses] = useState([]);
   const [showCourseDropdown, setShowCourseDropdown] = useState(false);
 
@@ -40,7 +40,8 @@ export default function EditRequestModal({ request, onClose, onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!studentName.trim() || !rollNumber.trim() || !courseCode.trim() || !courseTitle.trim() || !creditHours) {
+    const studentFieldsOk = mode === 'advisor' || (studentName.trim() && rollNumber.trim());
+    if (!studentFieldsOk || !courseCode.trim() || !courseTitle.trim() || !creditHours) {
       setError('Please fill out all required fields.');
       return;
     }
@@ -50,10 +51,19 @@ export default function EditRequestModal({ request, onClose, onSuccess }) {
     setSuccessMsg('');
 
     try {
-      const res = await fetch(`/api/hod/requests/${request._id}/edit`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const endpoint = mode === 'advisor'
+        ? `/api/advisor/requests/${request._id}/resubmit`
+        : `/api/hod/requests/${request._id}/edit`;
+
+      const body = mode === 'advisor'
+        ? {
+          justification: justification.trim(),
+          courseCode: courseCode.trim().toUpperCase(),
+          courseTitle: courseTitle.trim(),
+          creditHours: Number(creditHours),
+          requestType
+        }
+        : {
           studentName: studentName.trim(),
           rollNumber: rollNumber.trim().toUpperCase(),
           justification: justification.trim(),
@@ -61,7 +71,12 @@ export default function EditRequestModal({ request, onClose, onSuccess }) {
           courseTitle: courseTitle.trim(),
           creditHours: Number(creditHours),
           requestType
-        })
+        };
+
+      const res = await fetch(endpoint, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
       });
 
       const data = await res.json();
@@ -118,7 +133,7 @@ export default function EditRequestModal({ request, onClose, onSuccess }) {
           zIndex: 10
         }}>
           <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>
-            Edit Request Details
+            {mode === 'advisor' ? 'Revise & Resubmit Request' : 'Edit Request Details'}
           </h2>
           <button
             type="button"
@@ -144,32 +159,34 @@ export default function EditRequestModal({ request, onClose, onSuccess }) {
         </div>
 
         <form onSubmit={handleSubmit} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          
-          <div style={{ padding: '16px', backgroundColor: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Student Information</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '16px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Student Name</label>
-                <input
-                  type="text"
-                  value={studentName}
-                  onChange={(e) => setStudentName(e.target.value)}
-                  style={{ padding: '10px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13.5px', outline: 'none' }}
-                  required
-                />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Roll Number</label>
-                <input
-                  type="text"
-                  value={rollNumber}
-                  onChange={(e) => setRollNumber(e.target.value)}
-                  style={{ padding: '10px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13.5px', outline: 'none' }}
-                  required
-                />
+
+          {mode !== 'advisor' && (
+            <div style={{ padding: '16px', backgroundColor: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Student Information</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Student Name</label>
+                  <input
+                    type="text"
+                    value={studentName}
+                    onChange={(e) => setStudentName(e.target.value)}
+                    style={{ padding: '10px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13.5px', outline: 'none' }}
+                    required
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Roll Number</label>
+                  <input
+                    type="text"
+                    value={rollNumber}
+                    onChange={(e) => setRollNumber(e.target.value)}
+                    style={{ padding: '10px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13.5px', outline: 'none' }}
+                    required
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '16px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -210,8 +227,8 @@ export default function EditRequestModal({ request, onClose, onSuccess }) {
                 minWidth: 0
               }}
             >
-              <span style={{ 
-                fontWeight: courseCode ? 700 : 400, 
+              <span style={{
+                fontWeight: courseCode ? 700 : 400,
                 color: courseCode ? '#0F172A' : '#94A3B8',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',

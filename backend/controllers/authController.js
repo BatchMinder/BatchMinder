@@ -447,7 +447,7 @@ export const resetPassword = async (req, res) => {
     );
 
     // Force out any existing sessions for this user, since the password just changed.
-    await Session.updateMany({ userId: user._id, revoked: false }, { revoked: true });
+    await revokeAllSessionsForUser(user._id);
 
     // Log action
     await logAudit(user._id, user.email, 'PASSWORD_RESET_SUCCESS', `Password reset completed successfully via OTP for role: ${role}`);

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-  Search, SlidersHorizontal, Brain, Play, RefreshCw, AlertTriangle,
-  CheckCircle, ChevronRight, Activity, Calendar, ShieldAlert, AlertCircle, Sparkles, Users
+  Search, RefreshCw, AlertTriangle,
+  CheckCircle, Activity, ShieldAlert, Users
 } from 'lucide-react';
 import { CircularProgress } from '@mui/material';
 import ResponsiveSelect from '../../components/common/ResponsiveSelect';
@@ -92,7 +92,7 @@ export default function AdvisorRiskDashboard() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '32px' }}>
-      
+
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div>
@@ -147,7 +147,7 @@ export default function AdvisorRiskDashboard() {
 
       {/* Main Workspace Layout */}
       <div className={`grid grid-cols-1 ${selectedStudent ? 'lg:grid-cols-[1.2fr_0.8fr]' : ''} gap-5 transition-all duration-200`}>
-        
+
         {/* Left Side: Directory Table */}
         <div style={{
           backgroundColor: '#FFFFFF', borderRadius: '16px', border: '1px solid #E2E8F0',
@@ -298,7 +298,7 @@ export default function AdvisorRiskDashboard() {
 
             {/* Report Body */}
             <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-              
+
               {/* Score Indicator & Level Badge */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>

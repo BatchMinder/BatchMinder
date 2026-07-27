@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { Users, BookOpen, Layers, CheckSquare, Calendar, UploadCloud, AlertTriangle, Info, CheckCircle2, XCircle, Plus, FileSpreadsheet, Settings, FileText, CalendarDays, RefreshCw, Clock } from 'lucide-react';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Users, BookOpen, Layers, CheckSquare, Calendar, UploadCloud, FileSpreadsheet, CalendarDays, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 const COLORS = {
   active: '#2563EB',
@@ -16,13 +15,11 @@ const CGPA_COLORS = {
   critical: '#EF4444'
 };
 
-export default function Dashboard({ departments, selectedDept, setActiveNav }) {
+export default function Dashboard({ setActiveNav }) {
   const [stats, setStats] = useState(null);
   const [cgpaDist, setCgpaDist] = useState(null);
   const [loading, setLoading] = useState(true);
   const [uploadPage, setUploadPage] = useState(1);
-  const { user } = useAuth();
-  const isDeanOrHOD = user?.role === 'dean' || user?.role === 'admin' || user?.role === 'academic_admin';
 
   const fetchData = async () => {
     setLoading(true);
@@ -46,7 +43,7 @@ export default function Dashboard({ departments, selectedDept, setActiveNav }) {
     }
   };
 
-  useEffect(() => { fetchData(); }, [selectedDept]);
+  useEffect(() => { fetchData(); }, []);
 
   if (loading || !stats) {
     return <div style={{ textAlign: 'center', padding: 60, color: '#94A3B8' }}>Loading dashboard...</div>;

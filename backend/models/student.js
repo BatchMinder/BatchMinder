@@ -244,7 +244,6 @@ async function triggerAdvisorNotification(doc) {
       // 1. Create In-App Notification
       await mongoose.model('Notification').create({
         recipientId: batch.advisorId,
-        targetUserID: batch.advisorId,
         recipientRole: 'advisor',
         type,
         message,

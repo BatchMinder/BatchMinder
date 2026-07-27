@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Search, Check, AlertCircle, ChevronDown, BookOpen } from 'lucide-react';
+import { X, Search, Check, AlertCircle, ChevronDown } from 'lucide-react';
 import { CircularProgress } from '@mui/material';
 import ResponsiveSelect from '../common/ResponsiveSelect';
 
@@ -301,11 +301,10 @@ export default function SpecialPermissionForm({ onClose, onSuccess }) {
                     <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
                       <div className="flex justify-between items-center text-xs">
                         <span className="font-extrabold text-slate-700">Credit Hour Meter</span>
-                        <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${
-                          isExceeded ? 'bg-rose-100 text-rose-700 border border-rose-200' :
-                          isFulfilled ? 'bg-amber-100 text-amber-800 border border-amber-200' :
-                          'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                        }`}>
+                        <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${isExceeded ? 'bg-rose-100 text-rose-700 border border-rose-200' :
+                            isFulfilled ? 'bg-amber-100 text-amber-800 border border-amber-200' :
+                              'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                          }`}>
                           {isExceeded ? '🛑 Exceeds Max Limit' : isFulfilled ? '⚠️ Limit Fulfilled (100%)' : '✅ Within Credit Limit'}
                         </span>
                       </div>
