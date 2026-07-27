@@ -30,6 +30,15 @@ const transferredCourseSchema = new mongoose.Schema({
     enum: ['pending', 'accepted', 'rejected'],
     default: 'pending',
   },
+  // The Migration Committee's stated reason for this specific course's
+  // decision (required when rejected) — this is what makes the "complete
+  // audit trail" (FE-11) actually mean something per-course, rather than
+  // one generic remark for the whole migration case.
+  decisionRemark: {
+    type: String,
+    trim: true,
+    default: '',
+  },
   grade: {
     type: String,
     trim: true,
@@ -83,6 +92,25 @@ const migrationSchema = new mongoose.Schema({
     trim: true,
   },
   transcriptOriginalName: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  // The Migration Committee's own signed decision sheet — the document the
+  // admin actually transcribes course-by-course decisions FROM. Separate
+  // from the transcript, which is just the student's raw course history
+  // (the proof), not the committee's verdict.
+  decisionSheetUrl: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  decisionSheetCloudinaryId: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  decisionSheetOriginalName: {
     type: String,
     default: '',
     trim: true,

@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import Batch from '../models/batch.js';
 import Student from '../models/student.js';
 import Department from '../models/department.js';
+import Curriculum from '../models/curriculum.js';
 import User from '../models/user.js';
 import { scopeToUserDepartments } from '../middleware/scopeMiddleware.js';
 import { logAudit } from '../utils/logger.js';
@@ -116,7 +117,6 @@ const normalizeBatch = async (b) => {
     dept: deptName,
     departmentId: b.departmentId || null,
     startYear: b.startYear || null,
-    curriculumVersionId: b.curriculumVersionId || null,
     advisor: b.advisor || 'Unassigned',
     advisorId: advisorIdVal || null,
     status: b.status || 'Unassigned',
@@ -172,7 +172,6 @@ export const getBatchById = async (req, res) => {
   try {
     const batch = await Batch.findById(req.params.id)
       .populate('departmentId', 'name code color')
-      .populate('curriculumVersionId', 'version')
       .populate('advisorId', 'name email');
 
     if (!batch) {
@@ -222,11 +221,21 @@ export const createBatch = async (req, res) => {
 
     const parsedStartYear = parseInt(startYear, 10) || extractStartYear(code) || new Date().getFullYear();
 
+    // Pin this batch to whichever curriculum version is currently active
+    // for its department. This is a one-time snapshot — publishing a newer
+    // version later won't move this batch off of it.
+    let pinnedCurriculumId = null;
+    if (resolvedDeptId) {
+      const activeCurriculum = await Curriculum.findOne({ departmentId: resolvedDeptId, status: 'active' });
+      pinnedCurriculumId = activeCurriculum?._id || null;
+    }
+
     const batch = await Batch.create({
       code: code.toUpperCase(),
       dept: deptName,
       departmentId: resolvedDeptId,
       startYear: parsedStartYear,
+      curriculumId: pinnedCurriculumId,
       advisor: resolved.advisor,
       advisorId: resolved.advisorId,
       status: resolved.advisor && resolved.advisor !== 'Unassigned' ? 'Allocated' : 'Unassigned',

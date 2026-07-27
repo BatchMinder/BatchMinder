@@ -1,13 +1,44 @@
 import mongoose from 'mongoose';
 import Student from '../models/student.js';
 import Batch from '../models/batch.js';
-import Curriculum from '../models/curriculum.js';
 import Department from '../models/department.js';
 import DegreeProgress from '../models/degreeProgress.js';
 import { scopeToUserDepartments } from '../middleware/scopeMiddleware.js';
+import { resolveCurriculumForStudent, resolveCurriculumForBatch } from '../utils/curriculumResolver.js';
 import { logAudit, logNotification } from '../utils/logger.js';
-import xlsx from 'xlsx';
-import { calculateSTMU_CGPA } from '../utils/stmuGrading.js';
+import { calculateSTMU_CGPA, STMU_GRADE_MAP } from '../utils/stmuGrading.js';
+
+// Given a target CGPA and a list of {creditHours} courses to backfill,
+// assigns each course a real letter grade such that the resulting weighted
+// average lands as close as possible — usually exactly, to two decimal
+// places — on the target CGPA, instead of stamping one flat grade on every
+// course (which can only ever reproduce that one grade's own point value).
+// Works by bracketing the target between the nearest grade above and below
+// it, then greedily choosing per-course whichever of the two keeps the
+// running weighted average closest to the target as we go.
+const assignGradesForTargetCgpa = (targetCgpa, courseCreditHoursList) => {
+  const gradeEntries = Object.entries(STMU_GRADE_MAP).filter(([g]) => g !== 'F');
+  let gradeAbove = null;
+  let gradeBelow = null;
+  for (const [grade, { points }] of gradeEntries) {
+    if (points >= targetCgpa && (!gradeAbove || points < STMU_GRADE_MAP[gradeAbove].points)) gradeAbove = grade;
+    if (points <= targetCgpa && (!gradeBelow || points > STMU_GRADE_MAP[gradeBelow].points)) gradeBelow = grade;
+  }
+  if (!gradeAbove) gradeAbove = gradeBelow;
+  if (!gradeBelow) gradeBelow = gradeAbove;
+
+  let runningPoints = 0;
+  let runningCredits = 0;
+  return courseCreditHoursList.map((creditHours) => {
+    const cr = creditHours || 3;
+    const withAbove = (runningPoints + STMU_GRADE_MAP[gradeAbove].points * cr) / (runningCredits + cr);
+    const withBelow = (runningPoints + STMU_GRADE_MAP[gradeBelow].points * cr) / (runningCredits + cr);
+    const chosenGrade = Math.abs(withAbove - targetCgpa) <= Math.abs(withBelow - targetCgpa) ? gradeAbove : gradeBelow;
+    runningPoints += STMU_GRADE_MAP[chosenGrade].points * cr;
+    runningCredits += cr;
+    return chosenGrade;
+  });
+};
 
 // Auto-generates a unique, conflict-free roll number for a new real student,
 // in the standard STMU-style format: {BatchCode}-{4-digit sequence}
@@ -36,20 +67,18 @@ const autoEnrollHECCourses = async (student) => {
     return student;
   }
 
-  // Find active HEC curriculum matching student's department or batch
-  let curriculum = await Curriculum.findOne({ version: 'HEC-2025-BSCS' });
-  if (!curriculum && student.batchId) {
-    curriculum = await Curriculum.findOne({ batchId: student.batchId._id || student.batchId });
-  }
-  if (!curriculum && student.departmentId) {
-    curriculum = await Curriculum.findOne({ departmentId: student.departmentId._id || student.departmentId });
-  }
+  // Resolve via the student's batch — respects whatever version that batch
+  // is pinned to, not just whatever's currently active for the department.
+  const curriculum = await resolveCurriculumForStudent(student);
 
   if (!curriculum || !curriculum.courses || curriculum.courses.length === 0) {
     return student;
   }
 
   const targetSem = student.currentSemester || 1;
+  const pastCourses = curriculum.courses.filter(c => c.semester < targetSem);
+  const backfillGrades = assignGradesForTargetCgpa(student.cgpa, pastCourses.map(c => c.creditHours || 3));
+  let backfillIdx = 0;
   const enrolledCourses = [];
 
   curriculum.courses.forEach(c => {
@@ -59,7 +88,7 @@ const autoEnrollHECCourses = async (student) => {
         courseCode: c.code,
         courseTitle: c.title,
         creditHours: c.creditHours || 3,
-        grade: isPast ? (student.cgpa >= 3.5 ? 'A' : student.cgpa >= 3.0 ? 'B+' : student.cgpa >= 2.0 ? 'C+' : 'C') : 'IP',
+        grade: isPast ? backfillGrades[backfillIdx++] : 'IP',
         enrollmentStatus: isPast ? 'completed' : 'enrolled',
         status: isPast ? 'completed' : 'enrolled',
         semester: c.semester
@@ -362,327 +391,14 @@ export const deleteStudent = async (req, res) => {
   }
 };
 
-export const bulkUploadStudents = async (req, res, next) => {
-  try {
-    if (!req.file || !req.file.buffer) {
-      return res.status(400).json({ message: 'No file uploaded' });
-    }
-
-    const body = req.body || {};
-    const targetSemester = parseInt(body.semester) || 1;
-    const selectedDeptName = body.department || 'Computer Science';
-    const selectedBatchCode = body.batch || '2022';
-
-
-
-    // Find dept and batch
-    let selectedDept = await Department.findOne({ name: { $regex: new RegExp(`^${selectedDeptName}$`, 'i') } });
-    if (!selectedDept) {
-      selectedDept = await Department.findOne({ code: 'CS' }) || await Department.create({ name: selectedDeptName, code: 'CS', color: '#6366F1' });
-    }
-    let selectedBatchDoc = await Batch.findOne({ code: { $regex: new RegExp(selectedBatchCode, 'i') } });
-    if (!selectedBatchDoc && selectedDept) {
-      selectedBatchDoc = await Batch.create({
-        code: selectedBatchCode,
-        dept: selectedDept.name,
-        departmentId: selectedDept._id,
-        startYear: parseInt(selectedBatchCode) || 22,
-        advisor: 'Unassigned',
-      });
-    }
-
-    // Find active HEC curriculum
-    let curriculum = null;
-    if (selectedDeptName.toLowerCase().includes('computer science') || selectedDeptName.toLowerCase() === 'cs') {
-      curriculum = await Curriculum.findOne({ version: 'HEC-2025-BSCS' });
-    }
-
-    if (!curriculum) {
-      if (selectedBatchDoc) {
-        curriculum = await Curriculum.findOne({ batchId: selectedBatchDoc._id });
-      }
-      if (!curriculum && selectedDept) {
-        curriculum = await Curriculum.findOne({ departmentId: selectedDept._id });
-      }
-    }
-
-    let rawStudentsData = [];
-    const isExcel = req.file.originalname.endsWith('.xlsx') || req.file.originalname.endsWith('.xls') || (req.file.mimetype && (req.file.mimetype.includes('spreadsheet') || req.file.mimetype.includes('excel')));
-
-    if (isExcel) {
-      const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      rawStudentsData = xlsx.utils.sheet_to_json(sheet);
-    } else {
-      // Strip UTF-8 BOM if present
-      const csvStr = req.file.buffer.toString().replace(/^\uFEFF/, '');
-      const lines = csvStr.split(/\r?\n/).filter(line => line.trim().length > 0);
-      if (lines.length < 2) {
-        return res.status(400).json({ message: 'Empty CSV' });
-      }
-
-      const headers = lines[0].split(',').map(h => h.trim());
-      for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(',').map(v => v.trim());
-        const studentObj = {};
-        headers.forEach((header, idx) => {
-          studentObj[header] = values[idx];
-        });
-        rawStudentsData.push(studentObj);
-      }
-    }
-
-    // Key normalization helper
-    const normalizeKeys = (obj) => {
-      const normalized = {};
-      Object.keys(obj).forEach(k => {
-        const clean = k.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (clean === 'rollnumber' || clean === 'roll' || clean === 'studentid' || clean === 'id') {
-          normalized.rollNumber = obj[k];
-        } else if (clean === 'fullname' || clean === 'name') {
-          normalized.name = obj[k];
-        } else if (clean === 'email' || clean === 'emailaddress') {
-          normalized.email = obj[k];
-        } else if (clean === 'department' || clean === 'dept') {
-          normalized.department = obj[k];
-        } else if (clean === 'batch' || clean === 'batchcode') {
-          normalized.batch = obj[k];
-        } else if (clean === 'semester' || clean === 'sem') {
-          normalized.semester = obj[k];
-        } else if (clean === 'cgpa' || clean === 'gpa') {
-          normalized.cgpa = obj[k];
-        } else if (clean === 'intakesession' || clean === 'intake' || clean === 'session' || clean === 'term') {
-          normalized.intakeSession = obj[k];
-        } else {
-          normalized[k] = obj[k];
-        }
-      });
-      return normalized;
-    };
-
-    // Validate all rows before saving any records to the database
-    const errors = [];
-    let validCount = 0;
-    let duplicateCount = 0;
-    const validStudentsData = [];
-    const previewStudents = [];
-
-    const gradesMap = [
-      { name: 'A', gp: 4.0 },
-      { name: 'B+', gp: 3.5 },
-      { name: 'B', gp: 3.0 },
-      { name: 'C+', gp: 2.5 },
-      { name: 'C', gp: 2.0 }
-    ];
-
-    for (let idx = 0; idx < rawStudentsData.length; idx++) {
-      const row = rawStudentsData[idx];
-      const rowNum = idx + 2; // Index 0 is row #2 in the CSV sheet
-      const data = normalizeKeys(row);
-
-      let rowHasError = false;
-      const rollStr = String(data.rollNumber || '').trim();
-      if (!rollStr) {
-        errors.push(`Row ${rowNum}: rollNumber - Registration number is required`);
-        rowHasError = true;
-      } else {
-        const regNoRegex = /^[A-Za-z0-9]{2,6}-[A-Za-z0-9]{2,5}-[A-Za-z0-9]{3,5}$/;
-        if (!regNoRegex.test(rollStr)) {
-          errors.push(`Row ${rowNum}: rollNumber - Invalid format (e.g., BSCS-24F-0001)`);
-          rowHasError = true;
-        }
-      }
-      if (!data.name || !String(data.name).trim()) {
-        errors.push(`Row ${rowNum}: name - Name is required`);
-        rowHasError = true;
-      }
-      if (data.cgpa !== undefined && data.cgpa !== null && String(data.cgpa).trim() !== '') {
-        const parsedCgpa = Number(data.cgpa);
-        if (isNaN(parsedCgpa) || parsedCgpa < 0 || parsedCgpa > 4.0) {
-          errors.push(`Row ${rowNum}: cgpa - Invalid CGPA. Must be between 0.0 and 4.0`);
-          rowHasError = true;
-        }
-      }
-
-      // Calculate CGPA dynamically based on selected semester
-      let calculatedCgpa = 0.0;
-      let totalPoints = 0;
-      let totalCredits = 0;
-
-      if (curriculum && curriculum.courses) {
-        curriculum.courses.forEach(currCourse => {
-          if (currCourse.semester < targetSemester) {
-            // Stable simulated grade points based on roll number
-            const randomHash = (data.rollNumber || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-            const gradeIdx = (randomHash + currCourse.code.charCodeAt(2)) % gradesMap.length;
-            const chosen = gradesMap[gradeIdx];
-            totalPoints += (chosen.gp * currCourse.creditHours);
-            totalCredits += currCourse.creditHours;
-          }
-        });
-      }
-
-      if (totalCredits > 0) {
-        calculatedCgpa = Math.round((totalPoints / totalCredits) * 100) / 100;
-      }
-
-      data.calculatedCgpa = calculatedCgpa;
-
-      // Check for duplicate roll number within the uploaded file itself
-      if (!rowHasError && data.rollNumber) {
-        const alreadyInFile = validStudentsData.some(s => s.rollNumber === data.rollNumber);
-        if (alreadyInFile) {
-          errors.push(`Row ${rowNum}: rollNumber - Duplicate roll number in file`);
-          rowHasError = true;
-        }
-      }
-
-      // Check if student with this roll number already exists in the database
-      if (!rowHasError && data.rollNumber) {
-        const exists = await Student.findOne({ rollNumber: data.rollNumber });
-        if (exists) {
-          errors.push(`Row ${rowNum}: rollNumber - Student with roll number '${data.rollNumber}' already exists in the database`);
-          rowHasError = true;
-        }
-      }
-
-      if (!rowHasError) {
-        validCount++;
-        validStudentsData.push(data);
-      }
-
-      // Generate preview row data
-      previewStudents.push({
-        id: String(rowNum - 1),
-        roll: data.rollNumber || '',
-        name: data.name || '',
-        dept: data.department || selectedDeptName,
-        batch: data.batch || selectedBatchCode,
-        sem: String(targetSemester),
-        cgpa: targetSemester === 1 ? 'N/A' : calculatedCgpa.toFixed(2),
-        status: rowHasError ? 'Invalid' : (calculatedCgpa < 2.0 && targetSemester > 1 ? 'At Risk' : 'Valid')
-      });
-    }
-
-    // STRICT VALIDATION ENGINE: Block entire upload if any row has an error
-    if (errors.length > 0) {
-      return res.status(400).json({
-        message: 'Validation Engine Blocked Upload: Invalid data found.',
-        errors: errors,
-        validCount: 0
-      });
-    }
-
-    // Save only valid student records to the database
-    for (const data of validStudentsData) {
-      let deptName = body.department || data.department || selectedDeptName;
-      let dept = await Department.findOne({ name: { $regex: new RegExp(`^${deptName}$`, 'i') } });
-      if (!dept) {
-        dept = await Department.findOne({ code: 'CS' }) || await Department.create({ name: deptName, code: 'CS', color: '#6366F1' });
-      }
-
-      let batchCode = body.batch || data.batch || selectedBatchCode;
-      let batch = await Batch.findOne({ code: { $regex: new RegExp(batchCode, 'i') } });
-      if (!batch) {
-        batch = await Batch.create({
-          code: batchCode,
-          dept: dept.name,
-          departmentId: dept._id,
-          startYear: parseInt(batchCode) || 2022,
-          advisor: 'Unassigned',
-        });
-      }
-
-      // Populate dynamic course history based on the selected semester
-      const studentCourses = [];
-      if (curriculum && curriculum.courses) {
-        curriculum.courses.forEach(currCourse => {
-          if (currCourse.semester < targetSemester) {
-            const randomHash = (data.rollNumber || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-            const gradeIdx = (randomHash + currCourse.code.charCodeAt(2)) % gradesMap.length;
-            const chosen = gradesMap[gradeIdx];
-
-            studentCourses.push({
-              courseCode: currCourse.code,
-              courseTitle: currCourse.title,
-              creditHours: currCourse.creditHours,
-              semester: currCourse.semester,
-              grade: chosen.name,
-              enrollmentStatus: 'completed',
-              status: 'completed'
-            });
-          } else if (currCourse.semester === targetSemester) {
-            studentCourses.push({
-              courseCode: currCourse.code,
-              courseTitle: currCourse.title,
-              creditHours: currCourse.creditHours,
-              semester: currCourse.semester,
-              grade: 'IP',
-              enrollmentStatus: 'enrolled',
-              status: 'enrolled'
-            });
-          }
-        });
-      }
-
-      let student = await Student.findOne({ rollNumber: data.rollNumber });
-      if (student) {
-        student.name = data.name;
-        if (data.email) student.email = data.email;
-        student.departmentId = dept._id;
-        student.batchId = batch._id;
-        student.currentSemester = targetSemester;
-        student.cgpa = data.calculatedCgpa;
-        student.courses = studentCourses;
-        student.status = 'active';
-        await student.save();
-      } else {
-        student = await Student.create({
-          rollNumber: data.rollNumber,
-          name: data.name,
-          email: data.email || `${data.name.toLowerCase().replace(/\s+/g, '.')}@stmu.edu.pk`,
-          departmentId: dept._id,
-          batchId: batch._id,
-          currentSemester: targetSemester,
-          cgpa: data.calculatedCgpa,
-          courses: studentCourses,
-          status: 'active'
-        });
-      }
-
-      await logAudit({
-        actorId: req.user?._id || new mongoose.Types.ObjectId(),
-        actorRole: req.user?.role || 'advisor',
-        action: 'STUDENT_INGESTED',
-        targetType: 'Student',
-        targetId: data.rollNumber,
-        departmentId: dept._id.toString(),
-        metadata: { description: `Bulk uploaded student ${data.name} for Department: ${dept.name} in Semester: ${targetSemester}` }
-      });
-    }
-
-    res.status(200).json({
-      status: 'success',
-      message: 'Bulk upload processed successfully',
-      data: {
-        processed: rawStudentsData.length,
-        upserted: validStudentsData.length - duplicateCount,
-        modified: duplicateCount,
-        errors,
-        stats: {
-          total: rawStudentsData.length,
-          valid: validCount,
-          errors: errors.length,
-          duplicates: duplicateCount
-        },
-        students: previewStudents
-      }
-    });
-  } catch (err) {
-    next(err);
-  }
-};
+// NOTE: bulk CSV/Excel student import used to live here as
+// bulkUploadStudents(), but it was never wired up in the frontend and
+// duplicated the real upload flow (POST /api/uploads +
+// /api/uploads/:id/import in uploadController.js, called from
+// DataIngestionHub.jsx). Removed to avoid two upload implementations
+// drifting apart. Grade-backfilling helpers above (assignGradesForTargetCgpa,
+// generateRollNumber, autoEnrollHECCourses) are still used by
+// createStudent/getAllStudents/getStudentById below and were kept.
 
 export const syncLmsRecords = async (req, res, next) => {
   try {
@@ -706,15 +422,10 @@ export const syncLmsRecords = async (req, res, next) => {
     let graduatedCount = 0;
     const notPromoted = [];
 
-    // CURRICULUM FIX: a Curriculum document is NOT one-per-semester — it's
-    // one document per program/department, holding every semester's courses
-    // embedded together (each course tagged with its own `semester`). It's
-    // linked to a batch via Batch.curriculumVersionId, NOT via
-    // Curriculum.batchId (that field can point to an unrelated seed batch).
-    // Fetch it once here instead of querying per-student per-semester.
-    const curriculumDoc = batchDoc.curriculumVersionId
-      ? await Curriculum.findById(batchDoc.curriculumVersionId)
-      : null;
+    // A Curriculum document is one-per-version. Resolve via this batch's
+    // pinned version (falls back to department's active one only if this
+    // batch was never pinned). Fetch it once here instead of per-student.
+    const curriculumDoc = await resolveCurriculumForBatch(batchDoc);
 
     for (const student of students) {
       if (student.status === 'graduated') continue;
@@ -907,11 +618,8 @@ export const promoteSemester = async (req, res, next) => {
     const skippedCount = [];
     const graduatedCount = [];
 
-    // Same fix as syncLmsRecords: Curriculum is linked via
-    // Batch.curriculumVersionId, not by matching Curriculum.batchId/semester.
-    const curriculumDoc = batchDoc.curriculumVersionId
-      ? await Curriculum.findById(batchDoc.curriculumVersionId)
-      : null;
+    // Same as syncLmsRecords: resolve via this batch's pinned version.
+    const curriculumDoc = await resolveCurriculumForBatch(batchDoc);
 
     for (const student of students) {
       if (student.status === 'graduated') continue;
@@ -924,7 +632,7 @@ export const promoteSemester = async (req, res, next) => {
       // (via LMS sync or manual grade entry).
       const unresolvedCurrentSemCourses = student.courses.filter(
         c => c.semester === student.currentSemester &&
-             (c.grade === 'IP' || c.status === 'enrolled' || c.enrollmentStatus === 'enrolled')
+          (c.grade === 'IP' || c.status === 'enrolled' || c.enrollmentStatus === 'enrolled')
       );
       if (unresolvedCurrentSemCourses.length > 0) {
         skippedCount.push({

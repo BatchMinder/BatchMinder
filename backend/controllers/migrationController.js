@@ -1,6 +1,7 @@
 import Migration from '../models/migration.js';
 import Student from '../models/student.js';
 import Curriculum from '../models/curriculum.js';
+import { resolveCurriculumForStudent } from '../utils/curriculumResolver.js';
 import Batch from '../models/batch.js';
 import { scopeToUserDepartments } from '../middleware/scopeMiddleware.js';
 import { logAudit, logNotification } from '../utils/logger.js';
@@ -149,15 +150,16 @@ export const decideMigration = async (req, res) => {
     // courses are not subject to this restriction.
     const studentForValidation = await Student.findById(migration.studentId);
     let curriculumCourseCodes = new Set();
-    if (studentForValidation?.batchId) {
-      const targetCurriculum = await Curriculum.findOne({ batchId: studentForValidation.batchId });
-      if (targetCurriculum?.courses) {
-        curriculumCourseCodes = new Set(targetCurriculum.courses.map(c => c.code));
+    let studentCurriculum = null;
+    if (studentForValidation) {
+      studentCurriculum = await resolveCurriculumForStudent(studentForValidation);
+      if (studentCurriculum?.courses) {
+        curriculumCourseCodes = new Set(studentCurriculum.courses.map(c => c.code));
       }
     }
 
     for (const decision of courseDecisions) {
-      const { courseName, equivalencyStatus } = decision;
+      const { courseName, equivalencyStatus, remark } = decision;
       if (!['accepted', 'rejected'].includes(equivalencyStatus)) {
         return res.status(400).json({ message: `Invalid status for ${courseName}: must be accepted or rejected` });
       }
@@ -169,8 +171,13 @@ export const decideMigration = async (req, res) => {
         return res.status(400).json({ message: `Course ${courseName} not found in migration record` });
       }
 
-      if (equivalencyStatus === 'rejected' && !remarks) {
-        return res.status(400).json({ message: 'Remarks are required when rejecting courses' });
+      // Every rejection needs its own recorded reason — this is what makes
+      // the audit trail (FE-11) meaningful per-course, not just one generic
+      // remark for the whole case. The Migration Committee's decision sheet
+      // always has a stated reason for each rejection; the admin is just
+      // transcribing it here.
+      if (equivalencyStatus === 'rejected' && !(remark && remark.trim())) {
+        return res.status(400).json({ message: `A reason is required for rejecting "${courseName}" (the Migration Committee's stated reason from the decision sheet).` });
       }
 
       if (
@@ -184,20 +191,46 @@ export const decideMigration = async (req, res) => {
       }
 
       course.equivalencyStatus = equivalencyStatus;
+      if (equivalencyStatus === 'rejected') {
+        course.decisionRemark = remark.trim();
+      }
+    }
+
+    // Use the explicit status provided by the frontend, defaulting to approved if valid
+    const targetStatus = (status === 'rejected' || status === 'returned') ? status : 'approved';
+
+    // Nothing can be left undecided before a migration is approved — a
+    // course that nobody has explicitly accepted or rejected must never be
+    // silently treated as accepted just because the overall case was
+    // approved. This is the "completeness gate" from the documented
+    // workflow: every course from the transcript needs a real decision.
+    if (targetStatus === 'approved') {
+      const unresolved = migration.transferredCourses.filter(c => c.equivalencyStatus === 'pending');
+      if (unresolved.length > 0) {
+        return res.status(400).json({
+          message: `Cannot approve: ${unresolved.length} course(s) still have no accept/reject decision (${unresolved.map(c => c.courseName).join(', ')}). Every transferred course must be decided before approving.`
+        });
+      }
     }
 
     migration.decidedBy = req.user._id;
     migration.decidedAt = new Date();
     if (remarks) migration.remarks = remarks;
 
-    // Use the explicit status provided by the frontend, defaulting to approved if valid
-    const targetStatus = (status === 'rejected' || status === 'returned') ? status : 'approved';
-
     // Strict Rule: Cannot approve a migration request without an uploaded transcript
+    // AND the Migration Committee's signed decision sheet — the admin's
+    // per-course decisions above should be a transcription of that sheet,
+    // not something typed from memory.
     if (targetStatus === 'approved' && !migration.transcriptUrl) {
       return res.status(400).json({
         status: 'fail',
         message: 'Migration request cannot be approved without an uploaded HEC-Verified Transcript.'
+      });
+    }
+    if (targetStatus === 'approved' && !migration.decisionSheetUrl) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Migration request cannot be approved without the Migration Committee\'s signed decision sheet on file.'
       });
     }
 
@@ -207,14 +240,8 @@ export const decideMigration = async (req, res) => {
       .filter(c => c.equivalencyStatus === 'accepted')
       .reduce((sum, c) => sum + c.credits, 0);
 
-    if (migration.curriculumComparison) {
-      migration.curriculumComparison.toCompletedCredits = acceptedCredits;
-      migration.curriculumComparison.toRemainingCredits = Math.max(0, (migration.curriculumComparison.toRequiredCredits || 120) - acceptedCredits);
-    }
-
-    await migration.save();
-
-    // Only update student if migration is approved
+    // Only update student records / degree progress / roll numbers when the
+    // migration is genuinely approved.
     let student = null;
     let oldCgpaStatus = null;
 
@@ -223,14 +250,8 @@ export const decideMigration = async (req, res) => {
       if (student) {
         oldCgpaStatus = student.cgpaStatus;
 
-        // Fetch target curriculums to resolve course titles
-        const mongoose = (await import('mongoose')).default;
-        const Curriculum = mongoose.model('Curriculum');
-        let allTargetCourses = [];
-        if (student.batchId) {
-          const deptCurr = await Curriculum.findOne({ batchId: student.batchId });
-          if (deptCurr && deptCurr.courses) allTargetCourses = [...allTargetCourses, ...deptCurr.courses];
-        }
+        const deptCurriculum = studentCurriculum || await resolveCurriculumForStudent(student);
+        const allTargetCourses = deptCurriculum?.courses || [];
 
         // Recalculate degree progress & synchronize transferred courses to student profile
         for (const c of migration.transferredCourses) {
@@ -281,19 +302,24 @@ export const decideMigration = async (req, res) => {
           }
         }
 
-        // Assign target semester (use provided targetSemester or keep current semester)
-        const assignedSemester = targetSemester || student.currentSemester || 1;
+        // Assign target semester: the admin's explicit choice if given,
+        // otherwise the documented credit-based placement rule
+        // (calculateMigratedStudentSemester: 0-15 CH -> Sem 1, 16-32 -> Sem 2,
+        // ... 117+ -> Sem 8) instead of just leaving them wherever they
+        // started.
+        const parsedTargetSemester = Number(targetSemester);
+        const assignedSemester = (Number.isInteger(parsedTargetSemester) && parsedTargetSemester >= 1 && parsedTargetSemester <= 8)
+          ? parsedTargetSemester
+          : calculateMigratedStudentSemester(acceptedCredits);
         student.currentSemester = assignedSemester;
 
-        // Auto-enroll migrated student in HEC curriculum courses for their assigned semester
-        const batchCurriculum = await Curriculum.findOne({ batchId: student.batchId });
-
-        if (batchCurriculum) {
-          student.curriculumID = batchCurriculum._id;
+        if (deptCurriculum) {
+          student.curriculumID = deptCurriculum._id;
         }
 
-        if (batchCurriculum && batchCurriculum.courses) {
-          const semesterCourses = batchCurriculum.courses.filter(c => c.semester === assignedSemester);
+        // Auto-enroll migrated student in their assigned semester's courses
+        if (deptCurriculum && deptCurriculum.courses) {
+          const semesterCourses = deptCurriculum.courses.filter(c => c.semester === assignedSemester);
           for (const hecCourse of semesterCourses) {
             const existingCourse = student.courses.find(sc => sc.courseCode === hecCourse.code);
             if (!existingCourse) {
@@ -310,14 +336,53 @@ export const decideMigration = async (req, res) => {
           }
         }
 
+        // --- Scope Doc FE-13/FE-14/FE-37: Degree Progress Adjustment &
+        // Academic Plan Realignment for Migrated Students ---
+        // Find CORE courses from every curriculum semester BEFORE the
+        // student's assigned semester that aren't satisfied by an
+        // accepted/completed course on their record — then actually
+        // schedule them into the student's future course plan (the next
+        // semester after the one they're assigned to), tagged as a
+        // migration backlog requirement, rather than just noting they're
+        // missing. Electives/General are excluded: a missed elective isn't
+        // a specific hard requirement the way a missing core course is.
+        let missingCourses = [];
+        if (deptCurriculum && deptCurriculum.courses) {
+          const completedCodes = new Set(
+            student.courses
+              .filter(sc => sc.status === 'completed')
+              .map(sc => sc.courseCode)
+          );
+          missingCourses = deptCurriculum.courses
+            .filter(c => c.semester < assignedSemester && c.courseType === 'CORE')
+            .filter(c => !completedCodes.has(c.code))
+            .map(c => ({ courseCode: c.code, courseTitle: c.title, creditHours: c.creditHours }));
+
+          const scheduleSemester = Math.min(assignedSemester + 1, 8);
+          for (const mc of missingCourses) {
+            const alreadyScheduled = student.courses.find(sc => sc.courseCode === mc.courseCode);
+            if (!alreadyScheduled) {
+              student.courses.push({
+                courseCode: mc.courseCode,
+                courseTitle: mc.courseTitle,
+                creditHours: mc.creditHours,
+                grade: 'IP',
+                enrollmentStatus: 'enrolled',
+                status: 'enrolled',
+                semester: scheduleSemester,
+                isMigrationBacklog: true,
+              });
+            }
+          }
+        }
+        migration.missingCourses = missingCourses;
+
         // Calculate True CGPA using STMU GPA formula: Sum(Points * CH) / Sum(CH)
         student.cgpa = calculateSTMU_CGPA(student.courses);
 
         // Convert temporary MIG- placeholder roll number to a real, permanent
         // batch roll number now that migration is approved and the student is
-        // a fully enrolled batch member. Previously the MIG- id was never
-        // replaced, so approved migrated students stayed as "MIG-482913"
-        // forever even after joining a real batch.
+        // a fully enrolled batch member.
         if (student.rollNumber && student.rollNumber.toUpperCase().startsWith('MIG-')) {
           const enrolledBatch = await Batch.findById(student.batchId);
           if (enrolledBatch) {
@@ -352,8 +417,34 @@ export const decideMigration = async (req, res) => {
             { upsert: true }
           );
         }
+
+        // Curriculum comparison snapshot for the migration audit report
+        // (FE-36/FE-38).
+        const toRequiredCredits = deptCurriculum?.totalRequiredCredits || 130;
+        const toRemainingCredits = Math.max(0, toRequiredCredits - acceptedCredits);
+        const remainingSemesters = Math.max(0, 8 - assignedSemester);
+        const now = new Date();
+        let gradSeason = now.getMonth() >= 6 ? 'Fall' : 'Spring';
+        let gradYear = now.getFullYear();
+        for (let i = 0; i < remainingSemesters; i++) {
+          gradSeason = gradSeason === 'Fall' ? 'Spring' : 'Fall';
+          if (gradSeason === 'Spring') gradYear++;
+        }
+        migration.curriculumComparison = {
+          ...(migration.curriculumComparison ? migration.curriculumComparison.toObject() : {}),
+          toRequiredCredits,
+          toCompletedCredits: acceptedCredits,
+          toRemainingCredits,
+          toDurationSemesters: 8,
+          expectedCompletion: `${gradSeason} ${gradYear}`,
+        };
       }
+    } else if (migration.curriculumComparison) {
+      migration.curriculumComparison.toCompletedCredits = acceptedCredits;
+      migration.curriculumComparison.toRemainingCredits = Math.max(0, (migration.curriculumComparison.toRequiredCredits || 130) - acceptedCredits);
     }
+
+    await migration.save();
 
     // 1. Log Audit
     await logAudit({
@@ -365,7 +456,7 @@ export const decideMigration = async (req, res) => {
       departmentId: migration.departmentId.toString(),
       batchId: student ? student.batchId.toString() : undefined,
       metadata: {
-        description: `Decided on migration for student ${student ? student.name : migration.studentId}`,
+        description: `Decided on migration for student ${student ? student.name : migration.studentId} (status: ${targetStatus})`,
         acceptedCount: courseDecisions.filter(d => d.equivalencyStatus === 'accepted').length,
         rejectedCount: courseDecisions.filter(d => d.equivalencyStatus === 'rejected').length,
       },
@@ -374,7 +465,7 @@ export const decideMigration = async (req, res) => {
     // 2. Generate Migration Decision Notification
     await logNotification({
       type: 'info',
-      message: `Migration request decided for student ${student ? student.name : 'Unknown'} (${student ? student.rollNumber : ''}).`,
+      message: `Migration request ${targetStatus} for student ${student ? student.name : 'Unknown'} (${student ? student.rollNumber : ''}).`,
       departmentId: migration.departmentId.toString(),
       batchId: student ? student.batchId.toString() : undefined,
       deepLinkUrl: `/admin/migrations`
@@ -425,7 +516,11 @@ export const updateMigration = async (req, res) => {
   }
 };
 
-export const uploadTranscript = async (req, res) => {
+// Shared upload logic for either of the two migration documents: the
+// transcript (student's raw course history) or the decision sheet (the
+// Migration Committee's signed verdict, which the admin actually transcribes
+// course decisions from).
+const handleMigrationDocumentUpload = async (req, res, { urlField, idField, nameField, folder, auditAction, auditLabel }) => {
   try {
     const { id } = req.params;
     const scope = scopeToUserDepartments(req);
@@ -439,46 +534,68 @@ export const uploadTranscript = async (req, res) => {
       return res.status(400).json({ message: 'No file uploaded. Please attach a PDF or image.' });
     }
 
-    // Delete existing transcript from Cloudinary if previously uploaded
-    if (migration.transcriptCloudinaryId) {
+    // Delete existing file from Cloudinary if previously uploaded
+    if (migration[idField]) {
       try {
-        await deleteFromCloudinary(migration.transcriptCloudinaryId);
+        await deleteFromCloudinary(migration[idField]);
       } catch (delErr) {
-        console.warn('[uploadTranscript] Failed to delete previous Cloudinary file:', delErr.message);
+        console.warn(`[${auditAction}] Failed to delete previous Cloudinary file:`, delErr.message);
       }
     }
 
-    // Upload to Cloudinary
     const resourceType = req.file.mimetype === 'application/pdf' ? 'raw' : 'auto';
-    const cloudResult = await uploadToCloudinary(req.file.buffer, 'transcripts', { resource_type: resourceType });
+    const cloudResult = await uploadToCloudinary(req.file.buffer, folder, { resource_type: resourceType });
 
-    const transcriptUrl = cloudResult.secure_url || cloudResult.url;
-    migration.transcriptUrl = transcriptUrl;
-    migration.transcriptCloudinaryId = cloudResult.public_id || '';
-    migration.transcriptOriginalName = req.file.originalname;
+    const fileUrl = cloudResult.secure_url || cloudResult.url;
+    migration[urlField] = fileUrl;
+    migration[idField] = cloudResult.public_id || '';
+    migration[nameField] = req.file.originalname;
     await migration.save();
 
     await logAudit({
       actorId: req.user._id,
       actorRole: req.user.role,
-      action: 'MIGRATION_TRANSCRIPT_UPLOADED',
+      action: auditAction,
       targetType: 'Migration',
       targetId: migration._id.toString(),
       departmentId: migration.departmentId.toString(),
-      metadata: { description: `Transcript uploaded to Cloudinary: ${req.file.originalname}` },
+      metadata: { description: `${auditLabel} uploaded to Cloudinary: ${req.file.originalname}` },
     });
 
     res.status(200).json({
       status: 'success',
       data: {
-        transcriptUrl,
-        transcriptOriginalName: req.file.originalname,
+        [urlField]: fileUrl,
+        [nameField]: req.file.originalname,
       }
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
+export const uploadTranscript = async (req, res) => {
+  return handleMigrationDocumentUpload(req, res, {
+    urlField: 'transcriptUrl',
+    idField: 'transcriptCloudinaryId',
+    nameField: 'transcriptOriginalName',
+    folder: 'transcripts',
+    auditAction: 'MIGRATION_TRANSCRIPT_UPLOADED',
+    auditLabel: 'Transcript',
+  });
+};
+
+export const uploadDecisionSheet = async (req, res) => {
+  return handleMigrationDocumentUpload(req, res, {
+    urlField: 'decisionSheetUrl',
+    idField: 'decisionSheetCloudinaryId',
+    nameField: 'decisionSheetOriginalName',
+    folder: 'migration-decision-sheets',
+    auditAction: 'MIGRATION_DECISION_SHEET_UPLOADED',
+    auditLabel: "Migration Committee decision sheet",
+  });
+};
+
 
 export const parseTranscript = async (req, res) => {
   try {
@@ -596,22 +713,14 @@ export const parseTranscript = async (req, res) => {
     try {
       const student = await Student.findById(migration.studentId);
       if (student) {
-        const mongoose = (await import('mongoose')).default;
-        const Curriculum = mongoose.model('Curriculum');
         let allTargetCourses = [];
 
-        // Get department curriculum
-        if (student.batchId) {
-          const deptCurr = await Curriculum.findOne({ batchId: student.batchId });
+        // Get this student's pinned curriculum
+        if (student.departmentId) {
+          const deptCurr = await resolveCurriculumForStudent(student);
           if (deptCurr && deptCurr.courses) {
             allTargetCourses = [...allTargetCourses, ...deptCurr.courses];
           }
-        }
-
-        // Get batch curriculum as fallback
-        const batchCurr = await Curriculum.findOne({ batchId: student.batchId });
-        if (batchCurr && batchCurr.courses) {
-          allTargetCourses = [...allTargetCourses, ...batchCurr.courses];
         }
 
         if (allTargetCourses.length > 0) {
@@ -625,6 +734,7 @@ export const parseTranscript = async (req, res) => {
               if (cleanSourceTitle.includes(targetTitle) || targetTitle.includes(cleanSourceTitle)) {
                 c.mappedCourseName = tc.code;
                 c.credits = tc.creditHours; // Auto-update credits to match the curriculum
+                c.courseType = tc.courseType || 'CORE'; // Carry over ELECTIVE/LAB/GENERAL so downstream elective-alignment checks actually see it
                 break;
               }
             }

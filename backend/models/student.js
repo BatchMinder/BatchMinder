@@ -33,6 +33,13 @@ const courseEnrollmentSchema = new mongoose.Schema({
     type: Number,
     required: true,
     default: 1,
+  },
+  // True for a course auto-inserted into a migrated student's future
+  // semester because it was a CORE requirement from an earlier semester
+  // that their transferred credits didn't satisfy (FE-13/FE-14 backlog).
+  isMigrationBacklog: {
+    type: Boolean,
+    default: false,
   }
 });
 
@@ -123,17 +130,26 @@ const studentSchema = new mongoose.Schema({
 // Auto-compute cgpaStatus before every save
 studentSchema.pre('save', function (next) {
   this.cgpaStatus = computeCgpaStatus(this.cgpa, this.currentSemester);
+  // Stash whether cgpa was actually touched on this save (captured here,
+  // before Mongoose clears the modified-paths tracking after save
+  // completes) so the post('save') hook below can decide whether this
+  // save is a genuine CGPA change worth alerting on, vs. an unrelated
+  // save (e.g. the course auto-heal in getAllStudents/getStudentById)
+  // that happens to touch the same document but never assigns cgpa.
+  this._cgpaWasModified = this.isModified('cgpa');
   next();
 });
 
 // Auto-compute cgpaStatus on findOneAndUpdate / updateOne
 studentSchema.pre('findOneAndUpdate', function (next) {
   const update = this.getUpdate();
+  let cgpaInUpdate = false;
   if (update) {
     const cgpa = update.cgpa !== undefined ? update.cgpa : update.$set?.cgpa;
     const currentSemester = update.currentSemester !== undefined ? update.currentSemester : update.$set?.currentSemester;
-    
+
     if (cgpa !== undefined) {
+      cgpaInUpdate = true;
       const status = computeCgpaStatus(cgpa, currentSemester);
       if (update.$set) {
         update.$set.cgpaStatus = status;
@@ -142,6 +158,10 @@ studentSchema.pre('findOneAndUpdate', function (next) {
       }
     }
   }
+  // Same reasoning as the pre('save') hook above: only alert when this
+  // update actually assigns a new cgpa value, not on every unrelated
+  // field edit.
+  this._cgpaInUpdate = cgpaInUpdate;
   next();
 });
 
@@ -155,7 +175,7 @@ async function recalculateDegreeProgress(doc) {
     seenCodes.add(code);
     return true;
   });
-  
+
   const completedCredits = uniqueCompleted.reduce((sum, c) => sum + (c.creditHours || 0), 0);
   const totalRequiredCredits = 130;
   const remainingCredits = Math.max(totalRequiredCredits - completedCredits, 0);
@@ -249,7 +269,7 @@ async function triggerAdvisorNotification(doc) {
             <a href="http://localhost:5173/advisor/students?search=${encodeURIComponent(doc.rollNumber)}" style="display: inline-block; background-color: #2563EB; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 10px;">View Student Profile</a>
           </div>
         `;
-        
+
         await sendEmail({
           to: advisor.email,
           subject: type === 'CGPA_CRITICAL' ? `CRITICAL ALERT: CGPA Dropped for ${doc.name}` : `Warning: CGPA Alert for ${doc.name}`,
@@ -266,8 +286,15 @@ studentSchema.post('save', async function (doc) {
     // 1. Calculate and update Degree Progress
     await recalculateDegreeProgress(doc);
 
-    // 2. Evaluate CGPA thresholds and trigger Advisor notifications
-    await triggerAdvisorNotification(doc);
+    // 2. Evaluate CGPA thresholds and trigger Advisor notifications —
+    // only when this save actually assigned a new cgpa value. Without
+    // this guard, any unrelated save on the document (e.g. the course
+    // auto-heal in getAllStudents/getStudentById, which only touches
+    // `courses`/`curriculumID`) would re-fire the same Warning/Critical
+    // alert a second time for a CGPA that never changed.
+    if (doc._cgpaWasModified) {
+      await triggerAdvisorNotification(doc);
+    }
   } catch (err) {
     console.error('Error in student post-save hook:', err);
   }
@@ -279,8 +306,12 @@ studentSchema.post('findOneAndUpdate', async function (doc) {
       // 1. Calculate and update Degree Progress
       await recalculateDegreeProgress(doc);
 
-      // 2. Evaluate CGPA thresholds and trigger Advisor notifications
-      await triggerAdvisorNotification(doc);
+      // 2. Evaluate CGPA thresholds and trigger Advisor notifications —
+      // same reasoning as the post('save') hook above: only when this
+      // update actually included a new cgpa value.
+      if (this._cgpaInUpdate) {
+        await triggerAdvisorNotification(doc);
+      }
     } catch (err) {
       console.error('Error in student post-findOneAndUpdate hook:', err);
     }

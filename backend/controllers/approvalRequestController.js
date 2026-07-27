@@ -1,6 +1,7 @@
 import ApprovalRequest from '../models/approvalRequest.js';
 import Student from '../models/student.js';
 import Curriculum from '../models/curriculum.js';
+import { resolveCurriculumForStudent } from '../utils/curriculumResolver.js';
 import Department from '../models/department.js';
 import Batch from '../models/batch.js';
 import { logAudit, logNotification } from '../utils/logger.js';
@@ -64,11 +65,7 @@ export const validateApprovalRequest = async (studentId, courseCode, courseTitle
   }
 
   // FR-4.4 Prerequisite validation
-  const curriculum = await Curriculum.findOne({
-    departmentId: student.departmentId,
-    batchId: student.batchId,
-    status: 'active'
-  });
+  const curriculum = await resolveCurriculumForStudent(student);
 
   if (curriculum) {
     // Look up the requested course in curriculum
@@ -188,11 +185,7 @@ export const createAdvisorRequest = async (req, res, next) => {
 
     let isBacklog = false;
     if (requestType === 'add' || requestType === 'special_permission') {
-      const curriculum = await Curriculum.findOne({
-        departmentId: student.departmentId,
-        batchId: student.batchId,
-        status: 'active'
-      });
+      const curriculum = await resolveCurriculumForStudent(student);
       if (curriculum) {
         const curriculumCourse = curriculum.courses.find(
           c => c.code.toUpperCase() === courseCode.toUpperCase()
@@ -414,11 +407,7 @@ export const listAdvisorRequests = async (req, res, next) => {
 
       let prerequisites = [];
       if (student) {
-        const curriculum = await Curriculum.findOne({
-          departmentId: student.departmentId,
-          batchId: student.batchId,
-          status: 'active'
-        });
+        const curriculum = await resolveCurriculumForStudent(student);
         if (curriculum) {
           const curriculumCourse = curriculum.courses.find(c => c.code.toUpperCase() === r.courseCode.toUpperCase());
           if (curriculumCourse && curriculumCourse.prerequisiteCourseIds && curriculumCourse.prerequisiteCourseIds.length > 0) {
@@ -540,11 +529,7 @@ export const createHODSpecialPermission = async (req, res, next) => {
     }
 
     let isBacklog = false;
-    const curriculum = await Curriculum.findOne({
-      departmentId: student.departmentId,
-      batchId: student.batchId,
-      status: 'active'
-    });
+    const curriculum = await resolveCurriculumForStudent(student);
     if (curriculum) {
       const curriculumCourse = curriculum.courses.find(
         c => c.code.toUpperCase() === courseCode.toUpperCase()

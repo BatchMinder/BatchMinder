@@ -22,7 +22,13 @@ const batchSchema = new mongoose.Schema({
     enum: ['Spring', 'Fall'],
     default: 'Fall',
   },
-  curriculumVersionId: {
+  // Pinned at batch-creation time to whichever curriculum version was
+  // 'active' for the department at that moment. Publishing a NEW curriculum
+  // version later does NOT move this — the batch keeps following whatever
+  // it started under, so students already partway through aren't
+  // retroactively affected by a plan revision. Only an explicit admin
+  // reassignment changes it.
+  curriculumId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Curriculum',
     default: null,

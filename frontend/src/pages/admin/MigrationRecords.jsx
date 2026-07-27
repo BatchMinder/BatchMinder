@@ -7,6 +7,14 @@ import ResponsiveSelect from '../../components/common/ResponsiveSelect';
 import MigrationAudit from '../migration/MigrationAudit';
 import STMUGradingScaleTable from '../../components/migration/STMUGradingScaleTable';
 
+// Uploaded transcripts/decision sheets are stored as full Cloudinary URLs
+// (e.g. https://res.cloudinary.com/...). Only prefix with the API host for
+// legacy records that still hold an old relative local-disk path.
+const resolveDocUrl = (url) => {
+  if (!url) return '';
+  return /^https?:\/\//i.test(url) ? url : `http://localhost:5000${url}`;
+};
+
 export default function MigrationRecords() {
   const [migrations, setMigrations] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -49,6 +57,12 @@ export default function MigrationRecords() {
   const [isUploadingTranscript, setIsUploadingTranscript] = useState(false);
   const transcriptInputRef = useRef(null);
 
+  // Migration Committee decision sheet upload state — the second required
+  // document, separate from the transcript.
+  const [decisionSheetFile, setDecisionSheetFile] = useState(null);
+  const [isUploadingDecisionSheet, setIsUploadingDecisionSheet] = useState(false);
+  const decisionSheetInputRef = useRef(null);
+
   // HEC panel + remarks state
   const [showHecPanel, setShowHecPanel] = useState(false);
   const [decisionRemarks, setDecisionRemarks] = useState('');
@@ -81,20 +95,26 @@ export default function MigrationRecords() {
 
   useEffect(() => {
     fetchMigrations();
-    fetchHecCurriculum();
   }, []);
 
-  const fetchHecCurriculum = async () => {
+  const fetchHecCurriculum = async (deptCode) => {
+    if (!deptCode) {
+      setHecCurriculum(null);
+      return;
+    }
     try {
-      const res = await fetch('/api/curriculums/hec');
+      const res = await fetch(`/api/curriculums/hec?code=${encodeURIComponent(deptCode)}`);
       if (res.ok) {
         const data = await res.json();
         if (data.status === 'success') {
           setHecCurriculum(data.data.curriculum);
         }
+      } else {
+        setHecCurriculum(null);
       }
     } catch (e) {
       console.error('Failed to fetch HEC curriculum', e);
+      setHecCurriculum(null);
     }
   };
 
@@ -141,6 +161,7 @@ export default function MigrationRecords() {
     } else {
       setCurriculum(null);
     }
+    fetchHecCurriculum(selected?.departmentId?.code);
   }, [selected]);
 
   const fetchCurriculum = async (batchId) => {
@@ -195,6 +216,11 @@ export default function MigrationRecords() {
       return;
     }
 
+    if (!decisionSheetFile) {
+      setNewReqError("The Migration Committee's signed decision sheet is mandatory. Please upload it before submitting the request.");
+      return;
+    }
+
     setIsSubmittingNew(true);
     try {
       const res = await fetch('/api/migrations', {
@@ -215,14 +241,18 @@ export default function MigrationRecords() {
       });
       const data = await res.json();
       if (data.status === 'success') {
-        // Upload transcript if a file was selected
+        // Upload both required documents
         const createdId = data.data?.migration?._id;
         if (createdId && transcriptFile) {
           await uploadTranscriptFile(createdId, transcriptFile);
         }
+        if (createdId && decisionSheetFile) {
+          await uploadDecisionSheetFile(createdId, decisionSheetFile);
+        }
         setShowNewModal(false);
         setNewReq({ studentName: '', studentEmail: '', studentPhone: '', sourceInstitution: '', departmentId: '', batchId: '', fromSemester: '' });
         setTranscriptFile(null);
+        setDecisionSheetFile(null);
         fetchMigrations();
       } else {
         setNewReqError(data.message || 'Failed to create request');
@@ -255,6 +285,27 @@ export default function MigrationRecords() {
     return null;
   };
 
+  const uploadDecisionSheetFile = async (migrationId, file) => {
+    setIsUploadingDecisionSheet(true);
+    try {
+      const formData = new FormData();
+      formData.append('decisionSheet', file);
+      const res = await fetch(`/api/migrations/${migrationId}/decision-sheet`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        return data.data.decisionSheetUrl;
+      }
+    } catch (err) {
+      console.error('Decision sheet upload failed:', err);
+    } finally {
+      setIsUploadingDecisionSheet(false);
+    }
+    return null;
+  };
+
   const handleDecision = async (status, remarksOverride) => {
     if (!selected) return;
 
@@ -263,15 +314,57 @@ export default function MigrationRecords() {
       return;
     }
 
+    if (status === 'approved' && !selected.decisionSheetUrl && !decisionSheetFile) {
+      setActionError("Migration request cannot be approved without the Migration Committee's signed decision sheet on file.");
+      return;
+    }
+
+    const sourceCourses = tempCourses.length > 0 ? tempCourses : (selected.transferredCourses || []);
+    if (sourceCourses.length === 0) {
+      setActionError('This migration record has no transferred courses to decide on.');
+      return;
+    }
+
+    let courseDecisions;
+    if (status === 'approved') {
+      // Every course must have an explicit accept/reject decision — a course
+      // left "pending" must never be silently treated as accepted just
+      // because the overall request was approved.
+      const stillPending = sourceCourses.filter(c => c.equivalencyStatus !== 'accepted' && c.equivalencyStatus !== 'rejected');
+      if (stillPending.length > 0) {
+        setActionError(`Cannot approve: ${stillPending.length} course(s) still need an accept/reject decision (${stillPending.map(c => c.courseName).join(', ')}). Mark every course before approving.`);
+        return;
+      }
+      const missingReasons = sourceCourses.filter(c => c.equivalencyStatus === 'rejected' && !(c.decisionRemark || '').trim());
+      if (missingReasons.length > 0) {
+        setActionError(`Please enter the Migration Committee's reason for rejecting: ${missingReasons.map(c => c.courseName).join(', ')}.`);
+        return;
+      }
+      courseDecisions = sourceCourses.map(c => ({
+        courseName: c.courseName,
+        equivalencyStatus: c.equivalencyStatus,
+        remark: c.equivalencyStatus === 'rejected' ? (c.decisionRemark || '').trim() : undefined
+      }));
+    } else {
+      // Rejecting/returning the whole case — every course becomes rejected.
+      // Use each course's own reason if already entered, otherwise fall back
+      // to the overall remarks field so the backend's per-course reason
+      // requirement is still satisfied.
+      const overallRemark = (remarksOverride || decisionRemarks || '').trim();
+      const missingReasons = sourceCourses.filter(c => !(c.decisionRemark || '').trim() && !overallRemark);
+      if (missingReasons.length > 0) {
+        setActionError('Please provide a reason for rejection — either per course, or in the overall remarks box below.');
+        return;
+      }
+      courseDecisions = sourceCourses.map(c => ({
+        courseName: c.courseName,
+        equivalencyStatus: 'rejected',
+        remark: (c.decisionRemark || '').trim() || overallRemark
+      }));
+    }
+
     setActioning(true);
     setActionError('');
-
-    const courseDecisions = status === 'approved'
-      ? (tempCourses.length > 0 ? tempCourses : selected.transferredCourses).map(c => ({
-        courseName: c.courseName,
-        equivalencyStatus: c.equivalencyStatus === 'accepted' ? 'accepted' : (c.equivalencyStatus === 'rejected' ? 'rejected' : 'accepted')
-      }))
-      : selected.transferredCourses.map(c => ({ courseName: c.courseName, equivalencyStatus: 'rejected' }));
 
     const decisionPayload = {
       status: status,
@@ -279,7 +372,9 @@ export default function MigrationRecords() {
       remarks: remarksOverride || decisionRemarks || `Migration ${status} by admin.`
     };
 
-    // Add target semester if approving
+    // Add target semester if approving and one was explicitly chosen;
+    // otherwise the backend auto-places the student using the credit-based
+    // semester rule (calculateMigratedStudentSemester).
     if (status === 'approved' && targetSemester) {
       decisionPayload.targetSemester = parseInt(targetSemester);
     }
@@ -384,14 +479,14 @@ export default function MigrationRecords() {
   let gradYear = new Date().getFullYear();
   let gradSeason = selected?.intakeSession || (new Date().getMonth() >= 6 ? 'Fall' : 'Spring');
   const remainingSems = Math.max(0, 8 - currentSemPlacement);
-  
+
   for (let i = 0; i < remainingSems; i++) {
-      if (gradSeason === 'Fall') { 
-          gradSeason = 'Spring'; 
-          gradYear++; 
-      } else { 
-          gradSeason = 'Fall'; 
-      }
+    if (gradSeason === 'Fall') {
+      gradSeason = 'Spring';
+      gradYear++;
+    } else {
+      gradSeason = 'Fall';
+    }
   }
   const expectedGraduation = `${gradSeason} ${gradYear}`;
 
@@ -798,6 +893,68 @@ export default function MigrationRecords() {
               </div>
             </div>
 
+            {/* Degree Progress Adjustment & Academic Plan Realignment
+                (Scope Doc FE-13/FE-14/FE-37) — the backend already computes
+                this on approval (missingCourses, curriculumComparison); this
+                just surfaces it. */}
+            {selected && selected.status === 'approved' && (
+              <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0' }}>
+                <h3 style={{ margin: '0 0 6px', fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Missing / Remaining Courses</h3>
+                <p style={{ margin: '0 0 16px', fontSize: '11px', color: '#94A3B8' }}>
+                  Core courses from semesters before the assigned semester that this student hadn't completed — automatically scheduled into their next semester as a make-up requirement.
+                </p>
+
+                {(selected.missingCourses || []).length === 0 ? (
+                  <p style={{ fontSize: '12px', color: '#10B981', fontWeight: 600, margin: '0 0 20px' }}>No backlog — all earlier-semester core requirements are satisfied.</p>
+                ) : (
+                  <div style={{ marginBottom: '20px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid #E2E8F0', color: '#64748B', fontWeight: 700, textAlign: 'left' }}>
+                          <th style={{ padding: '6px 8px' }}>COURSE CODE</th>
+                          <th style={{ padding: '6px 8px' }}>COURSE TITLE</th>
+                          <th style={{ padding: '6px 8px', textAlign: 'right' }}>CH</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selected.missingCourses.map((mc, i) => (
+                          <tr key={i} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                            <td style={{ padding: '6px 8px', fontWeight: 600, color: '#0F172A' }}>{mc.courseCode}</td>
+                            <td style={{ padding: '6px 8px', color: '#475569' }}>{mc.courseTitle}</td>
+                            <td style={{ padding: '6px 8px', textAlign: 'right', color: '#64748B' }}>{mc.creditHours}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <p style={{ margin: '10px 0 0', fontSize: '11px', color: '#F59E0B', fontWeight: 600 }}>
+                      Total backlog: {selected.missingCourses.reduce((s, mc) => s + (mc.creditHours || 0), 0)} CH across {selected.missingCourses.length} course(s) — already added to the student's next-semester course plan.
+                    </p>
+                  </div>
+                )}
+
+                {selected.curriculumComparison && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '12px', paddingTop: '12px', borderTop: '1px solid #E2E8F0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#64748B' }}>Degree Required Credits</span>
+                      <span style={{ fontWeight: 600, color: '#0F172A' }}>{selected.curriculumComparison.toRequiredCredits ?? '—'}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#64748B' }}>Completed (incl. transferred)</span>
+                      <span style={{ fontWeight: 600, color: '#10B981' }}>{selected.curriculumComparison.toCompletedCredits ?? '—'}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#64748B' }}>Remaining Credits</span>
+                      <span style={{ fontWeight: 600, color: '#F59E0B' }}>{selected.curriculumComparison.toRemainingCredits ?? '—'}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#64748B' }}>Expected Completion</span>
+                      <span style={{ fontWeight: 600, color: '#0F172A' }}>{selected.curriculumComparison.expectedCompletion || '—'}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Advisor Review Panel */}
             {selected && selected.status === 'pending' && (
               <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0' }}>
@@ -975,7 +1132,15 @@ export default function MigrationRecords() {
                     onChange={(e) => setNewReq({ ...newReq, batchId: e.target.value })}
                     placeholder="Select Batch"
                     className="w-full"
-                    options={batchesList.filter(b => (b.departmentId === newReq.departmentId || b.departmentId?._id === newReq.departmentId)).map(b => ({ value: b._id, label: b.code }))}
+                    options={batchesList.filter(b => {
+                      const bDeptId = b.departmentId?._id || b.departmentId;
+                      if (bDeptId && String(bDeptId) === String(newReq.departmentId)) return true;
+                      // Fallback for legacy batches that only have a `dept` name string
+                      // instead of a populated departmentId (same fallback the backend
+                      // getAllBatches filter already uses).
+                      const selectedDept = departmentsList.find(d => String(d._id) === String(newReq.departmentId));
+                      return !!(selectedDept && b.dept && b.dept === selectedDept.name);
+                    }).map(b => ({ value: b._id, label: b.code }))}
                   />
                 </div>
               </div>
@@ -1065,6 +1230,48 @@ export default function MigrationRecords() {
                   )}
                 </div>
               </div>
+
+              {/* Migration Committee Decision Sheet Upload — separate from
+                  the transcript. The transcript is the student's raw course
+                  history (proof); this is the committee's actual signed
+                  verdict, which the admin transcribes course decisions from. */}
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                  Migration Committee Decision Sheet <span style={{ color: '#EF4444' }}>*</span> <span style={{ color: '#94A3B8', fontWeight: 400 }}>(PDF or Image, max 15MB)</span>
+                </label>
+                <input
+                  ref={decisionSheetInputRef}
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) => setDecisionSheetFile(e.target.files[0] || null)}
+                  style={{ display: 'none' }}
+                />
+                <div
+                  onClick={() => decisionSheetInputRef.current?.click()}
+                  style={{
+                    border: `2px dashed ${decisionSheetFile ? '#2563EB' : '#CBD5E1'}`,
+                    borderRadius: '12px',
+                    padding: '20px 16px',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    backgroundColor: decisionSheetFile ? '#EFF6FF' : '#F8FAFC',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {decisionSheetFile ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#2563EB', fontSize: '13px', fontWeight: 700 }}>
+                      <FileText size={18} />
+                      {decisionSheetFile.name}
+                      <span style={{ color: '#64748B', fontSize: '11px', fontWeight: 500 }}>({(decisionSheetFile.size / 1024).toFixed(1)} KB)</span>
+                    </div>
+                  ) : (
+                    <div style={{ color: '#64748B', fontSize: '12.5px' }}>
+                      <Upload size={22} style={{ color: '#3B82F6', marginBottom: '6px', display: 'block', margin: '0 auto 6px' }} />
+                      Click to upload the committee's signed decision sheet
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Footer Buttons Inline */}
@@ -1098,6 +1305,22 @@ export default function MigrationRecords() {
                 <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#64748B' }}>{selected.studentId?.name} ({selected.studentId?.rollNumber}) • {selected.sourceInstitution}</p>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {selected.transcriptUrl && (
+                  <a href={resolveDocUrl(selected.transcriptUrl)} target="_blank" rel="noreferrer"
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, backgroundColor: '#EFF6FF', color: '#2563EB', fontSize: 11, fontWeight: 700, textDecoration: 'none', border: '1px solid #BFDBFE' }}>
+                    <Download size={12} /> Transcript
+                  </a>
+                )}
+                {selected.decisionSheetUrl ? (
+                  <a href={resolveDocUrl(selected.decisionSheetUrl)} target="_blank" rel="noreferrer"
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, backgroundColor: '#F0FDF4', color: '#059669', fontSize: 11, fontWeight: 700, textDecoration: 'none', border: '1px solid #A7F3D0' }}>
+                    <Download size={12} /> Decision Sheet
+                  </a>
+                ) : (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, backgroundColor: '#FEF2F2', color: '#DC2626', fontSize: 11, fontWeight: 700, border: '1px solid #FEE2E2' }}>
+                    No decision sheet on file
+                  </span>
+                )}
                 {selected.transcriptUrl && selected.status === 'pending' && (
                   <button
                     onClick={async () => {
@@ -1261,31 +1484,55 @@ export default function MigrationRecords() {
                         </td>
                         <td style={{ padding: '12px 16px' }}>
                           {selected.status === 'pending' ? (
-                            <select
-                              value={c.equivalencyStatus}
-                              onChange={e => {
-                                const updated = [...tempCourses];
-                                updated[idx].equivalencyStatus = e.target.value;
-                                setTempCourses(updated);
-                              }}
-                              style={{
-                                padding: '6px 8px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none', fontWeight: 600, fontFamily: 'inherit',
-                                color: c.equivalencyStatus === 'accepted' ? '#059669' : (c.equivalencyStatus === 'rejected' ? '#DC2626' : '#D97706'),
-                                backgroundColor: c.equivalencyStatus === 'accepted' ? '#D1FAE5' : (c.equivalencyStatus === 'rejected' ? '#FEE2E2' : '#FFFBEB'),
-                              }}
-                            >
-                              <option value="pending">Pending</option>
-                              <option value="accepted">Accepted</option>
-                              <option value="rejected">Credit Loss</option>
-                            </select>
+                            <>
+                              <select
+                                value={c.equivalencyStatus}
+                                onChange={e => {
+                                  const updated = [...tempCourses];
+                                  updated[idx].equivalencyStatus = e.target.value;
+                                  setTempCourses(updated);
+                                }}
+                                style={{
+                                  padding: '6px 8px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none', fontWeight: 600, fontFamily: 'inherit',
+                                  color: c.equivalencyStatus === 'accepted' ? '#059669' : (c.equivalencyStatus === 'rejected' ? '#DC2626' : '#D97706'),
+                                  backgroundColor: c.equivalencyStatus === 'accepted' ? '#D1FAE5' : (c.equivalencyStatus === 'rejected' ? '#FEE2E2' : '#FFFBEB'),
+                                }}
+                              >
+                                <option value="pending">Pending</option>
+                                <option value="accepted">Accepted</option>
+                                <option value="rejected">Credit Loss</option>
+                              </select>
+                              {c.equivalencyStatus === 'rejected' && (
+                                <input
+                                  type="text"
+                                  value={c.decisionRemark || ''}
+                                  onChange={e => {
+                                    const updated = [...tempCourses];
+                                    updated[idx].decisionRemark = e.target.value;
+                                    setTempCourses(updated);
+                                  }}
+                                  placeholder="Committee's reason (required)"
+                                  style={{
+                                    display: 'block', marginTop: '6px', width: '160px', padding: '5px 8px',
+                                    borderRadius: '6px', border: `1px solid ${c.decisionRemark ? '#CBD5E1' : '#FCA5A5'}`,
+                                    fontSize: '11px', outline: 'none', fontFamily: 'inherit', color: '#475569'
+                                  }}
+                                />
+                              )}
+                            </>
                           ) : (
-                            <span style={{
-                              padding: '4px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 600,
-                              backgroundColor: c.equivalencyStatus === 'accepted' ? '#D1FAE5' : (c.equivalencyStatus === 'rejected' ? '#FEE2E2' : '#FFFBEB'),
-                              color: c.equivalencyStatus === 'accepted' ? '#059669' : (c.equivalencyStatus === 'rejected' ? '#DC2626' : '#D97706')
-                            }}>
-                              {c.equivalencyStatus === 'rejected' ? 'CREDIT LOSS' : c.equivalencyStatus.toUpperCase()}
-                            </span>
+                            <>
+                              <span style={{
+                                padding: '4px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 600,
+                                backgroundColor: c.equivalencyStatus === 'accepted' ? '#D1FAE5' : (c.equivalencyStatus === 'rejected' ? '#FEE2E2' : '#FFFBEB'),
+                                color: c.equivalencyStatus === 'accepted' ? '#059669' : (c.equivalencyStatus === 'rejected' ? '#DC2626' : '#D97706')
+                              }}>
+                                {c.equivalencyStatus === 'rejected' ? 'CREDIT LOSS' : c.equivalencyStatus.toUpperCase()}
+                              </span>
+                              {c.equivalencyStatus === 'rejected' && c.decisionRemark && (
+                                <p style={{ margin: '4px 0 0', fontSize: '10px', color: '#94A3B8', maxWidth: '160px', fontStyle: 'italic' }}>"{c.decisionRemark}"</p>
+                              )}
+                            </>
                           )}
                         </td>
                         {selected.status === 'pending' && (
@@ -1414,7 +1661,7 @@ export default function MigrationRecords() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   {selected.transcriptUrl && (
-                    <a href={`http://localhost:5000${selected.transcriptUrl}`} target="_blank" rel="noreferrer"
+                    <a href={resolveDocUrl(selected.transcriptUrl)} target="_blank" rel="noreferrer"
                       style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, backgroundColor: '#EFF6FF', color: '#2563EB', fontSize: 12, fontWeight: 700, textDecoration: 'none', border: '1px solid #BFDBFE' }}>
                       <Download size={14} /> View Transcript
                     </a>

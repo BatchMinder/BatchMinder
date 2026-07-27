@@ -1,61 +1,79 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { 
-  BookOpen, 
-  Layers, 
-  Plus, 
-  Trash2, 
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import {
+  Layers,
   AlertTriangle,
   ArrowRight,
-  Sparkles
+  GraduationCap
 } from 'lucide-react';
 import { CircularProgress } from '@mui/material';
 
-export default function CurriculumBoard() {
-  const [selectedBatch, setSelectedBatch] = useState('2022');
-  const [coursesList, setCoursesList] = useState([]);
+// Read-only degree-plan viewer for Batch Advisors.
+//
+// Curriculum management (add/edit/remove courses, new versions, assigning
+// batches to a version) is an Administrator-only capability per the SRS
+// role definitions, and is already enforced that way on the backend
+// (`restrictTo('dean', 'academic_admin')` on the write endpoints). This
+// page previously tried to let advisors add/delete courses directly, which
+// could never actually succeed against the real API (wrong field names,
+// and would have been blocked by RBAC even if the names were fixed). It's
+// now a pure viewer: advisors can see their batch's degree pathway to
+// guide students, but all edits happen through Admin's Curriculum
+// Management screen.
+export default function CurriculumBoard({ selectedBatch: selectedBatchProp }) {
+  const { user } = useAuth();
+  const [batches, setBatches] = useState([]);
+  const [selectedBatchId, setSelectedBatchId] = useState(selectedBatchProp || '');
+  const [curriculum, setCurriculum] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
-  // Form Input States
-  const [courseCode, setCourseCode] = useState('');
-  const [courseName, setCourseName] = useState('');
-  const [credits, setCredits] = useState('3');
-  const [semester, setSemester] = useState('1');
-  const [prereq, setPrereq] = useState('None');
 
-  // Input Validation Errors (UI-5)
-  const [errors, setErrors] = useState({
-    courseCode: '',
-    courseName: '',
-    credits: ''
-  });
+  const assignedBatchIds = user?.assignedBatchIds || [];
+  const hasNoBatches = assignedBatchIds.length === 0;
+
+  // Load the advisor's own assigned batches (for the picker), defaulting
+  // to the first one if none is selected yet.
+  useEffect(() => {
+    const loadBatches = async () => {
+      if (hasNoBatches) return;
+      try {
+        const res = await fetch('/api/batches');
+        if (res.ok) {
+          const data = await res.json();
+          const allBatches = data.data || [];
+          const mine = allBatches.filter(b => assignedBatchIds.includes(b._id));
+          setBatches(mine);
+          if (!selectedBatchId && mine.length > 0) {
+            setSelectedBatchId(mine[0]._id);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load assigned batches:', err);
+      }
+    };
+    loadBatches();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (selectedBatchProp) setSelectedBatchId(selectedBatchProp);
+  }, [selectedBatchProp]);
 
   const fetchCurriculum = async () => {
+    if (!selectedBatchId) return;
     setLoading(true);
     setError('');
     try {
-      const response = await fetch(`/api/curriculum?department=Computer Science&batch=${selectedBatch}`);
+      const response = await fetch(`/api/curriculums/batch/${selectedBatchId}`);
       const data = await response.json();
       if (response.ok) {
-        const compiledCourses = [];
-        const curriculums = data.data.curriculum || [];
-        curriculums.forEach(curr => {
-          curr.courses.forEach(c => {
-            compiledCourses.push({
-              code: c.courseCode,
-              name: c.title,
-              credits: c.creditHours,
-              semester: curr.semester,
-              prereq: c.prerequisites && c.prerequisites.length > 0 ? c.prerequisites.join(', ') : 'None'
-            });
-          });
-        });
-        setCoursesList(compiledCourses);
+        setCurriculum(data.data.curriculum || null);
       } else {
-        setError(data.message || 'Failed to load curriculum');
+        setCurriculum(null);
+        setError(data.message || 'Failed to load degree plan for this batch');
       }
     } catch (err) {
-      setError('Network error loading degree template');
+      setError('Network error loading degree plan');
     } finally {
       setLoading(false);
     }
@@ -63,150 +81,26 @@ export default function CurriculumBoard() {
 
   useEffect(() => {
     fetchCurriculum();
-  }, [selectedBatch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedBatchId]);
 
-  const validateField = (field, value) => {
-    let errorMsg = '';
-    if (field === 'courseCode') {
-      if (!value) {
-        errorMsg = 'Course Code is required.';
-      } else if (!/^[A-Z]{2,4}-\d{3}$/.test(value.toUpperCase())) {
-        errorMsg = 'Course Code must match department pattern (e.g. CS-201).';
-      }
-    } else if (field === 'courseName') {
-      if (!value) {
-        errorMsg = 'Course Name is required.';
-      } else if (value.trim().length < 3) {
-        errorMsg = 'Course Name must be at least 3 characters.';
-      }
-    } else if (field === 'credits') {
-      const num = Number(value);
-      if (isNaN(num) || num < 1 || num > 4) {
-        errorMsg = 'Credit Hours must be between 1 and 4.';
-      }
-    }
-    setErrors(prev => ({ ...prev, [field]: errorMsg }));
-  };
+  // Group courses by semester for display
+  const groupedCourses = {};
+  for (let i = 1; i <= 8; i++) groupedCourses[i] = [];
+  (curriculum?.courses || []).forEach(c => {
+    if (groupedCourses[c.semester]) groupedCourses[c.semester].push(c);
+  });
 
-  const handleAddCourse = async (e) => {
-    e.preventDefault();
+  const totalCredits = (curriculum?.courses || []).reduce((sum, c) => sum + (c.creditHours || 0), 0);
+  const selectedBatchObj = batches.find(b => b._id === selectedBatchId);
 
-    // Check all fields
-    validateField('courseCode', courseCode);
-    validateField('courseName', courseName);
-    validateField('credits', credits);
-
-    if (!courseCode || errors.courseCode || !courseName || errors.courseName || errors.credits) {
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const targetSem = Number(semester);
-      const existingSemCourses = coursesList
-        .filter(c => c.semester === targetSem)
-        .map(c => ({
-          courseCode: c.code,
-          title: c.name,
-          creditHours: c.credits,
-          prerequisites: c.prereq.split(',').map(p => p.trim()).filter(p => p && p !== 'None')
-        }));
-
-      const newCourseBackend = {
-        courseCode: courseCode.trim().toUpperCase(),
-        title: courseName.trim(),
-        creditHours: Number(credits),
-        prerequisites: prereq.split(',').map(p => p.trim()).filter(p => p && p !== 'None')
-      };
-      
-      const updatedCourses = [...existingSemCourses, newCourseBackend];
-
-      const response = await fetch('/api/curriculum', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          department: 'Computer Science',
-          batch: selectedBatch,
-          semester: targetSem,
-          courses: updatedCourses
-        })
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        setCourseCode('');
-        setCourseName('');
-        setCredits('3');
-        setSemester('1');
-        setPrereq('None');
-        fetchCurriculum();
-      } else {
-        alert(data.message || 'Failed to add course');
-      }
-    } catch (err) {
-      alert('Error updating curriculum');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDeleteCourse = async (codeToDelete) => {
-    const courseToDelete = coursesList.find(c => c.code === codeToDelete);
-    if (!courseToDelete) return;
-
-    const targetSem = courseToDelete.semester;
-    setLoading(true);
-    try {
-      const updatedCourses = coursesList
-        .filter(c => c.semester === targetSem && c.code !== codeToDelete)
-        .map(c => ({
-          courseCode: c.code,
-          title: c.name,
-          creditHours: c.credits,
-          prerequisites: c.prereq.split(',').map(p => p.trim()).filter(p => p && p !== 'None')
-        }));
-
-      const response = await fetch('/api/curriculum', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          department: 'Computer Science',
-          batch: selectedBatch,
-          semester: targetSem,
-          courses: updatedCourses
-        })
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        fetchCurriculum();
-      } else {
-        alert(data.message || 'Failed to delete course');
-      }
-    } catch (err) {
-      alert('Error updating curriculum');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Group current batch courses by Semester
-  const groupedCourses = useMemo(() => {
-    const semesters = {};
-    for (let i = 1; i <= 8; i++) {
-      semesters[i] = [];
-    }
-    coursesList.forEach(course => {
-      if (semesters[course.semester]) {
-        semesters[course.semester].push(course);
-      }
-    });
-    return semesters;
-  }, [coursesList]);
+  if (hasNoBatches) {
+    return (
+      <div className="py-12 text-center text-sm text-slate-400 font-medium">
+        No batches are currently assigned to you.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -214,242 +108,105 @@ export default function CurriculumBoard() {
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-brandNavy font-display">Curriculum Version Board</h1>
-          <p className="text-slate-500 text-sm">Define degree pathways, batch templates, and course prerequisite constraints.</p>
+          <h1 className="text-2xl font-extrabold text-brandNavy font-display">Degree Plan</h1>
+          <p className="text-slate-500 text-sm">View the curriculum structure for your assigned batches. Course changes are managed by your department Administrator.</p>
         </div>
 
-        {/* Batch Selection */}
+        {/* Batch Selection — only the advisor's own assigned batches */}
         <div className="flex items-center gap-3">
-          <span className="text-sm font-semibold text-slate-600">Active Curriculum:</span>
-          <ResponsiveSelect
-            value={selectedBatch}
-            onChange={(e) => setSelectedBatch(e.target.value)}
-            options={[
-              { value: '2022', label: 'CS Batch 2022' },
-              { value: '2023', label: 'CS Batch 2023' },
-              { value: '2024', label: 'CS Batch 2024' },
-            ]}
-          />
+          <span className="text-sm font-semibold text-slate-600">Batch:</span>
+          <select
+            value={selectedBatchId}
+            onChange={(e) => setSelectedBatchId(e.target.value)}
+            className="py-1.5 px-4 border border-slate-200 rounded-lg text-sm font-bold focus:outline-none focus:border-brandAccent text-brandNavy bg-white shadow-sm"
+          >
+            {batches.map(b => (
+              <option key={b._id} value={b._id}>{b.name || b.code}</option>
+            ))}
+          </select>
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-12 gap-8">
-
-        {/* Left Columns: Visual Curriculum Semesters Tree (UI-1, UI-2) */}
-        <div className="lg:col-span-8 space-y-6">
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-            <div className="flex items-center gap-2">
-              <Layers className="h-5 w-5 text-brandAccent" />
-              <h2 className="text-lg font-bold text-slate-800">Degree Pathway Structure (CS Batch {selectedBatch})</h2>
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Layers className="h-5 w-5 text-brandAccent" />
+            <h2 className="text-lg font-bold text-slate-800">
+              Degree Pathway — {selectedBatchObj?.name || selectedBatchObj?.code || '...'}
+            </h2>
+          </div>
+          {curriculum && (
+            <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+              <GraduationCap className="h-4 w-4 text-brandAccent" />
+              v{curriculum.version} • {curriculum.courses?.length || 0} courses • {totalCredits} CH total
             </div>
+          )}
+        </div>
 
-            {/* Curriculum grid list */}
-            <div className="space-y-6 max-h-[600px] overflow-y-auto pr-2">
-              {loading && coursesList.length === 0 ? (
-                <div className="py-8 text-center text-sm text-slate-500 flex justify-center items-center gap-2">
-                  <CircularProgress size={16} className="text-brandAccent" />
-                  Loading curriculum details...
-                </div>
-              ) : error ? (
-                <div className="py-8 text-center text-sm text-alertCritical flex justify-center items-center gap-2 font-semibold">
-                  <AlertTriangle className="h-4 w-4" />
-                  {error}
-                </div>
-              ) : Object.keys(groupedCourses).every(sem => groupedCourses[sem].length === 0) ? (
-                <div className="py-8 text-center text-sm text-slate-400 font-medium">
-                  No courses mapped to this curriculum batch yet. Add some courses using the form on the right.
-                </div>
-              ) : (
-                Object.keys(groupedCourses).map(sem => {
-                  const semesterCourses = groupedCourses[sem];
-                  if (semesterCourses.length === 0 && Number(sem) > 4) return null; // Hide empty upper semesters
-                
-                return (
-                  <div key={sem} className="relative pl-6 border-l-2 border-slate-100 space-y-3">
-                    {/* Visual Connector Dot */}
-                    <div className="absolute top-1.5 left-[-6px] h-3.5 w-3.5 rounded-full bg-brandAccent border-4 border-white shadow-sm shadow-brandAccent/30" />
+        <div className="space-y-6 max-h-[600px] overflow-y-auto pr-2">
+          {loading ? (
+            <div className="py-8 text-center text-sm text-slate-500 flex justify-center items-center gap-2">
+              <CircularProgress size={16} className="text-brandAccent" />
+              Loading degree plan...
+            </div>
+          ) : error ? (
+            <div className="py-8 text-center text-sm text-alertCritical flex justify-center items-center gap-2 font-semibold">
+              <AlertTriangle className="h-4 w-4" />
+              {error}
+            </div>
+          ) : !curriculum || Object.keys(groupedCourses).every(sem => groupedCourses[sem].length === 0) ? (
+            <div className="py-8 text-center text-sm text-slate-400 font-medium">
+              No curriculum has been set up for this batch yet. Contact your department Administrator.
+            </div>
+          ) : (
+            Object.keys(groupedCourses).map(sem => {
+              const semesterCourses = groupedCourses[sem];
+              if (semesterCourses.length === 0) return null;
 
-                    <h3 className="text-sm font-extrabold text-brandNavy flex items-center gap-2">
-                      Semester {sem}
-                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
-                        {semesterCourses.reduce((acc, c) => acc + c.credits, 0)} Credit Hours
-                      </span>
-                    </h3>
+              return (
+                <div key={sem} className="relative pl-6 border-l-2 border-slate-100 space-y-3">
+                  <div className="absolute top-1.5 left-[-6px] h-3.5 w-3.5 rounded-full bg-brandAccent border-4 border-white shadow-sm shadow-brandAccent/30" />
 
-                    {semesterCourses.length === 0 ? (
-                      <p className="text-xs text-slate-400 italic">No courses mapped to this semester yet.</p>
-                    ) : (
-                      <div className="grid sm:grid-cols-2 gap-4">
-                        {semesterCourses.map(course => (
-                          <div
-                            key={course.code}
-                            className="p-4 rounded-xl border border-slate-150 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-350 transition-colors flex flex-col justify-between group shadow-sm"
-                          >
-                            <div className="space-y-2">
-                              <div className="flex justify-between items-start">
-                                <span className="font-mono text-xs font-bold text-brandAccent bg-brandAccent/5 px-2 py-0.5 rounded border border-brandAccent/10 uppercase tracking-wide">
-                                  {course.code}
-                                </span>
-                                <button
-                                  onClick={() => handleDeleteCourse(course.code)}
-                                  className="text-slate-400 hover:text-alertCritical p-1 rounded-lg hover:bg-white border border-transparent hover:border-slate-100 transition-all opacity-0 group-hover:opacity-100 focus:outline-none"
-                                  title="Remove Course"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              </div>
-                              <h4 className="font-bold text-slate-800 text-sm leading-snug">{course.name}</h4>
-                            </div>
+                  <h3 className="text-sm font-extrabold text-brandNavy flex items-center gap-2">
+                    Semester {sem}
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
+                      {semesterCourses.reduce((acc, c) => acc + c.creditHours, 0)} Credit Hours
+                    </span>
+                  </h3>
 
-                            <div className="flex items-center justify-between pt-3 border-t border-slate-150 mt-3 text-xs text-slate-500 font-medium">
-                              <span>Credits: {course.credits} CH</span>
-                              {course.prereq !== 'None' ? (
-                                <span className="flex items-center gap-1 text-slate-400 font-semibold" title={`Requires ${course.prereq}`}>
-                                  Prereq: <strong className="text-slate-600 font-bold">{course.prereq}</strong>
-                                  <ArrowRight className="h-3.5 w-3.5 text-slate-400" />
-                                </span>
-                              ) : (
-                                <span className="text-slate-300">No Prereq</span>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    {semesterCourses.map(course => (
+                      <div
+                        key={course.code}
+                        className="p-4 rounded-xl border border-slate-150 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-350 transition-colors flex flex-col justify-between shadow-sm"
+                      >
+                        <div className="space-y-2">
+                          <span className="font-mono text-xs font-bold text-brandAccent bg-brandAccent/5 px-2 py-0.5 rounded border border-brandAccent/10 uppercase tracking-wide">
+                            {course.code}
+                          </span>
+                          <h4 className="font-bold text-slate-800 text-sm leading-snug">{course.title}</h4>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-3 border-t border-slate-150 mt-3 text-xs text-slate-500 font-medium">
+                          <span>Credits: {course.creditHours} CH</span>
+                          {course.prerequisiteCourseIds && course.prerequisiteCourseIds.length > 0 ? (
+                            <span className="flex items-center gap-1 text-slate-400 font-semibold">
+                              Has Prereqs
+                              <ArrowRight className="h-3.5 w-3.5 text-slate-400" />
+                            </span>
+                          ) : (
+                            <span className="text-slate-300">No Prereq</span>
+                          )}
+                        </div>
                       </div>
-                    )}
+                    ))}
                   </div>
-                );
-                })
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Columns: Add Course Form (FR-2.4, UI-5) */}
-        <div className="lg:col-span-4 space-y-6">
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-            <div className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-brandAccent" />
-              <h2 className="text-lg font-bold text-slate-800">Add Course Template</h2>
-            </div>
-
-            <form onSubmit={handleAddCourse} className="space-y-4">
-
-              {/* Course Code Input */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Course Code</label>
-                <input
-                  type="text"
-                  placeholder="e.g. CS-201"
-                  value={courseCode}
-                  onChange={(e) => setCourseCode(e.target.value)}
-                  onBlur={() => validateField('courseCode', courseCode)}
-                  className={`w-full px-3 py-2 border rounded-lg text-sm font-semibold uppercase focus:outline-none transition-colors text-slate-800 placeholder-slate-400 ${errors.courseCode ? 'border-alertCritical focus:border-alertCritical' : 'border-slate-200 focus:border-brandAccent'
-                    }`}
-                />
-                {errors.courseCode && (
-                  <p className="text-xs font-medium text-alertCritical flex items-center gap-1 mt-1">
-                    <AlertTriangle className="h-3 w-3 shrink-0" />
-                    {errors.courseCode}
-                  </p>
-                )}
-              </div>
-
-              {/* Course Name Input */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Course Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Object Oriented Programming"
-                  value={courseName}
-                  onChange={(e) => setCourseName(e.target.value)}
-                  onBlur={() => validateField('courseName', courseName)}
-                  className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none transition-colors text-slate-800 placeholder-slate-400 ${errors.courseName ? 'border-alertCritical focus:border-alertCritical' : 'border-slate-200 focus:border-brandAccent'
-                    }`}
-                />
-                {errors.courseName && (
-                  <p className="text-xs font-medium text-alertCritical flex items-center gap-1 mt-1">
-                    <AlertTriangle className="h-3 w-3 shrink-0" />
-                    {errors.courseName}
-                  </p>
-                )}
-              </div>
-
-              {/* Credit Hours & Semester Selector */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Credits (CH)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="4"
-                    value={credits}
-                    onChange={(e) => setCredits(e.target.value)}
-                    onBlur={() => validateField('credits', credits)}
-                    className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none transition-colors text-slate-800 ${errors.credits ? 'border-alertCritical focus:border-alertCritical' : 'border-slate-200 focus:border-brandAccent'
-                      }`}
-                  />
-                  {errors.credits && (
-                    <p className="text-xs font-medium text-alertCritical flex items-center gap-1 mt-1">
-                      <AlertTriangle className="h-3 w-3 shrink-0" />
-                      {errors.credits}
-                    </p>
-                  )}
                 </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Semester</label>
-                  <ResponsiveSelect
-                    value={semester}
-                    onChange={(e) => setSemester(e.target.value)}
-                    className="w-full"
-                    options={[1, 2, 3, 4, 5, 6, 7, 8].map(s => ({ value: String(s), label: `Semester ${s}` }))}
-                  />
-                </div>
-              </div>
-
-              {/* Prerequisite course selection */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Prerequisite Course</label>
-                <ResponsiveSelect
-                  value={prereq}
-                  onChange={(e) => setPrereq(e.target.value)}
-                  className="w-full"
-                  searchable
-                  options={[
-                    { value: 'None', label: 'None (No prerequisites)' },
-                    ...coursesList.map(course => ({ value: course.code, label: `${course.code} - ${course.name}` }))
-                  ]}
-                />
-              </div>
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                className="w-full py-2.5 px-4 bg-brandNavy text-white hover:bg-brandNavy/95 font-bold rounded-lg text-sm focus:outline-none transition-colors shadow-sm shadow-brandNavy/10 flex items-center justify-center gap-2 mt-4"
-              >
-                <Plus className="h-5 w-5" />
-                Add Course to Batch
-              </button>
-            </form>
-          </div>
-
-          {/* AI Helper banner tip */}
-          <div className="p-5 rounded-2xl bg-gradient-to-tr from-brandNavy to-brandAccent text-white relative overflow-hidden shadow-md shadow-brandNavy/15">
-            <div className="absolute right-[-10px] bottom-[-10px] opacity-10 pointer-events-none">
-              <Sparkles className="h-24 w-24" />
-            </div>
-            <h4 className="font-extrabold text-sm mb-1 flex items-center gap-1.5 font-display">
-              <Sparkles className="h-4 w-4" />
-              AI Prerequisite Auditor
-            </h4>
-            <p className="text-xs leading-relaxed text-blue-100">
-              When adding courses, BatchMinder validates circular logic dependencies to prevent invalid pathway generation before saving.
-            </p>
-          </div>
+              );
+            })
+          )}
         </div>
-
       </div>
-
     </div>
   );
 }

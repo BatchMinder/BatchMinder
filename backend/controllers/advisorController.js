@@ -1,6 +1,6 @@
 import Student from '../models/student.js';
 import Batch from '../models/batch.js';
-import Curriculum from '../models/curriculum.js';
+import { resolveCurriculumForStudent } from '../utils/curriculumResolver.js';
 
 
 // GET: advisor dashboard counts of students by cgpaStatus
@@ -184,14 +184,10 @@ export const getStudentEligibleCourses = async (req, res, next) => {
       });
     }
 
-    // Fetch active curriculum courses matching HEC version, department or batch
-    let curriculum = await Curriculum.findOne({ version: 'HEC-2025-BSCS' });
-    if (!curriculum && student.batchId) {
-      curriculum = await Curriculum.findOne({ batchId: student.batchId });
-    }
-    if (!curriculum && student.departmentId) {
-      curriculum = await Curriculum.findOne({ departmentId: student.departmentId });
-    }
+    // Fetch the student's own department's curriculum — one per department.
+    // Resolve via the student's batch — respects whatever version that
+    // batch is pinned to, not just whatever's currently active.
+    const curriculum = await resolveCurriculumForStudent(student);
 
     // Active currently enrolled courses for current semester (for drop / withdrawal)
     const activeEnrolledCourses = (student.courses || []).filter(c =>

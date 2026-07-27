@@ -35,24 +35,19 @@ const courseSchema = new mongoose.Schema({
 });
 
 const curriculumSchema = new mongoose.Schema({
+  // Multiple Curriculum documents CAN exist per department now — one per
+  // version. At any time, exactly one of them has status 'active' (the
+  // current version new batches get pinned to); older ones are 'archived'
+  // but stay in the DB untouched so batches pinned to them keep working.
+  // Admins are scoped to their own departmentId(s) via scopeToUserDepartments,
+  // so an AI admin can only touch AI's curriculum documents, etc.
   departmentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Department',
     required: [true, 'Please specify department'],
   },
-  batchId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Batch',
-    required: [true, 'Please specify batch'],
-  },
   department: {
     type: String,
-  },
-  batch: {
-    type: String,
-  },
-  semester: {
-    type: Number,
   },
   version: {
     type: String,
@@ -81,8 +76,7 @@ const curriculumSchema = new mongoose.Schema({
   }
 });
 
-// One active curriculum per department+batch
-curriculumSchema.index({ departmentId: 1, batchId: 1, version: 1 }, { unique: true });
+curriculumSchema.index({ departmentId: 1, status: 1 });
 
 const Curriculum = mongoose.model('Curriculum', curriculumSchema);
 export default Curriculum;

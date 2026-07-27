@@ -221,6 +221,7 @@ export default function AdminLayout({
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'students', label: 'Student Profiles', icon: Users },
     { id: 'workflowQueue', label: 'Workflow Queue', icon: Clock },
+    { id: 'migrations', label: 'Migration Records', icon: ArrowRightLeft },
   ];
 
   const hodNavItems = [
@@ -435,7 +436,8 @@ export default function AdminLayout({
                 items={[
                   { id: 'students', label: 'Students', icon: Users },
                   { id: 'at_risk_monitoring', label: 'At-Risk Monitoring', icon: AlertTriangle },
-                  { id: 'workflowQueue', label: 'Approval Requests', icon: Clock }
+                  { id: 'workflowQueue', label: 'Approval Requests', icon: Clock },
+                  { id: 'migrations', label: 'Migration Records', icon: ArrowRightLeft }
                 ]}
                 activeNav={activeNav} handleNavigate={handleNavigate} expandedFolders={expandedFolders} toggleFolder={toggleFolder}
               />

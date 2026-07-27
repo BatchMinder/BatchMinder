@@ -19,7 +19,6 @@ import MigrationManager from './pages/migration/MigrationManager';
 import AdminLayout from './pages/admin/AdminLayout';
 import Dashboard from './pages/admin/Dashboard';
 import StudentRecords from './pages/admin/StudentRecords';
-import CsvUpload from './pages/admin/CsvUpload';
 import MigrationRecords from './pages/admin/MigrationRecords';
 import CurriculumSetup from './pages/admin/CurriculumSetup';
 import Batches from './pages/admin/Batches';
@@ -40,6 +39,7 @@ import AdvisorQueue from './pages/advisor/AdvisorQueue';
 import AdvisorReporting from './pages/advisor/AdvisorReporting';
 import AdvisorMyBatch from './pages/advisor/AdvisorMyBatch';
 import AdvisorRiskDashboard from './pages/advisor/AdvisorRiskDashboard';
+import AdvisorMigrations from './pages/advisor/AdvisorMigrations';
 
 import {
   Layers,
@@ -93,7 +93,7 @@ function App() {
     const path = window.location.pathname;
     if (path.startsWith('/dashboard/')) {
       const subPage = path.substring('/dashboard/'.length);
-      const validPages = ['dashboard', 'myBatch', 'students', 'at_risk_monitoring', 'workflowQueue', 'attendance', 'reporting', 'settings', 'notifications', 'degree_plan'];
+      const validPages = ['dashboard', 'myBatch', 'students', 'at_risk_monitoring', 'workflowQueue', 'attendance', 'reporting', 'settings', 'notifications', 'degree_plan', 'migrations'];
       if (validPages.includes(subPage)) {
         return subPage;
       }
@@ -182,7 +182,7 @@ function App() {
         if (validPages.includes(subPage)) setAdminActiveNav(subPage);
       }
       if (user?.role === 'advisor') {
-        const validPages = ['dashboard', 'myBatch', 'students', 'at_risk_monitoring', 'workflowQueue', 'attendance', 'reporting', 'settings', 'notifications', 'degree_plan'];
+        const validPages = ['dashboard', 'myBatch', 'students', 'at_risk_monitoring', 'workflowQueue', 'attendance', 'reporting', 'settings', 'notifications', 'degree_plan', 'migrations'];
         if (validPages.includes(subPage)) setAdvisorActiveNav(subPage);
       }
       if (user?.role === 'admin') {
@@ -436,7 +436,8 @@ function App() {
         reporting: <AdvisorReporting />,
         settings: <ProfileSettingsPage />,
         notifications: <NotificationsPage setActiveNav={setAdvisorActiveNav} />,
-        degree_plan: <CurriculumBoard />,
+        degree_plan: <CurriculumBoard selectedBatch={selectedAdvisorBatch} />,
+        migrations: <AdvisorMigrations selectedBatch={selectedAdvisorBatch} />,
       };
       return (
         <AdminLayout

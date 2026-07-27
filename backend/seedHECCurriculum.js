@@ -325,10 +325,36 @@ const hecCurriculumsData = [
   }
 ];
 
+// Builds the embedded `courses` array (semester + type tagged) for one program
+// straight from hecCurriculumsData. Used both by the seed script below and by
+// buildCoursesForDept(), which lets the rest of the backend (e.g. curriculumController's
+// getHECCurriculum, or an auto-create-on-first-use path) pull the same course
+// list without going through Mongo at all.
+export function buildCoursesForDept(deptCode) {
+  const prog = hecCurriculumsData.find(p => p.deptCode === deptCode.toUpperCase());
+  if (!prog) return null;
+
+  const courses = [];
+  for (const [sem, list] of Object.entries(prog.semesters)) {
+    const semester = Number(sem);
+    for (const c of list) {
+      courses.push({
+        code: c.code,
+        title: c.title,
+        creditHours: c.creditHours,
+        semester,
+        courseType: c.courseType || 'CORE',
+        prerequisiteCourseIds: [],
+      });
+    }
+  }
+  return { prog, courses, totalCH: courses.reduce((acc, c) => acc + c.creditHours, 0) };
+}
+
 export async function seedHECCurriculums() {
   await connectDB();
 
-  console.log('Connected to DB. Seeding 4 STMU HEC Degree Curriculums (Theory & Lab split rule enforced, Total 130 CH)...');
+  console.log('Connected to DB. Seeding 4 STMU HEC Department Curriculums (Theory & Lab split rule enforced, Total 130 CH)...');
 
   for (const prog of hecCurriculumsData) {
     // 1. Department
@@ -342,62 +368,34 @@ export async function seedHECCurriculums() {
       console.log(`Created Department: ${prog.deptName} (${prog.deptCode})`);
     }
 
-    // 2. Batch
-    const batchCode = `BS${prog.deptCode}-2025`;
-    let batch = await Batch.findOne({ code: batchCode });
-    if (!batch) {
-      batch = await Batch.create({
-        code: batchCode,
-        name: `${prog.deptName} Batch 2025`,
-        departmentId: dept._id,
-        startYear: 2025,
-        advisor: 'System Advisor',
-        status: 'Allocated',
-      });
-      console.log(`Created Batch: ${batchCode}`);
+    // 2. Build courses for this department from the shared source of truth
+    const built = buildCoursesForDept(prog.deptCode);
+    const { courses, totalCH } = built;
+
+    // 3. Only seed a Curriculum if this department has NONE yet. If one
+    // already exists (whether it's the original seed, an admin's in-place
+    // edit, or a published new version), leave it completely untouched —
+    // re-running this script must never overwrite real data.
+    const existing = await Curriculum.findOne({ departmentId: dept._id });
+    if (existing) {
+      console.log(`Skipped "${prog.programName}" — curriculum already exists (version: ${existing.version}, status: ${existing.status}).`);
+      continue;
     }
 
-    // 3. Build Courses with STMU Codes
-    const courses = [];
-    for (const [sem, list] of Object.entries(prog.semesters)) {
-      const semester = Number(sem);
-      for (const c of list) {
-        courses.push({
-          code: c.code,
-          title: c.title,
-          creditHours: c.creditHours,
-          semester,
-          courseType: c.courseType || 'CORE',
-          prerequisiteCourseIds: [],
-        });
-      }
-    }
-
-    const totalCH = courses.reduce((acc, curr) => acc + curr.creditHours, 0);
-
-    // 4. Upsert Curriculum
-    const curriculum = await Curriculum.findOneAndUpdate(
-      { departmentId: dept._id, version: prog.version },
-      {
-        departmentId: dept._id,
-        batchId: batch._id,
-        department: prog.deptName,
-        batch: batchCode,
-        version: prog.version,
-        status: 'active',
-        totalRequiredCredits: totalCH,
-        courses,
-      },
-      { new: true, upsert: true, runValidators: true }
-    );
-
-    // Link all batches in department to curriculum
-    await Batch.updateMany({ departmentId: dept._id }, { curriculumVersionId: curriculum._id });
+    const curriculum = await Curriculum.create({
+      departmentId: dept._id,
+      department: prog.deptName,
+      version: prog.version,
+      status: 'active',
+      isHecStandard: true,
+      totalRequiredCredits: totalCH,
+      courses,
+    });
 
     console.log(`Saved "${prog.programName}" (Version: ${curriculum.version}) with ${courses.length} STMU courses across 8 semesters (Total Credits: ${totalCH} CH).`);
   }
 
-  // Clean up any old dummy "HEC Standards" department/batch if they exist
+  // Clean up any old dummy "HEC Standards" department if it exists
   const oldHecDept = await Department.findOne({ $or: [{ code: 'HEC' }, { name: 'HEC Standards' }] });
   if (oldHecDept) {
     await Batch.deleteMany({ departmentId: oldHecDept._id });

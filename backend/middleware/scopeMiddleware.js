@@ -5,12 +5,7 @@ export const scopeToUserDepartments = (req) => {
     return {};
   }
 
-  let role = req.user.role;
-  if (!role && req.user.email) {
-    if (req.user.email.includes('dean')) role = 'dean';
-    else if (req.user.email.includes('admin')) role = 'academic_admin';
-    else if (req.user.email.includes('advisor')) role = 'advisor';
-  }
+  const role = req.user.role;
 
   if (role === 'dean') {
     return {};

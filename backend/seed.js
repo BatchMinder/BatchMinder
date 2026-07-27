@@ -93,7 +93,7 @@ async function seed() {
     console.log(`  ${batches.length} batches`);
 
     // Assign batches to advisors
-    const advisorAhmed = users.find(u => u.email === 'advisor.both@stmu.edu.pk');
+    const advisorAhmed = users.find(u => u.email === 'advisor.ai@stmu.edu.pk');
     const advisorFatima = users.find(u => u.email === 'advisor.cs@stmu.edu.pk');
     const advisorUsman = users.find(u => u.email === 'advisor.se@stmu.edu.pk');
 
@@ -295,18 +295,21 @@ async function seed() {
     // ── Curricula (Official STMU HEC 8-Semester Standards) ──
     await seedHECCurriculums();
 
-    const csCurriculum = await Curriculum.findOne({ version: 'HEC-2025-BSCS' });
-    const aiCurriculum = await Curriculum.findOne({ version: 'HEC-2025-BSAI' });
-    const seCurriculum = await Curriculum.findOne({ version: 'HEC-2025-BSSE' });
-    const cyCurriculum = await Curriculum.findOne({ version: 'HEC-2025-BSCySec' });
-
-    await Batch.updateMany({ departmentId: cs }, { curriculumVersionId: csCurriculum?._id });
-    await Batch.updateMany({ departmentId: ai }, { curriculumVersionId: aiCurriculum?._id });
-    await Batch.updateMany({ departmentId: se }, { curriculumVersionId: seCurriculum?._id });
-    await Batch.updateMany({ departmentId: cy }, { curriculumVersionId: cyCurriculum?._id });
+    const csCurriculum = await Curriculum.findOne({ departmentId: cs });
+    const aiCurriculum = await Curriculum.findOne({ departmentId: ai });
+    const seCurriculum = await Curriculum.findOne({ departmentId: se });
+    const cyCurriculum = await Curriculum.findOne({ departmentId: cy });
 
     const curriculums = [csCurriculum, aiCurriculum, seCurriculum, cyCurriculum].filter(Boolean);
-    console.log(`  ${curriculums.length} official STMU HEC curricula assigned to 4 departments`);
+    console.log(`  ${curriculums.length} official STMU HEC curricula seeded, one per department`);
+
+    // Pin every demo batch to its department's curriculum — same as what
+    // happens automatically for real batches created through the app.
+    if (csCurriculum) await Batch.updateMany({ departmentId: cs, curriculumId: null }, { curriculumId: csCurriculum._id });
+    if (aiCurriculum) await Batch.updateMany({ departmentId: ai, curriculumId: null }, { curriculumId: aiCurriculum._id });
+    if (seCurriculum) await Batch.updateMany({ departmentId: se, curriculumId: null }, { curriculumId: seCurriculum._id });
+    if (cyCurriculum) await Batch.updateMany({ departmentId: cy, curriculumId: null }, { curriculumId: cyCurriculum._id });
+    console.log(`  Pinned demo batches to their department's curriculum`);
 
     // ── Student Course History & Enrollment Seeding ──
     const seededStudents = await Student.find({});
@@ -570,7 +573,7 @@ async function seed() {
 
     // ── Approval Requests ──
     const csStudents = await Student.find({ departmentId: cs }).limit(5);
-    const csAdvisor = users.find(u => u.email === 'advisor.both@stmu.edu.pk');
+    const csAdvisor = users.find(u => u.email === 'advisor.cs@stmu.edu.pk');
 
     if (csStudents.length >= 2) {
       await ApprovalRequest.insertMany([

@@ -26,7 +26,6 @@ import ResponsiveSelect from '../../components/common/ResponsiveSelect';
 
 export default function DataIngestionHub({ onUploadSuccess }) {
   const { showAlert, showSuccess } = useModal();
-  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('upload'); // 'upload' or 'sync'
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
@@ -148,17 +147,17 @@ export default function DataIngestionHub({ onUploadSuccess }) {
         const currentYear = new Date().getFullYear();
         const currentMonth = new Date().getMonth(); // 0-11
         const isFallTerm = currentMonth >= 7;
-        
+
         let expectedSem = (currentYear - batchYear) * 2;
         if (selectedIntake === 'Fall') {
-            expectedSem += (isFallTerm ? 1 : 0);
+          expectedSem += (isFallTerm ? 1 : 0);
         } else {
-            expectedSem += (isFallTerm ? 2 : 1);
+          expectedSem += (isFallTerm ? 2 : 1);
         }
-        
+
         if (expectedSem < 1) expectedSem = 1;
         if (expectedSem > 8) expectedSem = 'graduated';
-        
+
         setSelectedSemester(expectedSem);
       }
     }
@@ -238,6 +237,22 @@ export default function DataIngestionHub({ onUploadSuccess }) {
     showSuccess('Validation report downloaded successfully!');
   };
 
+  const handleDownloadTemplate = () => {
+    const rows = [
+      ['rollNumber', 'name', 'email', 'cgpa'],
+      ['BSCS-23-0001', 'Ali Khan', 'ali.khan@stmu.edu.pk', '3.20'],
+    ];
+    const csvContent = rows.map(r => r.map(val => `"${String(val).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'batchminder_student_upload_template.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+    showSuccess('Template downloaded successfully!');
+  };
+
   // Real upload logic pointing directly to backend port 5000 with cookies included
   const handleFileUpload = async (e) => {
     const selectedFile = e.target.files[0];
@@ -260,15 +275,25 @@ export default function DataIngestionHub({ onUploadSuccess }) {
       return;
     }
 
+    const batchObj = filteredBatches.find(b => b.code === selectedBatch);
+    if (!batchObj) {
+      showAlert('Error', 'Please select a valid batch');
+      setUploading(false);
+      return;
+    }
+
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
       formData.append('departmentId', deptObj._id);
+      formData.append('batchId', batchObj._id);
+      formData.append('semester', selectedSemester);
+      formData.append('intakeSession', selectedIntake);
 
       // Simulate progress progression
       setTimeout(() => setUploadProgress(85), 600);
 
-      const response = await fetch('http://localhost:5000/api/uploads', {
+      const response = await fetch('/api/uploads', {
         method: 'POST',
         credentials: 'include', // Automatically sends httpOnly cookies
         body: formData
@@ -281,26 +306,26 @@ export default function DataIngestionHub({ onUploadSuccess }) {
       if (response.ok) {
         setUploadValidated(true);
         setUploadId(data.data.uploadId);
-        
+
         setUploadStats({
           processed: data.data.totalRecords || 0,
           valid: data.data.validRecords || 0,
           errors: data.data.errorCount || 0,
           duplicates: data.data.duplicateCount || 0
         });
-        
+
         if (data.data.validPreview) {
           setPreviewRows(data.data.validPreview.map((r) => ({
-             roll: r.rollNumber,
-             name: r.name,
-             dept: selectedDept,
-             batch: r.batchCode,
-             sem: selectedSemester,
-             cgpa: Number(selectedSemester) === 1 ? 'N/A' : r.cgpa,
-             status: 'Valid'
+            roll: r.rollNumber,
+            name: r.name,
+            dept: selectedDept,
+            batch: selectedBatch,
+            sem: selectedSemester,
+            cgpa: Number(selectedSemester) === 1 ? 'N/A' : r.cgpa,
+            status: 'Valid'
           })));
         }
-        
+
         if (data.data.errors && data.data.errors.length > 0) {
           setValidationErrors(data.data.errors.map(err => ({
             row: err.row,
@@ -363,7 +388,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
 
       for (const batchCode of batchCodesToSync) {
         // Pointing explicitly to backend server on port 5000 with credentials: 'include'
-        const response = await fetch('http://localhost:5000/api/students/sync-lms', {
+        const response = await fetch('/api/students/sync-lms', {
           method: 'POST',
           credentials: 'include', // Automatically sends httpOnly cookies
           headers: {
@@ -514,11 +539,11 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                         : batches.length > 0
                           ? batches.map(b => ({ value: b.code, label: b.code }))
                           : [
-                              { value: 'BSCS-2022', label: 'BSCS-2022' },
-                              { value: 'BSCS-2023', label: 'BSCS-2023' },
-                              { value: 'BSCS-2024', label: 'BSCS-2024' },
-                              { value: 'BSCS-2025', label: 'BSCS-2025' }
-                            ]
+                            { value: 'BSCS-2022', label: 'BSCS-2022' },
+                            { value: 'BSCS-2023', label: 'BSCS-2023' },
+                            { value: 'BSCS-2024', label: 'BSCS-2024' },
+                            { value: 'BSCS-2025', label: 'BSCS-2025' }
+                          ]
                     }
                   />
                 </div>
@@ -575,6 +600,16 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                 <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>or <span style={{ color: '#2563EB', fontWeight: 700 }}>Choose file</span></div>
                 <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '8px' }}>Supported formats: .csv, .xlsx (Max 10MB)</div>
               </div>
+              <button
+                onClick={handleDownloadTemplate}
+                style={{
+                  marginTop: '12px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                  padding: '10px', borderRadius: '10px', border: '1px solid #E2E8F0', backgroundColor: '#F8FAFC',
+                  color: '#334155', fontSize: '12px', fontWeight: 700, cursor: 'pointer'
+                }}
+              >
+                <Download size={14} /> Download CSV Template
+              </button>
             </div>
 
             {/* Upload Summary Panel */}
@@ -646,7 +681,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
               <div>
                 <span style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>Uploaded by</span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700, color: '#334155', marginTop: '4px' }}>
-                  <User size={14} color="#64748B" /> {user?.name || 'Academic Admin'}
+                  <User size={14} color="#64748B" /> Dr. Adrian Vance
                 </span>
               </div>
               <div>
@@ -791,9 +826,8 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                   Validation Errors {validationErrors.length > 0 && `(${validationErrors.length})`}
                 </h3>
                 <button
-                  disabled={validationErrors.length === 0}
                   onClick={handleDownloadValidationReport}
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid #E2E8F0', padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: 700, color: validationErrors.length === 0 ? '#94A3B8' : '#334155', backgroundColor: validationErrors.length === 0 ? '#F1F5F9' : '#fff', cursor: validationErrors.length === 0 ? 'not-allowed' : 'pointer' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid #E2E8F0', padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: 700, color: '#334155', backgroundColor: '#fff', cursor: 'pointer' }}
                 >
                   <Download size={12} /> Download Report
                 </button>
@@ -895,22 +929,22 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                 <RefreshCw size={14} /> Validate Again
               </button>
               <button
-                disabled={!uploadId || uploadSuccess || !uploadStats || uploadStats.valid === 0}
+                disabled={!uploadId || uploadSuccess || (uploadStats && uploadStats.valid === 0)}
                 onClick={async () => {
                   if (uploadId && !uploadSuccess && uploadStats?.valid > 0) {
                     try {
-                      const res = await fetch(`http://localhost:5000/api/uploads/${uploadId}/import`, {
-                         method: 'POST',
-                         credentials: 'include'
+                      const res = await fetch(`/api/uploads/${uploadId}/import`, {
+                        method: 'POST',
+                        credentials: 'include'
                       });
                       const data = await res.json();
                       if (res.ok) {
-                         setUploadSuccess(true);
-                         showSuccess(`Import completed! ${data.data.importedCount} records saved.`);
-                         if (onUploadSuccess) onUploadSuccess();
-                         fetchUploadHistory(); // Refresh history after import
+                        setUploadSuccess(true);
+                        showSuccess(`Import completed! ${data.data.importedCount} records saved.`);
+                        if (onUploadSuccess) onUploadSuccess();
+                        fetchUploadHistory(); // Refresh history after import
                       } else {
-                         showAlert('Import Failed', data.message);
+                        showAlert('Import Failed', data.message);
                       }
                     } catch (e) {
                       showAlert('Error', 'Network error during import');
@@ -929,10 +963,11 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                   fontSize: '13px',
                   fontWeight: 700,
                   color: '#fff',
-                  background: (!uploadId || uploadSuccess || !uploadStats || uploadStats.valid === 0) ? '#94A3B8' : 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
+                  background: (!uploadId || uploadSuccess || (uploadStats && uploadStats.valid === 0)) ? '#94A3B8' : 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
                   border: 'none',
+                  borderRadius: '10px',
                   boxShadow: '0 4px 12px rgba(37,99,235,0.2)',
-                  cursor: (!uploadId || uploadSuccess || !uploadStats || uploadStats.valid === 0) ? 'not-allowed' : 'pointer',
+                  cursor: (!uploadId || uploadSuccess || (uploadStats && uploadStats.valid === 0)) ? 'not-allowed' : 'pointer',
                   width: '100%',
                   transition: 'all 0.15s ease'
                 }}

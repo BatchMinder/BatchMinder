@@ -5,21 +5,25 @@ import {
   createStudent,
   updateStudent,
   deleteStudent,
-  bulkUploadStudents,
   syncLmsRecords,
   promoteSemester,
   getStudentDegreeProgress
 } from '../controllers/studentController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { restrictTo } from '../middleware/roleMiddleware.js';
-import multer from 'multer';
 
 const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 router.use(protect);
 
-router.post('/upload', restrictTo('dean', 'academic_admin'), upload.single('file'), bulkUploadStudents);
+// NOTE: bulk CSV/Excel student upload lives at POST /api/uploads +
+// POST /api/uploads/:id/import (see uploadController.js /
+// uploadRoutes.js) — that's the endpoint DataIngestionHub.jsx actually
+// calls. A second, unused '/upload' route + bulkUploadStudents()
+// controller function used to live here too; it was never called from
+// the frontend, so it's been removed to avoid two parallel upload
+// implementations drifting out of sync with each other.
+
 router.post('/sync-lms', restrictTo('dean', 'academic_admin'), syncLmsRecords);
 router.post('/promote-semester', restrictTo('dean', 'academic_admin'), promoteSemester);
 

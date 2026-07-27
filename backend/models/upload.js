@@ -6,11 +6,13 @@ const uploadErrorSchema = new mongoose.Schema({
   message: { type: String, required: true },
 });
 
+// Batch, semester and intake session are now selected once for the whole
+// file via the form (not repeated per row), so a parsed row only carries
+// actual per-student data.
 const parsedRowSchema = new mongoose.Schema({
   rollNumber: { type: String, required: true },
   name: { type: String, required: true },
   email: { type: String, default: '' },
-  batchCode: { type: String, required: true },
   cgpa: { type: Number, default: 0 },
 }, { _id: false });
 
@@ -19,6 +21,9 @@ const uploadSchema = new mongoose.Schema({
   fileSize: { type: Number, required: true },
   uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   departmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Department', required: true },
+  batchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Batch', required: true },
+  semester: { type: Number, required: true, min: 1, max: 8 },
+  intakeSession: { type: String, enum: ['Spring', 'Fall'], default: 'Fall' },
   status: { type: String, enum: ['processing', 'complete', 'failed'], default: 'processing' },
   totalRecords: { type: Number, default: 0 },
   validRecords: { type: Number, default: 0 },

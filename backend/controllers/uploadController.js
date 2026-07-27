@@ -2,6 +2,7 @@ import Upload from '../models/upload.js';
 import Student from '../models/student.js';
 import Batch from '../models/batch.js';
 import csv from 'csv-parser';
+import xlsx from 'xlsx';
 import { Readable } from 'stream';
 import { logAudit, logNotification } from '../utils/logger.js';
 import { scopeToUserDepartments } from '../middleware/scopeMiddleware.js';
@@ -12,9 +13,17 @@ export const validateUpload = async (req, res) => {
       return res.status(400).json({ message: 'Please upload a file' });
     }
 
-    const { departmentId } = req.body;
+    const { departmentId, batchId, intakeSession } = req.body;
+    const semester = parseInt(req.body.semester, 10);
+
     if (!departmentId) {
       return res.status(400).json({ message: 'Please provide departmentId' });
+    }
+    if (!batchId) {
+      return res.status(400).json({ message: 'Please select a batch' });
+    }
+    if (isNaN(semester) || semester < 1 || semester > 8) {
+      return res.status(400).json({ message: 'Please select a valid semester (1-8)' });
     }
 
     // Security check: ensure requesting user has access to this department
@@ -30,19 +39,34 @@ export const validateUpload = async (req, res) => {
       }
     }
 
-    const rows = [];
-    const stream = Readable.from(req.file.buffer.toString());
+    // Confirm the selected batch actually exists and belongs to this department
+    const batchDoc = await Batch.findOne({ _id: batchId, departmentId });
+    if (!batchDoc) {
+      return res.status(400).json({ message: 'Selected batch was not found in this department' });
+    }
 
-    await new Promise((resolve, reject) => {
-      stream
-        .pipe(csv())
-        .on('data', (data) => rows.push(data))
-        .on('end', resolve)
-        .on('error', reject);
-    });
+    const rows = [];
+    const isExcel = /\.(xlsx|xls)$/i.test(req.file.originalname)
+      || (req.file.mimetype && (req.file.mimetype.includes('spreadsheet') || req.file.mimetype.includes('excel')));
+
+    if (isExcel) {
+      const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      rows.push(...xlsx.utils.sheet_to_json(sheet, { defval: '' }));
+    } else {
+      const stream = Readable.from(req.file.buffer.toString());
+      await new Promise((resolve, reject) => {
+        stream
+          .pipe(csv())
+          .on('data', (data) => rows.push(data))
+          .on('end', resolve)
+          .on('error', reject);
+      });
+    }
 
     if (rows.length === 0) {
-      return res.status(400).json({ message: 'CSV file is empty' });
+      return res.status(400).json({ message: 'File is empty' });
     }
 
     const errors = [];
@@ -55,7 +79,6 @@ export const validateUpload = async (req, res) => {
       const rollNumber = (row.rollNumber || row.RollNumber || '').toString().trim().toUpperCase();
       const name = (row.name || row.Name || '').toString().trim();
       const email = (row.email || row.Email || '').toString().trim().toLowerCase();
-      const batchCode = (row.batch || row.Batch || '').toString().trim().toUpperCase();
       const cgpa = parseFloat(row.cgpa || row.CGPA || 0);
 
       let rowValid = true;
@@ -67,11 +90,6 @@ export const validateUpload = async (req, res) => {
 
       if (!name) {
         errors.push({ row: i + 1, field: 'name', message: 'Name is required' });
-        rowValid = false;
-      }
-
-      if (!batchCode) {
-        errors.push({ row: i + 1, field: 'batch', message: 'Batch code is required' });
         rowValid = false;
       }
 
@@ -88,7 +106,7 @@ export const validateUpload = async (req, res) => {
       seenRollNumbers.add(rollNumber);
 
       if (rowValid) {
-        validRows.push({ rollNumber, name, email, batchCode, cgpa });
+        validRows.push({ rollNumber, name, email, cgpa });
       }
     }
 
@@ -97,6 +115,9 @@ export const validateUpload = async (req, res) => {
       fileSize: req.file.size,
       uploadedBy: req.user._id,
       departmentId,
+      batchId,
+      semester,
+      intakeSession: intakeSession || 'Fall',
       status: 'processing',
       totalRecords: rows.length,
       validRecords: validRows.length,
@@ -153,57 +174,50 @@ export const importValidRows = async (req, res) => {
       return res.status(400).json({ message: 'No valid rows to import' });
     }
 
-    const batches = await Batch.find({ departmentId: upload.departmentId });
-    const batchMap = {};
-    for (const b of batches) {
-      batchMap[b.code.toUpperCase()] = b._id;
-    }
-
     let importedCount = 0;
     const importErrors = [];
-    const studentsToCreate = [];
 
+    // IMPORTANT: create students one-by-one with Student.create()/.save()
+    // instead of Student.insertMany(). insertMany() does NOT run Mongoose
+    // 'save' middleware, which silently broke three things for every
+    // CSV/Excel-imported student:
+    //   1. cgpaStatus was never computed (stayed at the schema default
+    //      'good' even for Critical/Warning CGPAs).
+    //   2. No DegreeProgress document was ever created for them.
+    //   3. The FR-3.5 advisor CGPA-alert notification (in-app + email)
+    //      never fired, because that logic lives in the post('save') hook.
+    // Using .create() runs the full pre/post 'save' pipeline (see
+    // models/student.js), so all three now happen automatically and
+    // consistently with every other student-creation path in the app.
     for (const row of upload.parsedData) {
-      const batchId = batchMap[row.batchCode];
-      if (!batchId) {
-        importErrors.push({ row: 0, field: 'batch', message: `Batch code ${row.batchCode} not found for department` });
-        continue;
-      }
-
       const existing = await Student.findOne({ rollNumber: row.rollNumber });
       if (existing) {
         importErrors.push({ row: 0, field: 'rollNumber', message: `Roll number ${row.rollNumber} already exists` });
         continue;
       }
 
-      studentsToCreate.push({
-        rollNumber: row.rollNumber,
-        name: row.name,
-        email: row.email || undefined,
-        departmentId: upload.departmentId,
-        batchId,
-        cgpa: row.cgpa,
-      });
-    }
-
-    if (studentsToCreate.length > 0) {
-      await Student.insertMany(studentsToCreate);
-      importedCount = studentsToCreate.length;
-
-      // Notify for any imported student with critical or warning standing
-      for (const s of studentsToCreate) {
-        const standing = Student.computeCgpaStatus(s.cgpa);
-        if (standing === 'warning' || standing === 'critical') {
-          await logNotification({
-            type: standing,
-            message: `Student ${s.name} (${s.rollNumber}) imported in ${standing} standing (CGPA: ${s.cgpa}).`,
-            departmentId: upload.departmentId.toString(),
-            batchId: s.batchId.toString(),
-            deepLinkUrl: `/admin/students`
-          });
-        }
+      try {
+        await Student.create({
+          rollNumber: row.rollNumber,
+          name: row.name,
+          email: row.email || undefined,
+          departmentId: upload.departmentId,
+          batchId: upload.batchId,
+          cgpa: row.cgpa,
+          currentSemester: upload.semester,
+          intakeSession: upload.intakeSession,
+        });
+        importedCount++;
+      } catch (err) {
+        importErrors.push({ row: 0, field: 'rollNumber', message: `Failed to import ${row.rollNumber}: ${err.message}` });
       }
     }
+
+    // Note: no manual CGPA-alert notification loop is needed here anymore —
+    // Student.create() triggers the post('save') hook in models/student.js,
+    // which already evaluates thresholds and sends the Warning/Critical
+    // notification (in-app + email) per student. Doing it again here would
+    // just double-send the same alert.
 
     upload.status = 'complete';
     upload.validRecords = importedCount;

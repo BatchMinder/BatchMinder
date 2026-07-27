@@ -1,6 +1,6 @@
 import express from 'express';
 import multer from 'multer';
-import { getCurriculumByBatch, createOrUpdateCurriculum, getAllCurriculums, getHECCurriculum, getCurriculumHistory } from '../controllers/curriculumController.js';
+import { getCurriculumByBatch, createOrUpdateCurriculum, publishNewCurriculumVersion, getAllCurriculums, getHECCurriculum, getCurriculumHistory } from '../controllers/curriculumController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { restrictTo } from '../middleware/roleMiddleware.js';
 
@@ -15,5 +15,6 @@ router.get('/', restrictTo('dean', 'academic_admin', 'admin', 'advisor'), getAll
 router.get('/batch/:batchId', restrictTo('dean', 'academic_admin', 'admin', 'advisor'), getCurriculumByBatch);
 router.get('/batch/:batchId/history', restrictTo('dean', 'academic_admin', 'admin', 'advisor'), getCurriculumHistory);
 router.post('/', restrictTo('dean', 'academic_admin'), createOrUpdateCurriculum);
+router.post('/publish-version', restrictTo('dean', 'academic_admin'), publishNewCurriculumVersion);
 
 export default router;
