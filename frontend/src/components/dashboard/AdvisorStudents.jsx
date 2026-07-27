@@ -4,7 +4,7 @@ import {
   Search, ShieldAlert, ShieldCheck, AlertTriangle, 
   X, Eye, BookOpen, Clock, Mail, Calendar, GraduationCap, Award
 } from 'lucide-react';
-import { CircularProgress } from '@mui/material';
+import CircularProgress from '@mui/material/CircularProgress';
 import AcademicSummary from '../../pages/students/AcademicSummary';
 import DegreeProgress from '../../pages/students/DegreeProgress';
 import ResponsiveSelect from '../common/ResponsiveSelect';

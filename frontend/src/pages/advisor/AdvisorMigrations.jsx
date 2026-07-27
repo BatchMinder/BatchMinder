@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowRightLeft, Search, X, Download, FileText, CheckCircle, XCircle, Clock } from 'lucide-react';
+import ResponsiveSelect from '../../components/common/ResponsiveSelect';
 
 // Read-only migration review for Batch Advisors. Per the Design Document's
 // GUI description for the Migration & Credit Transfer Management Interface:
@@ -86,17 +87,17 @@ export default function AdvisorMigrations({ selectedBatch }) {
                         style={{ width: '100%', padding: '9px 12px 9px 32px', borderRadius: '10px', border: '1px solid #E2E8F0', fontSize: '13px', outline: 'none' }}
                     />
                 </div>
-                <select
+                <ResponsiveSelect
                     value={statusFilter}
                     onChange={e => setStatusFilter(e.target.value)}
-                    style={{ padding: '9px 12px', borderRadius: '10px', border: '1px solid #E2E8F0', fontSize: '13px', color: '#334155', backgroundColor: '#fff' }}
-                >
-                    <option value="">All Statuses</option>
-                    <option value="pending">Pending</option>
-                    <option value="approved">Approved</option>
-                    <option value="rejected">Rejected</option>
-                    <option value="returned">Returned</option>
-                </select>
+                    options={[
+                        { value: '', label: 'All Statuses' },
+                        { value: 'pending', label: 'Pending' },
+                        { value: 'approved', label: 'Approved' },
+                        { value: 'rejected', label: 'Rejected' },
+                        { value: 'returned', label: 'Returned' }
+                    ]}
+                />
             </div>
 
             {/* List */}

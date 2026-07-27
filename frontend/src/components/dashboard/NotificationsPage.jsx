@@ -3,7 +3,7 @@ import {
   Search, ChevronDown, Plus, Bell, AlertTriangle,
   Check, Calendar, Info, ShieldAlert, RefreshCw, X
 } from 'lucide-react';
-import Header from './Header';
+
 import ResponsiveSelect from '../common/ResponsiveSelect';
 
 const SEVERITY_OPTIONS = ['All Severities', 'Critical', 'Warning', 'Info'];
@@ -242,7 +242,7 @@ export default function NotificationsPage({ setActiveNav }) {
       fontFamily: "'Inter','Liberation Sans',-apple-system,sans-serif"
     }}>
 
-      <Header title="Notifications & Broadcasts" subtitle="BatchMinder ERP • Dean • Notifications" setActiveNav={setActiveNav} />
+      
 
       {/* ── Scrollable Body ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, padding: '18px 24px', backgroundColor: '#F8FAFC', overflowY: 'auto' }}>

@@ -3,7 +3,7 @@ import {
   Search, ChevronRight, ChevronDown, Check, X, ShieldAlert,
   ShieldCheck, Lock, Activity, Users, Shield, Bell, Calendar
 } from 'lucide-react';
-import Header from './Header';
+
 import ResponsiveSelect from '../common/ResponsiveSelect';
 
 const INITIAL_ROLES = [
@@ -202,7 +202,7 @@ export default function RolesPermissions({ setActiveNav }) {
       fontFamily: "'Inter','Liberation Sans',-apple-system,sans-serif"
     }}>
 
-      <Header title="Roles & Permissions" subtitle="BatchMinder ERP • Dean • Roles & Permissions" setActiveNav={setActiveNav} />
+      
 
       {/* ── Body Container ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, padding: '18px 24px', backgroundColor: '#F8FAFC', overflowY: 'auto' }}>

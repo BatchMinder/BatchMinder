@@ -1,11 +1,9 @@
-import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogContentText,
-    DialogActions,
-    Button as MuiButton
-} from '@mui/material';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+import DialogActions from '@mui/material/DialogActions';
+import MuiButton from '@mui/material/Button';
 import { AlertTriangle } from 'lucide-react';
 
 // Maps internal role values to the label shown in the confirmation text.

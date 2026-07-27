@@ -92,8 +92,8 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
 
   // FR-3.3: Warning status — CGPA <= 2.1
   // FR-3.4: Critical status — CGPA < 2.0
-  const criticalStudents = students.filter(s => (s.cgpa || 0) < 2.0);
-  const warningStudents = students.filter(s => (s.cgpa || 0) >= 2.0 && (s.cgpa || 0) <= 2.1);
+  const criticalStudents = students.filter(s => s.cgpaStatus === 'critical');
+  const warningStudents = students.filter(s => s.cgpaStatus === 'warning');
   const criticalCount = criticalStudents.length;
   const warningCount = warningStudents.length;
 
@@ -110,16 +110,18 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
 
   students.forEach(s => {
     const cg = s.cgpa || 0;
+    if (cg === 0) return; // Ignore students without an active CGPA
     if (cg >= 3.50) range35Plus++;
     else if (cg >= 2.50) range25_34++;
     else if (cg >= 2.00) range20_24++;
     else rangeUnder2++;
   });
 
-  const p1 = totalCount > 0 ? ((range35Plus / totalCount) * 100).toFixed(1) : '0.0';
-  const p2 = totalCount > 0 ? ((range25_34 / totalCount) * 100).toFixed(1) : '0.0';
-  const p3 = totalCount > 0 ? ((range20_24 / totalCount) * 100).toFixed(1) : '0.0';
-  const p4 = totalCount > 0 ? ((rangeUnder2 / totalCount) * 100).toFixed(1) : '0.0';
+  const validStudentsForPie = range35Plus + range25_34 + range20_24 + rangeUnder2;
+  const p1 = validStudentsForPie > 0 ? ((range35Plus / validStudentsForPie) * 100).toFixed(1) : '0.0';
+  const p2 = validStudentsForPie > 0 ? ((range25_34 / validStudentsForPie) * 100).toFixed(1) : '0.0';
+  const p3 = validStudentsForPie > 0 ? ((range20_24 / validStudentsForPie) * 100).toFixed(1) : '0.0';
+  const p4 = validStudentsForPie > 0 ? ((rangeUnder2 / validStudentsForPie) * 100).toFixed(1) : '0.0';
 
   const donutGradient = totalCount > 0
     ? `conic-gradient(#10B981 0% ${p1}%, #3B82F6 ${p1}% ${Number(p1) + Number(p2)}%, #F59E0B ${Number(p1) + Number(p2)}% ${Number(p1) + Number(p2) + Number(p3)}%, #EF4444 ${Number(p1) + Number(p2) + Number(p3)}% 100%)`
@@ -129,7 +131,7 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
   const onTrackCount = students.filter(s => (s.cgpa || 0) >= 3.0).length;
   const satisfactoryCount = students.filter(s => (s.cgpa || 0) >= 2.2 && (s.cgpa || 0) < 3.0).length;
   const degreeAtRiskCount = students.filter(s => (s.cgpa || 0) < 2.2).length;
-  const graduatedCount = students.filter(s => s.currentSemester >= 8).length;
+  const graduatedCount = students.filter(s => s.currentSemester > 8).length;
 
   const onTrackPct = totalCount > 0 ? ((onTrackCount / totalCount) * 100).toFixed(1) : '0.0';
   const satisfactoryPct = totalCount > 0 ? ((satisfactoryCount / totalCount) * 100).toFixed(1) : '0.0';
@@ -244,7 +246,7 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', position: 'relative' }}>
 
       {/* ── FOUR METRIC CARDS ROW ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
 
         {/* Card 1: Total Students */}
         <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
@@ -389,10 +391,10 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
         </div>
 
       </div>
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px_320px] gap-4 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[1fr_300px_320px] gap-4 mb-4">
 
         {/* Widget 1: At-Risk Students */}
-        <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div className="md:col-span-2 xl:col-span-1" style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #F1F5F9' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <AlertTriangle size={17} color="#E11D48" />
@@ -528,7 +530,7 @@ export default function AdvisorDashboard({ selectedBatch, setActiveNav }) {
       </div>
 
       {/* ── BOTTOM ROW: Pending Approvals, Performance Trend ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] xl:grid-cols-[1fr_450px] gap-4 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_400px] xl:grid-cols-[1fr_450px] gap-4 mb-4">
 
         {/* Widget 4: Pending Approvals Table */}
         <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>

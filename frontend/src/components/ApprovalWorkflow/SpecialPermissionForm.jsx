@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, Search, Check, AlertCircle, ChevronDown } from 'lucide-react';
-import { CircularProgress } from '@mui/material';
+import CircularProgress from '@mui/material/CircularProgress';
 import ResponsiveSelect from '../common/ResponsiveSelect';
 
 export default function SpecialPermissionForm({ onClose, onSuccess }) {

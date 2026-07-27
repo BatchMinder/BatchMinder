@@ -17,7 +17,7 @@ import {
   User,
   Clock
 } from 'lucide-react';
-import { CircularProgress } from '@mui/material';
+import CircularProgress from '@mui/material/CircularProgress';
 import { useModal } from '../../contexts/ModalContext';
 import { useAuth } from '../../contexts/AuthContext';
 import ResponsiveSelect from '../../components/common/ResponsiveSelect';
@@ -459,38 +459,9 @@ export default function DataIngestionHub({ onUploadSuccess }) {
           <h1 style={{ margin: '8px 0 0', fontSize: '24px', fontWeight: 800, color: '#0F172A' }}>CSV / Excel Ingestion Hub</h1>
         </div>
 
-        {/* Tab switch buttons */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', backgroundColor: '#F1F5F9', padding: '4px', borderRadius: '12px', border: '1px solid #E2E8F0', marginTop: '12px' }}>
-          <button
-            onClick={() => setActiveTab('upload')}
-            style={{
-              padding: '8px 16px', borderRadius: '8px', border: 'none', fontSize: '13px', fontWeight: 700, cursor: 'pointer',
-              backgroundColor: activeTab === 'upload' ? '#FFFFFF' : 'transparent',
-              color: activeTab === 'upload' ? '#0F172A' : '#64748B',
-              boxShadow: activeTab === 'upload' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              transition: 'all 0.2s'
-            }}
-          >
-            📂 Spreadsheet Upload
-          </button>
-          <button
-            onClick={() => setActiveTab('sync')}
-            style={{
-              padding: '8px 16px', borderRadius: '8px', border: 'none', fontSize: '13px', fontWeight: 700, cursor: 'pointer',
-              backgroundColor: activeTab === 'sync' ? '#FFFFFF' : 'transparent',
-              color: activeTab === 'sync' ? '#0F172A' : '#64748B',
-              boxShadow: activeTab === 'sync' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              transition: 'all 0.2s'
-            }}
-          >
-            🔌 API Integrations
-          </button>
 
-        </div>
       </div>
 
-      {activeTab === 'upload' ? (
-        <>
           {/* Row 1: Upload Student Data File & Upload Summary Panel */}
           <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1.5fr] gap-5">
 
@@ -965,7 +936,6 @@ export default function DataIngestionHub({ onUploadSuccess }) {
                   color: '#fff',
                   background: (!uploadId || uploadSuccess || (uploadStats && uploadStats.valid === 0)) ? '#94A3B8' : 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
                   border: 'none',
-                  borderRadius: '10px',
                   boxShadow: '0 4px 12px rgba(37,99,235,0.2)',
                   cursor: (!uploadId || uploadSuccess || (uploadStats && uploadStats.valid === 0)) ? 'not-allowed' : 'pointer',
                   width: '100%',
@@ -1050,128 +1020,7 @@ export default function DataIngestionHub({ onUploadSuccess }) {
               </table>
             </div>
           </div>
-        </>
-      ) : (
-        /* LMS/ERP Dynamic API Synchronizer Tab */
-        <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-5">
 
-          {/* LMS Sync Panel */}
-          <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-            <div style={{ display: 'flex', items: 'center', gap: '8px' }}>
-              <Database size={20} color="#2563EB" />
-              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#0F172A' }}>LMS/ERP Synchronizer</h2>
-            </div>
-
-            <p style={{ margin: 0, fontSize: '13px', color: '#64748B', lineHeight: 1.5 }}>
-              Pulls the latest enrollment statuses, grades, and attendance for the selected department/batch from the
-              configured LMS gateway (read-only, per FR-2.3). Server connection details are set once by an
-              administrator in the deployment environment — not entered per sync.
-            </p>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', backgroundColor: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: '8px', fontSize: '12px', fontWeight: 600, color: '#0369A1' }}>
-              <Database size={14} />
-              Gateway: server-configured (MOCK_LMS_URL) — contact your administrator to change it.
-            </div>
-
-            <form style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} onSubmit={(e) => e.preventDefault()}>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Department</label>
-                  <select
-                    value={selectedDept}
-                    onChange={(e) => setSelectedDept(e.target.value)}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', backgroundColor: '#fff', outline: 'none' }}
-                  >
-                    {departments.length === 0 && <option value="">No departments found</option>}
-                    {departments.map((d) => (
-                      <option key={d._id || d.name} value={d.name}>{d.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Target Batch Selection</label>
-                  <select
-                    value={syncBatchSelection}
-                    onChange={(e) => setSyncBatchSelection(e.target.value)}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', backgroundColor: '#fff', outline: 'none' }}
-                  >
-                    <option value="All">All batches in this department</option>
-                    {filteredBatches.map((b) => (
-                      <option key={b._id || b.code} value={b.code}>{b.code}</option>
-                    ))}
-                  </select>
-                  {filteredBatches.length === 0 && (
-                    <span style={{ fontSize: '11px', color: '#64748B' }}>No batches exist yet for this department.</span>
-                  )}
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleSyncTrigger}
-                disabled={syncing || !selectedDept}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px 20px', backgroundColor: '#2563EB', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: (syncing || !selectedDept) ? 'not-allowed' : 'pointer', opacity: (syncing || !selectedDept) ? 0.7 : 1 }}
-              >
-                {syncing ? <CircularProgress size={12} style={{ color: '#fff' }} /> : <RefreshCw size={14} />}
-                {syncing ? 'Syncing...' : 'Sync Now'}
-              </button>
-            </form>
-
-            {syncSuccess && (
-              <div style={{ padding: '12px', backgroundColor: syncFailedCount > 0 ? '#FEF3C7' : '#D1FAE5', color: syncFailedCount > 0 ? '#92400E' : '#059669', borderRadius: '8px', fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <CheckCircle size={16} />
-                Sync process completed! {syncCount} student profiles synced.
-                {syncPromotedCount > 0 && ` ${syncPromotedCount} student${syncPromotedCount === 1 ? '' : 's'} auto-promoted to next semester.`}
-                {syncGraduatedCount > 0 && ` ${syncGraduatedCount} student${syncGraduatedCount === 1 ? '' : 's'} marked as graduated.`}
-                {syncFailedCount > 0 && ` (${syncFailedCount} student${syncFailedCount === 1 ? '' : 's'} failed to sync — check server logs.)`}
-              </div>
-            )}
-
-            {syncError && (
-              <div style={{ padding: '12px', backgroundColor: '#FEE2E2', color: '#EF4444', borderRadius: '8px', fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <AlertCircle size={16} /> Sync failed: {syncError}
-              </div>
-            )}
-          </div>
-
-          {/* Sync History Logs */}
-          <div style={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-            <div style={{ display: 'flex', items: 'center', gap: '8px' }}>
-              <History size={18} color="#64748B" />
-              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: '#0F172A' }}>Previous API Sync History</h3>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {syncLogs.length > 0 ? (
-                syncLogs.map((log, i) => (
-                  <div key={i} style={{ border: '1px solid #E2E8F0', borderRadius: '12px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <span style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#334155' }}>{log.source}</span>
-                      <span style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginTop: '4px' }}>{log.timestamp}</span>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <span style={{
-                        display: 'inline-block', fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '12px',
-                        backgroundColor: log.status === 'Success' ? '#D1FAE5' : '#FEE2E2',
-                        color: log.status === 'Success' ? '#059669' : '#EF4444'
-                      }}>
-                        {log.status}
-                      </span>
-                      <span style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#64748B', marginTop: '6px' }}>{log.records} records processed</span>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div style={{ padding: '24px', textAlign: 'center', color: '#94A3B8', fontWeight: 600 }}>
-                  No previous API synchronization logs found.
-                </div>
-              )}
-            </div>
-          </div>
-
-        </div>
-      )}
 
 
 

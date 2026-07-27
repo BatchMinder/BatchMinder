@@ -17,8 +17,6 @@ import uploadRoutes from './routes/uploadRoutes.js';
 import auditLogRoutes from './routes/auditLogRoutes.js';
 import advisorRoutes from './routes/advisorRoutes.js';
 import hodRoutes from './routes/hodRoutes.js';
-import schedulingRoutes from './routes/schedulingRoutes.js';
-import reportRoutes from './routes/reportRoutes.js';
 import connectDB from './utils/db.js';
 
 const dotenvResult = dotenv.config();
@@ -57,8 +55,6 @@ app.use('/api/audit-logs', auditLogRoutes);
 app.use('/api/auth/audit-logs', auditLogRoutes);
 app.use('/api/advisor', advisorRoutes);
 app.use('/api/hod', hodRoutes);
-app.use('/api/scheduling', schedulingRoutes);
-app.use('/api/reports', reportRoutes);
 
 // Serve uploaded transcripts as static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

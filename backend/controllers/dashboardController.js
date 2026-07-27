@@ -7,7 +7,7 @@ import { scopeToUserDepartments, scopeQueryToRole } from '../middleware/scopeMid
 
 import Migration from '../models/migration.js';
 import Curriculum from '../models/curriculum.js';
-import Timetable from '../models/timetable.js';
+
 import Upload from '../models/upload.js';
 
 // GET /api/dashboard/stats
@@ -38,6 +38,10 @@ export const getDashboardStats = async (req, res) => {
       }
       studentQuery = scope;
     }
+    console.log('--- DASHBOARD STATS REQUEST ---');
+    console.log('User Role:', req.user.role);
+    console.log('User DepartmentIds:', req.user.departmentIds);
+    console.log('Student Query:', JSON.stringify(studentQuery));
 
     const [
       allStudents,
@@ -49,10 +53,9 @@ export const getDashboardStats = async (req, res) => {
       recentLogs,
       pendingMigrations,
       curriculums,
-      scheduledClasses,
       recentUploads
     ] = await Promise.all([
-      Student.find(studentQuery).lean(),
+      Student.find(studentQuery).select('status cgpaStatus').lean(),
       Batch.countDocuments(isDean ? {} : scopeToUserDepartments(req)),
       Batch.countDocuments({ status: 'Allocated', ...(isDean ? {} : scopeToUserDepartments(req)) }),
       isDean ? User.countDocuments({}) : Promise.resolve(0),
@@ -60,8 +63,7 @@ export const getDashboardStats = async (req, res) => {
       Department.find(isDean ? {} : { _id: { $in: req.user.departmentIds || [] } }).lean(),
       AuditLog.find({}).sort({ timestamp: -1 }).limit(6).lean(),
       Migration.countDocuments({ decidedAt: null }),
-      Curriculum.find(isDean ? {} : scopeToUserDepartments(req)).lean(),
-      Timetable.countDocuments(),
+      Curriculum.find(isDean ? {} : scopeToUserDepartments(req)).select('courses.code').lean(),
       Upload.find({}).sort({ createdAt: -1 }).limit(20).populate('uploadedBy', 'name').lean()
     ]);
 
@@ -115,7 +117,6 @@ export const getDashboardStats = async (req, res) => {
         departments: deptStats,
         pendingMigrations,
         totalCourses,
-        scheduledClasses,
         recentUploads: recentUploads.map(u => ({
           id: u._id,
           fileName: u.fileName,
@@ -187,7 +188,7 @@ export const getStudentsByBatch = async (req, res) => {
       return res.status(200).json({ status: 'success', data: [] });
     }
 
-    const students = await Student.find(scope).populate('batchId', 'code').lean();
+    const students = await Student.find(scope).select('status cgpaStatus batchId batch').populate('batchId', 'code').lean();
 
     const batchMap = {};
     for (const s of students) {
@@ -227,7 +228,7 @@ export const getAtRiskTrend = async (req, res) => {
     const twelveMonthsAgo = new Date();
     twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
 
-    const students = await Student.find({ ...scope, enrolledAt: { $gte: twelveMonthsAgo } }).lean();
+    const students = await Student.find({ ...scope, enrolledAt: { $gte: twelveMonthsAgo } }).select('enrolledAt createdAt cgpaStatus').lean();
 
     const monthMap = {};
     for (let i = 11; i >= 0; i--) {

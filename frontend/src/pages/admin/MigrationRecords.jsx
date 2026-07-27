@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FileSpreadsheet, CheckCircle, Clock, AlertCircle, FileText, ArrowRightLeft, Eye, Check, X, Building2, User, Search, RefreshCw, Plus, BookOpen, Layers, Trash2, Upload, Download, ChevronDown, ChevronUp, Calculator, GraduationCap } from 'lucide-react';
 import { format } from 'date-fns';
-import { CircularProgress } from '@mui/material';
+import CircularProgress from '@mui/material/CircularProgress';
 import Select from 'react-select';
 import ResponsiveSelect from '../../components/common/ResponsiveSelect';
 import MigrationAudit from '../migration/MigrationAudit';
@@ -1462,22 +1462,20 @@ export default function MigrationRecords() {
                         <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 600, color: '#64748B' }}>{c.credits}</td>
                         <td style={{ padding: '12px 16px', textAlign: 'center' }}>
                           {selected.status === 'pending' ? (
-                            <select
+                            <ResponsiveSelect
                               value={c.courseType || 'CORE'}
                               onChange={e => {
                                 const updated = [...tempCourses];
                                 updated[idx].courseType = e.target.value;
                                 setTempCourses(updated);
                               }}
-                              style={{
-                                padding: '6px 8px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '12px', outline: 'none', fontWeight: 600, fontFamily: 'inherit', color: '#334155', backgroundColor: '#F8FAFC'
-                              }}
-                            >
-                              <option value="CORE">Core</option>
-                              <option value="ELECTIVE">Elective</option>
-                              <option value="LAB">Lab</option>
-                              <option value="GENERAL">General</option>
-                            </select>
+                              options={[
+                                { value: 'CORE', label: 'Core' },
+                                { value: 'ELECTIVE', label: 'Elective' },
+                                { value: 'LAB', label: 'Lab' },
+                                { value: 'GENERAL', label: 'General' }
+                              ]}
+                            />
                           ) : (
                             <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748B' }}>{(c.courseType || 'CORE')}</span>
                           )}
@@ -1485,23 +1483,19 @@ export default function MigrationRecords() {
                         <td style={{ padding: '12px 16px' }}>
                           {selected.status === 'pending' ? (
                             <>
-                              <select
+                              <ResponsiveSelect
                                 value={c.equivalencyStatus}
                                 onChange={e => {
                                   const updated = [...tempCourses];
                                   updated[idx].equivalencyStatus = e.target.value;
                                   setTempCourses(updated);
                                 }}
-                                style={{
-                                  padding: '6px 8px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none', fontWeight: 600, fontFamily: 'inherit',
-                                  color: c.equivalencyStatus === 'accepted' ? '#059669' : (c.equivalencyStatus === 'rejected' ? '#DC2626' : '#D97706'),
-                                  backgroundColor: c.equivalencyStatus === 'accepted' ? '#D1FAE5' : (c.equivalencyStatus === 'rejected' ? '#FEE2E2' : '#FFFBEB'),
-                                }}
-                              >
-                                <option value="pending">Pending</option>
-                                <option value="accepted">Accepted</option>
-                                <option value="rejected">Credit Loss</option>
-                              </select>
+                                options={[
+                                  { value: 'pending', label: 'Pending' },
+                                  { value: 'accepted', label: 'Accepted' },
+                                  { value: 'rejected', label: 'Credit Loss' }
+                                ]}
+                              />
                               {c.equivalencyStatus === 'rejected' && (
                                 <input
                                   type="text"

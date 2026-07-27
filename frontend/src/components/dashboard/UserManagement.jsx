@@ -5,9 +5,13 @@ import {
   ChevronLeft, ChevronRight, UserPlus, CheckCircle2, Edit2
 } from 'lucide-react';
 import { useDepartments } from '../../hooks/useDepartments';
-import Header from './Header';
+
 import { useModal } from '../../contexts/ModalContext';
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button as MuiButton } from '@mui/material';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import MuiButton from '@mui/material/Button';
 import ResponsiveSelect from '../common/ResponsiveSelect';
 
 const ROLE_OPTIONS   = ['All Roles', 'Batch Advisor', 'HOD', 'Administrator', 'Dean'];
@@ -272,11 +276,7 @@ export default function UserManagement({ setActiveNav }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, height: '100%', overflow: 'hidden', fontFamily: "'Inter', sans-serif" }}>
 
-      <Header
-        title="User Management"
-        subtitle="BatchMinder ERP • Dean • Users"
-        setActiveNav={setActiveNav}
-      />
+      
 
       {/* ── Scrollable Body Container ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, padding: '24px', backgroundColor: '#F8FAFC', overflowY: 'auto' }}>

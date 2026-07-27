@@ -5,7 +5,7 @@ import {
   Calendar, Clock, Shield, Search, RefreshCw, BarChart2,
   ChevronDown, AlertTriangle, User, Layers, Info, X
 } from 'lucide-react';
-import Header from './Header';
+
 import ResponsiveSelect from '../common/ResponsiveSelect';
 import CustomDatePicker from '../common/CustomDatePicker';
 
@@ -218,27 +218,6 @@ export default function AuditLogsPage({ setActiveNav }) {
   return (
     <div style={{ flex: 1, overflow: 'hidden', backgroundColor: '#F8FAFC', display: 'flex', flexDirection: 'column', fontFamily: 'inherit' }}>
 
-      {isDean ? (
-        <Header
-          title="System Audit Logs"
-          subtitle="BatchMinder ERP • Dean • Audit Logs"
-          setActiveNav={setActiveNav}
-        >
-          <button
-            onClick={fetchLogs}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '6px',
-              padding: '7px 14px', borderRadius: '8px', border: '1px solid #E2E8F0',
-              backgroundColor: '#FFFFFF', fontSize: '11px', fontWeight: 700, color: '#374151',
-              cursor: 'pointer', fontFamily: 'inherit',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
-            }}
-          >
-            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
-            Reload
-          </button>
-        </Header>
-      ) : (
         <div style={{
           padding: isMobile ? '16px 16px 0' : '24px 32px 0',
           display: 'flex', justifyContent: 'space-between', alignItems: 'center'
@@ -265,7 +244,6 @@ export default function AuditLogsPage({ setActiveNav }) {
             Reload
           </button>
         </div>
-      )}
 
       {/* Main Content Area */}
       <div style={{ flex: 1, padding: isMobile ? '12px 16px' : '24px 32px', display: 'flex', flexDirection: 'column', gap: '16px', minHeight: 0 }}>

@@ -6,7 +6,7 @@ import {
   ArrowRightLeft, FileText, CheckCircle, XCircle, Search, 
   Filter, Eye, Download, Calendar, User, Building2, AlertTriangle, Printer
 } from 'lucide-react';
-import { CircularProgress } from '@mui/material';
+import CircularProgress from '@mui/material/CircularProgress';
 import ResponsiveSelect from '../../components/common/ResponsiveSelect';
 
 export default function MigrationAudit() {

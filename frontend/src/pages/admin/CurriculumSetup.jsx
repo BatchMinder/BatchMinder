@@ -105,7 +105,8 @@ export default function CurriculumSetup() {
           code: c.code || c.courseCode,
           title: c.title || c.courseTitle,
           creditHours: c.creditHours || c.credits || 3,
-          semester: c.semester || 1
+          semester: c.semester || 1,
+          courseType: c.courseType || 'CORE'
         })) : []
       };
 
@@ -141,7 +142,8 @@ export default function CurriculumSetup() {
           code: c.code,
           title: c.title,
           creditHours: c.creditHours,
-          semester: c.semester
+          semester: c.semester,
+          courseType: c.courseType || 'CORE'
         }))
       };
 
@@ -185,7 +187,8 @@ export default function CurriculumSetup() {
           code: c.code,
           title: c.title,
           creditHours: c.creditHours,
-          semester: c.semester
+          semester: c.semester,
+          courseType: c.courseType || 'CORE'
         }))
       };
 
@@ -260,28 +263,40 @@ export default function CurriculumSetup() {
   ];
 
   // Selected Curriculum Stats
-  let coreCount = 0;
-  let electiveCount = 0;
-  let labCount = 0;
-  let genCount = 0;
+  let coreCount = 0; let coreCredits = 0;
+  let electiveCount = 0; let electiveCredits = 0;
+  let labCount = 0; let labCredits = 0;
+  let genCount = 0; let genCredits = 0;
   let totalCredits = 0;
 
   if (selectedCurriculum && selectedCurriculum.courses) {
     selectedCurriculum.courses.forEach(c => {
       totalCredits += c.creditHours;
       const lower = c.title.toLowerCase();
-      if (lower.includes('lab') || c.creditHours === 1) labCount++;
-      else if (lower.includes('elective')) electiveCount++;
-      else if (lower.includes('english') || lower.includes('studies') || lower.includes('communication')) genCount++;
-      else coreCount++;
+      if (lower.includes('lab') || c.creditHours === 1 || c.courseType === 'LAB') {
+        labCount++;
+        labCredits += c.creditHours;
+      }
+      else if (lower.includes('elective') || c.courseType === 'ELECTIVE') {
+        electiveCount++;
+        electiveCredits += c.creditHours;
+      }
+      else if (c.courseType === 'GENERAL' || lower.includes('english') || lower.includes('studies') || lower.includes('communication')) {
+        genCount++;
+        genCredits += c.creditHours;
+      }
+      else {
+        coreCount++;
+        coreCredits += c.creditHours;
+      }
     });
   }
 
   const pieData = [
-    { name: 'Core Courses', value: coreCount, credits: coreCount * 3 },
-    { name: 'Elective Courses', value: electiveCount, credits: electiveCount * 3 },
-    { name: 'Lab Courses', value: labCount, credits: labCount * 1 },
-    { name: 'General Courses', value: genCount, credits: genCount * 2 }
+    { name: 'Core Courses', value: coreCount, credits: coreCredits },
+    { name: 'Elective Courses', value: electiveCount, credits: electiveCredits },
+    { name: 'Lab Courses', value: labCount, credits: labCredits },
+    { name: 'General Courses', value: genCount, credits: genCredits }
   ].filter(d => d.value > 0);
 
   return (

@@ -4,7 +4,7 @@ import {
   Download, UserPlus, ChevronLeft, ChevronRight,
   FileText, Edit3, Trash2, RefreshCw
 } from 'lucide-react';
-import { CircularProgress } from '@mui/material';
+import CircularProgress from '@mui/material/CircularProgress';
 
 
 
@@ -236,6 +236,7 @@ export default function StudentRecords({ setActiveNav }) {
   };
 
   useEffect(() => {
+    fetchStats();
     fetch('/api/batches').then(r => r.json()).then(d => { if (d.status === 'success') setBatches(d.data); }).catch(() => { });
     fetch('/api/departments').then(r => r.json()).then(d => { if (d.status === 'success') setDepartments(d.data); }).catch(() => { });
     fetch('/api/dashboard/cgpa-distribution').then(r => r.json()).then(d => { if (d.status === 'success') setCgpaDist(d.data); }).catch(() => { });

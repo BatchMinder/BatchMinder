@@ -4,7 +4,7 @@ import {
   Search, RefreshCw, AlertTriangle,
   CheckCircle, Activity, ShieldAlert, Users
 } from 'lucide-react';
-import { CircularProgress } from '@mui/material';
+import CircularProgress from '@mui/material/CircularProgress';
 import ResponsiveSelect from '../../components/common/ResponsiveSelect';
 
 export default function AdvisorRiskDashboard() {

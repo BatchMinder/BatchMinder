@@ -58,7 +58,6 @@ export default function Dashboard({ setActiveNav }) {
     batches = { allocated: 0, total: 0 },
     pendingMigrations = 0,
     totalCourses = 0,
-    scheduledClasses = 0,
     departments: deptStats = [],
     recentUploads = [],
     activityLogs = []
@@ -68,8 +67,7 @@ export default function Dashboard({ setActiveNav }) {
     { label: 'Total Students', value: totalStudents, subtitle: 'Total enrolled', icon: Users, color: '#2563EB', bg: '#EFF6FF', nav: 'students' },
     { label: 'Total Courses', value: totalCourses, subtitle: 'In active curriculums', icon: BookOpen, color: '#10B981', bg: '#F0FDF4', nav: 'curriculum' },
     { label: 'Active Batches', value: batches.allocated, subtitle: `Out of ${batches.total} total`, icon: Layers, color: '#F59E0B', bg: '#FFFBEB', nav: 'batches' },
-    { label: 'Pending Approvals', value: pendingMigrations, subtitle: 'Require attention', icon: CheckSquare, color: '#EF4444', bg: '#FEF2F2', nav: 'migrations' },
-    { label: 'Scheduled Classes', value: scheduledClasses, subtitle: 'Timetable slots', icon: Calendar, color: '#8B5CF6', bg: '#F5F3FF', nav: 'timetable_generator' },
+    { label: 'Pending Approvals', value: pendingMigrations, subtitle: 'Require attention', icon: CheckSquare, color: '#EF4444', bg: '#FEF2F2', nav: 'migrations' }
   ];
 
   // Overview Donut Data
@@ -120,7 +118,7 @@ export default function Dashboard({ setActiveNav }) {
     <div style={{ padding: '0 0 40px', maxWidth: '1400px', margin: '0 auto' }}>
 
       {/* 1. TOP STATS ROW */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {statCards.map((card, i) => {
           const Icon = card.icon;
           return (
@@ -158,7 +156,7 @@ export default function Dashboard({ setActiveNav }) {
 
 
       {/* 2. UPLOADS ROW */}
-      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-5 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-5 mb-6">
 
         {/* Upload Zone */}
         <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
@@ -298,7 +296,7 @@ export default function Dashboard({ setActiveNav }) {
 
 
       {/* 3. CHARTS & DEPARTMENTS ROW */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
 
         {/* Students Overview */}
         <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0' }}>
@@ -401,16 +399,13 @@ export default function Dashboard({ setActiveNav }) {
       {/* 4. QUICK ACTIONS ROW */}
       <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0' }}>
         <h3 style={{ margin: '0 0 16px', fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>Quick Actions</h3>
-        <div style={{ display: 'flex', gap: '14px', overflowX: 'auto', paddingBottom: '4px' }}>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
           {[
             { label: 'Student Records', icon: Users, id: 'students' },
             { label: 'CSV/Excel Ingestion', icon: UploadCloud, id: 'upload' },
             { label: 'Batch Allocation', icon: Layers, id: 'batches' },
             { label: 'Migration Records', icon: RefreshCw, id: 'migrations' },
             { label: 'Curriculum Setup', icon: BookOpen, id: 'curriculum' },
-            { label: 'Timetable Setup', icon: Calendar, id: 'timetable_generator' },
-            { label: 'Exam Schedule', icon: CalendarDays, id: 'datesheet_generator' },
-            { label: 'Schedule Override', icon: Clock, id: 'schedule_override' },
           ].map((action, i) => {
             const Icon = action.icon;
             return (
@@ -419,10 +414,9 @@ export default function Dashboard({ setActiveNav }) {
                 onClick={() => setActiveNav && action.id && setActiveNav(action.id)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '12px',
-                  minWidth: '170px', padding: '12px 16px',
+                  width: '100%', padding: '12px 16px',
                   backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0',
                   borderRadius: '12px', cursor: 'pointer', transition: 'all 0.15s ease',
-                  flexShrink: 0
                 }}
                 onMouseEnter={e => {
                   e.currentTarget.style.backgroundColor = '#EFF6FF';

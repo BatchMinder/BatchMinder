@@ -6,13 +6,7 @@ import ResetPassword from './components/auth/ResetPassword';
 import DeanDashboard from './components/dashboard/DeanDashboard';
 import CurriculumGrid from './components/curriculum/CurriculumGrid';
 import EquivalencyForm from './components/curriculum/EquivalencyForm';
-import FileDropzone from './components/ingestion/FileDropzone';
-import StudentModal from './components/students/StudentModal';
 import StudentTable from './components/students/StudentTable';
-import SyncPanel from './components/ingestion/SyncPanel';
-import PrerequisiteMapper from './components/curriculum/PrerequisiteMapper';
-import ProgressPreview from './components/dashboard/ProgressPreview';
-import RecordsDirectory from './pages/students/RecordsDirectory';
 import DataIngestionHub from './pages/ingestion/DataIngestionHub';
 import CurriculumBoard from './pages/curriculum/CurriculumBoard';
 import MigrationManager from './pages/migration/MigrationManager';
@@ -29,17 +23,14 @@ import AdvisorDashboard from './components/dashboard/AdvisorDashboard';
 import AdvisorStudents from './components/dashboard/AdvisorStudents';
 import HODQueue from './pages/hod/HODQueue';
 import RequestHistory from './pages/hod/RequestHistory';
-import TimetableGenerator from './pages/scheduling/TimetableGenerator';
-import DatesheetGenerator from './pages/scheduling/DatesheetGenerator';
-import ScheduleOverride from './pages/scheduling/ScheduleOverride';
+
 import Footer from './components/Footer';
 
 // 💻 YOUR TEAMMATE'S MODULE 4 BATCH ADVISOR PAGE IMPORT
 import AdvisorQueue from './pages/advisor/AdvisorQueue';
-import AdvisorReporting from './pages/advisor/AdvisorReporting';
 import AdvisorMyBatch from './pages/advisor/AdvisorMyBatch';
-import AdvisorRiskDashboard from './pages/advisor/AdvisorRiskDashboard';
 import AdvisorMigrations from './pages/advisor/AdvisorMigrations';
+import AdvisorRiskDashboard from './pages/advisor/AdvisorRiskDashboard';
 
 import {
   Layers,
@@ -55,9 +46,7 @@ import {
   Lock,
   Zap
 } from 'lucide-react';
-import {
-  CircularProgress
-} from '@mui/material';
+import CircularProgress from '@mui/material/CircularProgress';
 import LogoutModal from './components/shared/LogoutModal';
 
 function App() {
@@ -78,22 +67,19 @@ function App() {
     const path = window.location.pathname;
     if (path.startsWith('/dashboard/')) {
       const subPage = path.substring('/dashboard/'.length);
-      const validPages = ['dashboard', 'students', 'upload', 'migrations', 'curriculum', 'batches', 'timetable', 'datesheet', 'override', 'audit_logs', 'settings', 'timetable_generator', 'datesheet_generator', 'schedule_override', 'notifications', 'attendance', 'reports', 'special_permission'];
+      const validPages = ['dashboard', 'students', 'upload', 'migrations', 'curriculum', 'batches', 'audit_logs', 'settings', 'notifications', 'attendance', 'special_permission'];
       if (validPages.includes(subPage)) {
         return subPage;
       }
     }
     return 'dashboard';
   });
-  const [overrideInitialTab, setOverrideInitialTab] = useState(() => {
-    return localStorage.getItem('batchminder_admin_override_initial_tab') || 'timetable';
-  });
 
   const [advisorActiveNav, setAdvisorActiveNav] = useState(() => {
     const path = window.location.pathname;
     if (path.startsWith('/dashboard/')) {
       const subPage = path.substring('/dashboard/'.length);
-      const validPages = ['dashboard', 'myBatch', 'students', 'at_risk_monitoring', 'workflowQueue', 'attendance', 'reporting', 'settings', 'notifications', 'degree_plan', 'migrations'];
+      const validPages = ['dashboard', 'myBatch', 'students', 'at_risk_monitoring', 'workflowQueue', 'attendance', 'settings', 'notifications', 'degree_plan', 'migrations'];
       if (validPages.includes(subPage)) {
         return subPage;
       }
@@ -104,7 +90,7 @@ function App() {
     const path = window.location.pathname;
     if (path.startsWith('/dashboard/')) {
       const subPage = path.substring('/dashboard/'.length);
-      const validPages = ['dashboard', 'history', 'reporting', 'settings', 'notifications', 'audit_logs'];
+      const validPages = ['dashboard', 'history', 'settings', 'notifications', 'audit_logs'];
       if (validPages.includes(subPage)) {
         return subPage;
       }
@@ -114,9 +100,6 @@ function App() {
   const [advisorBatches, setAdvisorBatches] = useState([]);
   const [selectedAdvisorBatch, setSelectedAdvisorBatch] = useState('all');
 
-  useEffect(() => {
-    localStorage.setItem('batchminder_admin_override_initial_tab', overrideInitialTab);
-  }, [overrideInitialTab]);
 
   // On login, always reset to dashboard
   useEffect(() => {
@@ -178,15 +161,15 @@ function App() {
 
       const subPage = path.substring('/dashboard/'.length);
       if (user?.role === 'academic_admin') {
-        const validPages = ['dashboard', 'students', 'upload', 'migrations', 'curriculum', 'batches', 'timetable', 'datesheet', 'override', 'audit_logs', 'settings', 'timetable_generator', 'datesheet_generator', 'schedule_override', 'notifications', 'attendance', 'reports', 'special_permission'];
+        const validPages = ['dashboard', 'students', 'upload', 'migrations', 'curriculum', 'batches', 'audit_logs', 'settings', 'notifications', 'attendance', 'special_permission'];
         if (validPages.includes(subPage)) setAdminActiveNav(subPage);
       }
       if (user?.role === 'advisor') {
-        const validPages = ['dashboard', 'myBatch', 'students', 'at_risk_monitoring', 'workflowQueue', 'attendance', 'reporting', 'settings', 'notifications', 'degree_plan', 'migrations'];
+        const validPages = ['dashboard', 'myBatch', 'students', 'at_risk_monitoring', 'workflowQueue', 'attendance', 'settings', 'notifications', 'degree_plan', 'migrations'];
         if (validPages.includes(subPage)) setAdvisorActiveNav(subPage);
       }
       if (user?.role === 'admin') {
-        const validPages = ['dashboard', 'history', 'reporting', 'settings', 'notifications', 'audit_logs'];
+        const validPages = ['dashboard', 'history', 'settings', 'notifications', 'audit_logs'];
         if (validPages.includes(subPage)) setHodActiveNav(subPage);
       }
     };
@@ -312,97 +295,7 @@ function App() {
         </div>
       );
     }
-
-    // ==========================================================
-    // 🏛️ MODULE 5 SEPARATE INDEPENDENT WORKSPACE VIEWS
-    // ==========================================================
     if (user.role === 'academic_admin') {
-
-      // 1. TIMETABLE GENERATOR SCREEN PANEL
-      const EmptySchedulingDashboard = () => {
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: 16, backgroundColor: '#FFF', borderRadius: 12 }}>
-            <div style={{ textAlign: 'left' }}>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#0F172A' }}>Module 5: Intelligent Scheduling Engine Preview</h2>
-              <p style={{ margin: '2px 0 0', fontSize: 12, color: '#64748B' }}>Connecting safely with 0 rows to check system layout state interfaces.</p>
-            </div>
-
-            <div style={{ backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 12, padding: 16, display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left' }}>
-              <CheckCircle2 size={20} color="#16A34A" />
-              <div>
-                <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#166534' }}>Schedule Integrity Verified</h4>
-                <p style={{ margin: '2px 0 0', fontSize: 12, color: '#15803D' }}>Zero overlapping matrices, faculty clashes, or space capacity violations detected.</p>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-              {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].map(day => (
-                <div key={day} style={{ border: '1px solid #E2E8F0', borderRadius: 8, padding: 10, minHeight: 140, backgroundColor: '#FAFAFA' }}>
-                  <div style={{ fontWeight: 700, fontSize: 12, color: '#1B3A6B', paddingBottom: 8, textTransform: 'uppercase', textAlign: 'center' }}>{day}</div>
-                  <div style={{ fontSize: 11, color: '#94A3B8', textAlign: 'center', paddingTop: 30 }}>No active slots</div>
-                </div>
-              ))}
-            </div>
-
-            <div style={{ border: '1px solid #E2E8F0', borderRadius: 8, overflow: 'hidden', fontSize: 12 }}>
-              <div style={{ padding: 8, backgroundColor: '#F8FAFC', fontWeight: 700, borderBottom: '1px solid #E2E8F0', textAlign: 'left' }}>Modification Security History Records Logs</div>
-              <div style={{ padding: 16, color: '#94A3B8', textAlign: 'center' }}>No override mutations logged.</div>
-            </div>
-          </div>
-        );
-      };
-
-      // 2. DATESHEET GENERATOR SCREEN PANEL
-      const EmptyDatesheetDashboard = () => {
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: 16, backgroundColor: '#FFF', borderRadius: 12 }}>
-            <div style={{ textAlign: 'left' }}>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#0F172A' }}>Module 5: Intelligent Datesheet Examination Matrix</h2>
-              <p style={{ margin: '2px 0 0', fontSize: 12, color: '#64748B' }}>Automated examination slot planner block configurations.</p>
-            </div>
-
-            <div style={{ backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 12, padding: 16, display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left' }}>
-              <BookOpen size={20} color="#2563EB" />
-              <div>
-                <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#1E40AF' }}>Examination Matrix Setup Ready</h4>
-                <p style={{ margin: '2px 0 0', fontSize: 12, color: '#1D4ED8' }}>Ready to generate balanced non-clashing student mid/final examination sequences.</p>
-              </div>
-            </div>
-
-            <div style={{ border: '1px dashed #CBD5E1', borderRadius: 12, padding: 40, textAlign: 'center', backgroundColor: '#F8FAFC' }}>
-              <Calendar size={32} color="#94A3B8" style={{ marginBottom: 12 }} />
-              <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: '#475569' }}>No datesheet configurations initialized yet</p>
-              <p style={{ margin: '4px 0 0', fontSize: 12, color: '#94A3B8' }}>Select curriculum records data batches to assemble structural exam maps.</p>
-            </div>
-          </div>
-        );
-      };
-
-      // 3. ADMINISTRATIVE SCHEDULE OVERRIDE SCREEN PANEL
-      const EmptyOverrideDashboard = () => {
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: 16, backgroundColor: '#FFF', borderRadius: 12 }}>
-            <div style={{ textAlign: 'left' }}>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#0F172A' }}>Module 5: Administrative Security Schedule Override</h2>
-              <p style={{ margin: '2px 0 0', fontSize: 12, color: '#64748B' }}>Manual resource manipulation controls and allocation logs.</p>
-            </div>
-
-            <div style={{ backgroundColor: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 12, padding: 16, display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left' }}>
-              <Lock size={20} color="#D97706" />
-              <div>
-                <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#92400E' }}>Elevated Administrative Mode</h4>
-                <p style={{ margin: '2px 0 0', fontSize: 12, color: '#B45309' }}>Authorized overrides will bypass standard conflict checks and record directly to system audit logs.</p>
-              </div>
-            </div>
-
-            <div style={{ border: '1px solid #F3F4F6', borderRadius: 8, padding: 24, backgroundColor: '#FAFAFA', textAlign: 'left' }}>
-              <h4 style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 700, color: '#334155', textTransform: 'uppercase' }}>Active Manual Allocations</h4>
-              <div style={{ fontSize: 12, color: '#64748B', fontStyle: 'italic', padding: '10px 0' }}>Zero manual mutations or session force operations currently deployed.</div>
-            </div>
-          </div>
-        );
-      };
-
       const pages = {
         dashboard: <Dashboard setActiveNav={setAdminActiveNav} />,
         students: <StudentRecords setActiveNav={setAdminActiveNav} />,
@@ -410,17 +303,9 @@ function App() {
         migrations: <MigrationRecords />,
         curriculum: <CurriculumSetup />,
         batches: <Batches setActiveNav={setAdminActiveNav} />,
-
-        timetable: <TimetableGenerator setActiveNav={(nav) => { setAdminActiveNav(nav); if (nav === 'schedule_override' || nav === 'override') setOverrideInitialTab('timetable'); }} />,
-        datesheet: <DatesheetGenerator setActiveNav={(nav) => { setAdminActiveNav(nav); if (nav === 'schedule_override' || nav === 'override') setOverrideInitialTab('datesheet'); }} />,
-        override: <ScheduleOverride initialTab={overrideInitialTab} />,
-        timetable_generator: <TimetableGenerator setActiveNav={(nav) => { setAdminActiveNav(nav); if (nav === 'schedule_override') setOverrideInitialTab('timetable'); }} />,
-        datesheet_generator: <DatesheetGenerator setActiveNav={(nav) => { setAdminActiveNav(nav); if (nav === 'schedule_override') setOverrideInitialTab('datesheet'); }} />,
-        schedule_override: <ScheduleOverride initialTab={overrideInitialTab} />,
         audit_logs: <AuditLogsPage setActiveNav={setAdminActiveNav} />,
         settings: <ProfileSettingsPage />,
         notifications: <NotificationsPage setActiveNav={setAdminActiveNav} />,
-        reports: <AdvisorReporting />,
         special_permission: <HODQueue />,
       };
       return <AdminLayout activeNav={adminActiveNav} onNavigate={setAdminActiveNav}>{pages[adminActiveNav] || <Dashboard setActiveNav={setAdminActiveNav} />}</AdminLayout>;
@@ -431,13 +316,12 @@ function App() {
         dashboard: <AdvisorDashboard selectedBatch={selectedAdvisorBatch} setActiveNav={setAdvisorActiveNav} />,
         myBatch: <AdvisorMyBatch selectedBatch={selectedAdvisorBatch} />,
         students: <AdvisorStudents selectedBatch={selectedAdvisorBatch} />,
-        at_risk_monitoring: <AdvisorRiskDashboard />,
         workflowQueue: <AdvisorQueue />,
-        reporting: <AdvisorReporting />,
         settings: <ProfileSettingsPage />,
         notifications: <NotificationsPage setActiveNav={setAdvisorActiveNav} />,
         degree_plan: <CurriculumBoard selectedBatch={selectedAdvisorBatch} />,
         migrations: <AdvisorMigrations selectedBatch={selectedAdvisorBatch} />,
+        at_risk_monitoring: <AdvisorRiskDashboard selectedBatch={selectedAdvisorBatch} />,
       };
       return (
         <AdminLayout
@@ -457,7 +341,6 @@ function App() {
       const pages = {
         dashboard: <HODQueue />,
         history: <RequestHistory />,
-        reporting: <AdvisorReporting />,
         settings: <ProfileSettingsPage />,
         notifications: <NotificationsPage setActiveNav={setHodActiveNav} />,
         audit_logs: <AuditLogsPage setActiveNav={setHodActiveNav} />,

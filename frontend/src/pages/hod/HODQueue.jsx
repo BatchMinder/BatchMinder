@@ -4,7 +4,7 @@ import {
   Search, SlidersHorizontal, Plus, RefreshCw,
   Clock, ArrowRight
 } from 'lucide-react';
-import { CircularProgress } from '@mui/material';
+import CircularProgress from '@mui/material/CircularProgress';
 import ResponsiveSelect from '../../components/common/ResponsiveSelect';
 import RequestDetail from '../../components/ApprovalWorkflow/RequestDetail';
 import SpecialPermissionForm from '../../components/ApprovalWorkflow/SpecialPermissionForm';

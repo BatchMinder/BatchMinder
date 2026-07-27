@@ -19,7 +19,7 @@ import {
   Clock,
   ShieldCheck
 } from 'lucide-react';
-import { CircularProgress } from '@mui/material';
+import CircularProgress from '@mui/material/CircularProgress';
 
 // Default seed credentials per role for quick demo login
 const SEED_CREDENTIALS = {
@@ -305,11 +305,6 @@ export default function Login() {
       icon: Layers,
       title: 'Digital Approval Workflows',
       desc: 'Advisor → HOD hierarchical routing'
-    },
-    {
-      icon: Calendar,
-      title: 'Constraint-Based Scheduling',
-      desc: 'Clash-free timetable generation'
     }
   ];
 

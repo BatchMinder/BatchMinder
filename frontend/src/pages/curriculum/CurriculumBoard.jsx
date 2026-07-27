@@ -6,7 +6,7 @@ import {
   ArrowRight,
   GraduationCap
 } from 'lucide-react';
-import { CircularProgress } from '@mui/material';
+import CircularProgress from '@mui/material/CircularProgress';
 
 // Read-only degree-plan viewer for Batch Advisors.
 //

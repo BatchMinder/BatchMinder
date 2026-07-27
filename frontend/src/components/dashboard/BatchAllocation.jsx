@@ -3,10 +3,14 @@ import {
   Search, ChevronDown, Plus, Bell, AlertTriangle,
   Users, UserCheck, Layers, Check, Calendar, Trash2, X, RefreshCw, Eye, Edit2
 } from 'lucide-react';
-import Header from './Header';
+
 import { useModal } from '../../contexts/ModalContext';
 import { useDepartments } from '../../hooks/useDepartments';
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button as MuiButton } from '@mui/material';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import MuiButton from '@mui/material/Button';
 import ResponsiveSelect from '../common/ResponsiveSelect';
 
 const ALLOCATION_OPTIONS = ['All Status', 'Allocated', 'Unassigned'];
@@ -301,7 +305,7 @@ export default function BatchAllocation({ setActiveNav }) {
       fontFamily: "'Inter','Liberation Sans',-apple-system,sans-serif"
     }}>
 
-      <Header title="Academic Batch Allocation" subtitle="BatchMinder ERP • Dean • Batches" setActiveNav={setActiveNav} />
+      
 
       {/* ── Scrollable Body ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, padding: '18px 24px', backgroundColor: '#F8FAFC', overflowY: 'auto' }}>

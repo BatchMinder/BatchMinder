@@ -4,9 +4,13 @@ import {
   Home, Check, Calendar, Trash2, X, RefreshCw, Eye, Edit2,
   Layers, Users, BookOpen
 } from 'lucide-react';
-import Header from './Header';
+
 import { useModal } from '../../contexts/ModalContext';
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button as MuiButton } from '@mui/material';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import MuiButton from '@mui/material/Button';
 import ResponsiveSelect from '../common/ResponsiveSelect';
 
 const STATUS_OPTIONS = ['All Status', 'Active', 'Inactive'];
@@ -277,7 +281,7 @@ export default function DepartmentManagement({ setActiveNav }) {
       fontFamily: "'Inter','Liberation Sans',-apple-system,sans-serif"
     }}>
 
-      <Header title="Departments Directory" subtitle="BatchMinder ERP • Dean • Departments" setActiveNav={setActiveNav} />
+      
 
       {/* ── Body Container ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, padding: '18px 24px', backgroundColor: '#F8FAFC', overflowY: 'auto' }}>

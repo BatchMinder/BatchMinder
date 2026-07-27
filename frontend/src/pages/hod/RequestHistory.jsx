@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, RefreshCw, Calendar, ArrowRight, BookOpen } from 'lucide-react';
-import { CircularProgress } from '@mui/material';
+import CircularProgress from '@mui/material/CircularProgress';
 import StatusBadge from '../../components/ApprovalWorkflow/StatusBadge';
 import RequestDetail from '../../components/ApprovalWorkflow/RequestDetail';
 import EditRequestModal from '../../components/ApprovalWorkflow/EditRequestModal';

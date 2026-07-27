@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Check, X, AlertCircle } from 'lucide-react';
-import { CircularProgress } from '@mui/material';
+import CircularProgress from '@mui/material/CircularProgress';
 
 export default function ApprovalActions({ requestId, mode = 'hod', onSuccess, onCancel }) {
   const [remarks, setRemarks] = useState('');

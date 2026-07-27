@@ -12,7 +12,7 @@ import {
   ArrowLeft,
   Mail
 } from 'lucide-react';
-import { CircularProgress } from '@mui/material';
+import CircularProgress from '@mui/material/CircularProgress';
 
 export default function ResetPassword() {
   const { updateUser } = useAuth();

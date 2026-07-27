@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Check, AlertCircle, ChevronDown } from 'lucide-react';
-import { CircularProgress } from '@mui/material';
+import CircularProgress from '@mui/material/CircularProgress';
 
 export default function EditRequestModal({ request, onClose, onSuccess, mode = 'hod' }) {
   const [studentName, setStudentName] = useState(request.studentId?.name || '');

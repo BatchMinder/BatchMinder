@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ShieldAlert, Mail, Lock, Key, User, CheckCircle2, ArrowLeft } from 'lucide-react';
-import { CircularProgress } from '@mui/material';
+import CircularProgress from '@mui/material/CircularProgress';
 
 export default function DeanSetup({ setCurrentPath }) {
   const [name, setName] = useState('');

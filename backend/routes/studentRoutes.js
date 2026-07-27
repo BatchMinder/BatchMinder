@@ -5,7 +5,6 @@ import {
   createStudent,
   updateStudent,
   deleteStudent,
-  syncLmsRecords,
   promoteSemester,
   getStudentDegreeProgress
 } from '../controllers/studentController.js';
@@ -24,7 +23,6 @@ router.use(protect);
 // the frontend, so it's been removed to avoid two parallel upload
 // implementations drifting out of sync with each other.
 
-router.post('/sync-lms', restrictTo('dean', 'academic_admin'), syncLmsRecords);
 router.post('/promote-semester', restrictTo('dean', 'academic_admin'), promoteSemester);
 
 router.route('/')

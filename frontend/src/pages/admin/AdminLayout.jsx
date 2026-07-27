@@ -22,17 +22,10 @@ const advisorGroups = {
   student_management: [
     { id: 'students', label: 'Students', icon: Users },
     { id: 'at_risk_monitoring', label: 'At-Risk Monitoring', icon: AlertTriangle },
-    { id: 'student_performance', label: 'Student Performance', icon: BarChart2 },
     { id: 'workflowQueue', label: 'Approval Requests', icon: Clock }
   ],
   academic_management: [
-    { id: 'course_advising', label: 'Course Advising', icon: BookOpen },
-    { id: 'schedule', label: 'Schedule & Timetable', icon: Calendar },
     { id: 'degree_plan', label: 'Degree Plan', icon: Layers }
-  ],
-  reports: [
-    { id: 'analytics', label: 'Reports & Analytics', icon: BarChart2 },
-    { id: 'advising_reports', label: 'Advising Reports', icon: FileText }
   ],
   system: [
     { id: 'settings', label: 'Profile Settings', icon: Settings },
@@ -227,7 +220,6 @@ export default function AdminLayout({
   const hodNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'history', label: 'Request History', icon: Clock },
-    { id: 'reporting', label: 'Reporting Dashboard', icon: BarChart2 },
   ];
 
   const currentCoreNavItems = isAdvisor
@@ -248,9 +240,6 @@ export default function AdminLayout({
     { id: 'batches', label: 'Batches', icon: Layers },
     { id: 'migrations', label: 'Migration Records', icon: ArrowRightLeft },
     { id: 'curriculum', label: 'Curriculum Setup', icon: BookOpen },
-    { id: 'timetable_generator', label: 'Timetable Generator', icon: Calendar },
-    { id: 'datesheet_generator', label: 'Datesheet Generator', icon: BookOpen },
-    { id: 'schedule_override', label: 'Schedule Override', icon: Clock },
   ];
 
 
@@ -442,14 +431,7 @@ export default function AdminLayout({
                 activeNav={activeNav} handleNavigate={handleNavigate} expandedFolders={expandedFolders} toggleFolder={toggleFolder}
               />
 
-              {/* ACADEMIC & REPORTS */}
-              <SidebarSection
-                title="Academic"
-                items={[
-                  { id: 'reporting', label: 'Reporting Dashboard', icon: BarChart2 }
-                ]}
-                activeNav={activeNav} handleNavigate={handleNavigate} expandedFolders={expandedFolders} toggleFolder={toggleFolder}
-              />
+
 
               {/* SYSTEM */}
               <SidebarSection
@@ -530,16 +512,7 @@ export default function AdminLayout({
                 activeNav={activeNav} handleNavigate={handleNavigate} expandedFolders={expandedFolders} toggleFolder={toggleFolder}
               />
 
-              {/* SCHEDULING */}
-              <SidebarSection
-                title="Scheduling"
-                items={[
-                  { id: 'timetable_generator', label: 'Timetable Management', icon: Calendar },
-                  { id: 'datesheet_generator', label: 'Exam Schedule', icon: CalendarCheck },
-                  { id: 'schedule_override', label: 'Schedule Override', icon: Clock }
-                ]}
-                activeNav={activeNav} handleNavigate={handleNavigate} expandedFolders={expandedFolders} toggleFolder={toggleFolder}
-              />
+
 
 
 
