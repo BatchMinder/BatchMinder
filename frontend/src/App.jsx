@@ -13,7 +13,7 @@ import MigrationManager from './pages/migration/MigrationManager';
 import AdminLayout from './pages/admin/AdminLayout';
 import Dashboard from './pages/admin/Dashboard';
 import StudentRecords from './pages/admin/StudentRecords';
-import MigrationRecords from './pages/admin/Migrationrecords';
+import MigrationRecords from './pages/admin/MigrationRecords';
 import CurriculumSetup from './pages/admin/CurriculumSetup';
 import Batches from './pages/admin/Batches';
 import NotificationsPage from './components/dashboard/NotificationsPage';
