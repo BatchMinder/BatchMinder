@@ -2,6 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { ArrowRightLeft, Search, X, Download, FileText, CheckCircle, XCircle, Clock } from 'lucide-react';
 import ResponsiveSelect from '../../components/common/ResponsiveSelect';
 
+// Uploaded transcripts/decision sheets are stored as full Cloudinary URLs
+// (e.g. https://res.cloudinary.com/...). Only prefix with the API host for
+// legacy records that still hold an old relative local-disk path — mirrors
+// the same helper in admin/MigrationRecords.jsx so downloads work here too.
+const resolveDocUrl = (url) => {
+    if (!url) return '';
+    return /^https?:\/\//i.test(url) ? url : `http://localhost:5000${url}`;
+};
+
 // Read-only migration review for Batch Advisors. Per the Design Document's
 // GUI description for the Migration & Credit Transfer Management Interface:
 // "Advisors and administrators can review accepted/rejected courses and
@@ -156,13 +165,19 @@ export default function AdvisorMigrations({ selectedBatch }) {
                             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                                 {statusBadge(selected.status)}
                                 {selected.transcriptUrl && (
-                                    <a href={`http://localhost:5000${selected.transcriptUrl}`} target="_blank" rel="noreferrer"
+                                    <a
+                                        href={resolveDocUrl(selected.transcriptUrl)}
+                                        download={selected.transcriptOriginalName || 'transcript.pdf'}
+                                        target="_blank" rel="noreferrer"
                                         style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 999, backgroundColor: '#EFF6FF', color: '#2563EB', fontSize: 11, fontWeight: 700, textDecoration: 'none' }}>
                                         <Download size={11} /> Transcript
                                     </a>
                                 )}
                                 {selected.decisionSheetUrl && (
-                                    <a href={`http://localhost:5000${selected.decisionSheetUrl}`} target="_blank" rel="noreferrer"
+                                    <a
+                                        href={resolveDocUrl(selected.decisionSheetUrl)}
+                                        download={selected.decisionSheetOriginalName || 'decision-sheet.pdf'}
+                                        target="_blank" rel="noreferrer"
                                         style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 999, backgroundColor: '#F0FDF4', color: '#059669', fontSize: 11, fontWeight: 700, textDecoration: 'none' }}>
                                         <Download size={11} /> Decision Sheet
                                     </a>
@@ -219,9 +234,11 @@ export default function AdvisorMigrations({ selectedBatch }) {
 
                                     {selected.curriculumComparison && (
                                         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '12px', fontSize: '12px' }}>
+                                            <div><span style={{ color: '#64748B' }}>Placed Semester: </span><strong style={{ color: '#2563EB' }}>{selected.studentId?.currentSemester || '—'}</strong></div>
                                             <div><span style={{ color: '#64748B' }}>Required: </span><strong>{selected.curriculumComparison.toRequiredCredits}</strong></div>
                                             <div><span style={{ color: '#64748B' }}>Completed: </span><strong style={{ color: '#10B981' }}>{selected.curriculumComparison.toCompletedCredits}</strong></div>
                                             <div><span style={{ color: '#64748B' }}>Remaining: </span><strong style={{ color: '#F59E0B' }}>{selected.curriculumComparison.toRemainingCredits}</strong></div>
+                                            <div><span style={{ color: '#64748B' }}>Credit Loss: </span><strong style={{ color: '#EF4444' }}>{(selected.transferredCourses || []).filter(c => c.equivalencyStatus === 'rejected').reduce((s, c) => s + (c.credits || 0), 0)}</strong></div>
                                             <div><span style={{ color: '#64748B' }}>Expected Completion: </span><strong>{selected.curriculumComparison.expectedCompletion || '—'}</strong></div>
                                         </div>
                                     )}

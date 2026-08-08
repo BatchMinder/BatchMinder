@@ -24,7 +24,22 @@ export const getAllMigrations = async (req, res) => {
       return res.status(200).json({ status: 'success', data: { migrations: [] } });
     }
 
-    const migrations = await Migration.find(scope)
+    // scopeToUserDepartments() returns { batchId: { $in: [...] } } for
+    // advisors, but unlike ApprovalRequest/AuditLog/Notification, Migration
+    // has no batchId field of its own — a migrating student's batch only
+    // exists via studentId -> Student.batchId. Spreading that scope straight
+    // into Migration.find() would query a field that doesn't exist and
+    // silently return zero records for every advisor. Resolve it into a
+    // studentId filter instead so advisors actually see migration cases for
+    // students in their assigned batch(es) (Design Doc: advisors can review
+    // migration outcomes read-only).
+    let migrationQuery = scope;
+    if (scope.batchId) {
+      const studentsInScope = await Student.find({ batchId: scope.batchId }).select('_id');
+      migrationQuery = { studentId: { $in: studentsInScope.map(s => s._id) } };
+    }
+
+    const migrations = await Migration.find(migrationQuery)
       .populate({
         path: 'studentId',
         select: 'name rollNumber phone email currentSemester cgpa cgpaStatus batchId courses',
@@ -399,10 +414,11 @@ export const decideMigration = async (req, res) => {
 
         await student.save();
 
-        // Trigger recalculation engine
-        await recalculateProgress(student._id);
-
-        // Track Credit Loss
+        // Track Credit Loss — this must be written BEFORE recalculateProgress()
+        // runs, since progress recalculation reads DegreeProgress.creditLoss.
+        // Previously this $inc happened AFTER recalculateProgress(), so the
+        // freshly-approved migration's credit loss wasn't reflected until a
+        // second, unrelated recalculation happened to run later.
         let creditLoss = 0;
         for (const c of migration.transferredCourses) {
           if (c.equivalencyStatus === 'rejected') {
@@ -417,6 +433,9 @@ export const decideMigration = async (req, res) => {
             { upsert: true }
           );
         }
+
+        // Trigger recalculation engine (now sees the up-to-date credit loss)
+        await recalculateProgress(student._id);
 
         // Curriculum comparison snapshot for the migration audit report
         // (FE-36/FE-38).
@@ -543,8 +562,20 @@ const handleMigrationDocumentUpload = async (req, res, { urlField, idField, name
       }
     }
 
+    // FIX: Cloudinary `resource_type: 'raw'` uploads were previously saved
+    // without a file extension baked into the URL/public_id (e.g.
+    // ".../migration-decision-sheets/abc123" instead of "...abc123.pdf").
+    // Browsers then download the file with no extension at all, so the OS
+    // has no idea what app to open it with. Passing `format` explicitly
+    // tells Cloudinary to append the real extension to the stored resource,
+    // so the resulting secure_url — and therefore every download link built
+    // from it — ends in .pdf / .jpg / .png as expected.
+    const ext = (path.extname(req.file.originalname) || '.pdf').replace('.', '').toLowerCase();
     const resourceType = req.file.mimetype === 'application/pdf' ? 'raw' : 'auto';
-    const cloudResult = await uploadToCloudinary(req.file.buffer, folder, { resource_type: resourceType });
+    const cloudResult = await uploadToCloudinary(req.file.buffer, folder, {
+      resource_type: resourceType,
+      format: ext,
+    });
 
     const fileUrl = cloudResult.secure_url || cloudResult.url;
     migration[urlField] = fileUrl;
@@ -596,8 +627,52 @@ export const uploadDecisionSheet = async (req, res) => {
   });
 };
 
+// Fetches a migration document (Cloudinary URL or legacy local path) as raw bytes.
+const fetchMigrationDocBuffer = async (docUrl) => {
+  if (docUrl.startsWith('http://') || docUrl.startsWith('https://')) {
+    const response = await fetch(docUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to download file. Status: ${response.status}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    return new Uint8Array(arrayBuffer);
+  }
+  const filePath = path.join(__dirname, '..', docUrl);
+  if (!fs.existsSync(filePath)) {
+    throw new Error('File not found on disk.');
+  }
+  return new Uint8Array(fs.readFileSync(filePath));
+};
 
-export const parseTranscript = async (req, res) => {
+// Best-effort guess at a Content-Type for the streamed-back file, based on
+// the saved original filename's extension. Falls back to a generic binary
+// type (still triggers a normal "Save As" download in every browser) when
+// the extension is missing or unrecognized.
+const guessContentType = (filename) => {
+  const ext = path.extname(filename || '').toLowerCase();
+  switch (ext) {
+    case '.pdf': return 'application/pdf';
+    case '.jpg':
+    case '.jpeg': return 'image/jpeg';
+    case '.png': return 'image/png';
+    default: return 'application/octet-stream';
+  }
+};
+
+// Streams a migration document (transcript or decision sheet) back through
+// our own backend instead of redirecting to the raw Cloudinary URL. This is
+// what actually fixes "downloads with a garbled filename":
+//   1. The HTML `download="..."` attribute on an <a> tag is silently ignored
+//      by browsers when the link's origin differs from the page's origin —
+//      Cloudinary URLs are cross-origin, so the browser falls back to
+//      whatever text is at the end of the URL (the Cloudinary public_id).
+//   2. Any file uploaded before the `format: ext` fix in
+//      handleMigrationDocumentUpload has no extension in its Cloudinary URL
+//      at all, so even a right-click "Save As" has nothing to go on.
+// Routing the download through this same-origin endpoint sidesteps both
+// problems: the Content-Disposition header below is always honored,
+// regardless of what the underlying storage URL looks like.
+const downloadMigrationDocument = async (req, res, { urlField, nameField, fallbackName }) => {
   try {
     const { id } = req.params;
     const scope = scopeToUserDepartments(req);
@@ -606,107 +681,220 @@ export const parseTranscript = async (req, res) => {
     if (!migration) {
       return res.status(404).json({ message: 'Migration record not found' });
     }
-    if (!migration.transcriptUrl) {
-      return res.status(400).json({ message: 'No transcript uploaded for this migration. Please upload the transcript first.' });
+
+    const docUrl = migration[urlField];
+    if (!docUrl) {
+      return res.status(404).json({ message: 'No file on record for this migration.' });
+    }
+
+    const buffer = await fetchMigrationDocBuffer(docUrl);
+    const filename = (migration[nameField] || fallbackName).replace(/["\r\n]/g, '');
+
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', guessContentType(filename));
+    res.setHeader('Content-Length', buffer.length);
+    res.send(Buffer.from(buffer));
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to download file: ' + error.message });
+  }
+};
+
+export const downloadTranscript = (req, res) =>
+  downloadMigrationDocument(req, res, {
+    urlField: 'transcriptUrl',
+    nameField: 'transcriptOriginalName',
+    fallbackName: 'transcript.pdf',
+  });
+
+export const downloadDecisionSheet = (req, res) =>
+  downloadMigrationDocument(req, res, {
+    urlField: 'decisionSheetUrl',
+    nameField: 'decisionSheetOriginalName',
+    fallbackName: 'decision-sheet.pdf',
+  });
+
+// Extracts line-reconstructed text from a PDF buffer using pdfjs-dist,
+// grouping text items by y-position (line) then ordering by x-position
+// (left to right) so columns in tabular PDFs read in the right order.
+const extractPdfLines = async (pdfBuffer) => {
+  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const doc = await pdfjsLib.getDocument({ data: pdfBuffer }).promise;
+  const textParts = [];
+  for (let i = 1; i <= doc.numPages; i++) {
+    const page = await doc.getPage(i);
+    const textContent = await page.getTextContent();
+    const items = textContent.items.filter(it => it.str && it.str.trim());
+    if (items.length > 0) {
+      const lineMap = new Map();
+      items.forEach(it => {
+        const y = Math.round(it.transform[5]);
+        if (!lineMap.has(y)) lineMap.set(y, []);
+        lineMap.get(y).push({ x: it.transform[4], str: it.str });
+      });
+      const sortedYs = [...lineMap.keys()].sort((a, b) => b - a);
+      sortedYs.forEach(y => {
+        const lineItems = lineMap.get(y).sort((a, b) => a.x - b.x);
+        textParts.push(lineItems.map(it => it.str).join(' '));
+      });
+    }
+  }
+  return textParts.join('\n');
+};
+
+// Parses a transcript PDF's text into a courseCode -> { credits, grade,
+// semester } lookup. Transcript rows look like:
+// "CSC-101 Programming Fundamentals 3 A" (CODE TITLE CREDITS GRADE).
+// The transcript is the only one of the two documents that actually states
+// credit hours — the decision sheet only carries type/verdict/reason — so
+// this is how accepted courses get their real credit-hour count instead of
+// a guess.
+const parseTranscriptCreditLookup = (rawText) => {
+  const lookup = new Map();
+  let currentSemester = 1;
+  for (const raw of rawText.split('\n')) {
+    const line = raw.trim();
+    if (!line) continue;
+    const semMatch = line.match(/^Semester\s+(\d)/i);
+    if (semMatch) {
+      currentSemester = parseInt(semMatch[1]);
+      continue;
+    }
+    const m = line.match(/^([A-Z]{2,4}-\d{3}[A-Z]?)\s+.+?\s+(\d+)\s+([A-F][+-]?|IP|W)\s*$/i);
+    if (m) {
+      lookup.set(m[1].toUpperCase(), {
+        credits: parseInt(m[2]),
+        grade: m[3].toUpperCase(),
+        semester: currentSemester,
+      });
+    }
+  }
+  return lookup;
+};
+
+export const parseDecisionSheet = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const scope = scopeToUserDepartments(req);
+
+    const migration = await Migration.findOne({ _id: id, ...scope });
+    if (!migration) {
+      return res.status(404).json({ message: 'Migration record not found' });
+    }
+    if (!migration.decisionSheetUrl) {
+      return res.status(400).json({ message: 'No decision sheet uploaded for this migration. Please upload the decision sheet first.' });
     }
 
     let pdfBuffer;
-    if (migration.transcriptUrl.startsWith('http://') || migration.transcriptUrl.startsWith('https://')) {
-      try {
-        console.log(`[parseTranscript] Attempting to fetch from: ${migration.transcriptUrl}`);
-        const response = await fetch(migration.transcriptUrl);
-        if (!response.ok) {
-          console.error(`[parseTranscript] Fetch failed: ${response.status} ${response.statusText}`);
-          return res.status(404).json({ message: `Failed to download transcript file from Cloudinary. Status: ${response.status}` });
-        }
-        const arrayBuffer = await response.arrayBuffer();
-        pdfBuffer = new Uint8Array(arrayBuffer);
-      } catch (fetchErr) {
-        console.error(`[parseTranscript] Fetch exception: ${fetchErr.message}`);
-        return res.status(500).json({ message: `Error fetching transcript from Cloudinary: ${fetchErr.message}` });
-      }
-    } else {
-      const filePath = path.join(__dirname, '..', migration.transcriptUrl);
-      if (!fs.existsSync(filePath)) {
-        return res.status(404).json({ message: 'Transcript file not found on disk.' });
-      }
-      pdfBuffer = new Uint8Array(fs.readFileSync(filePath));
+    try {
+      pdfBuffer = await fetchMigrationDocBuffer(migration.decisionSheetUrl);
+    } catch (fetchErr) {
+      console.error(`[parseDecisionSheet] Fetch failed: ${fetchErr.message}`);
+      return res.status(404).json({ message: `Failed to load decision sheet file: ${fetchErr.message}` });
     }
 
     let rawText = '';
 
     // Try pdfjs-dist first for text extraction
     try {
-      const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
-      const doc = await pdfjsLib.getDocument({ data: pdfBuffer }).promise;
-      const textParts = [];
-      for (let i = 1; i <= doc.numPages; i++) {
-        const page = await doc.getPage(i);
-        const textContent = await page.getTextContent();
-        // Reconstruct lines from text items using their y-position
-        const items = textContent.items.filter(it => it.str && it.str.trim());
-        if (items.length > 0) {
-          // Group by y coordinate (approximate line grouping)
-          const lineMap = new Map();
-          items.forEach(it => {
-            const y = Math.round(it.transform[5]); // y-coordinate
-            if (!lineMap.has(y)) lineMap.set(y, []);
-            lineMap.get(y).push({ x: it.transform[4], str: it.str });
-          });
-          // Sort lines by y descending (top to bottom), items by x ascending (left to right)
-          const sortedYs = [...lineMap.keys()].sort((a, b) => b - a);
-          sortedYs.forEach(y => {
-            const lineItems = lineMap.get(y).sort((a, b) => a.x - b.x);
-            textParts.push(lineItems.map(it => it.str).join(' '));
-          });
-        }
-      }
-      rawText = textParts.join('\n');
+      rawText = await extractPdfLines(pdfBuffer);
     } catch (pdfErr) {
-      console.warn('[parseTranscript] pdfjs-dist extraction failed:', pdfErr.message);
+      console.warn('[parseDecisionSheet] pdfjs-dist extraction failed:', pdfErr.message);
     }
 
-    // Parse extracted text into course rows
+    // Parse extracted text into course rows. The Migration Committee's
+    // decision sheet is a table of "CODE TITLE TYPE DECISION REMARK" rows
+    // (e.g. "CSC-101 Programming Fundamentals CORE ACCEPT Content fully
+    // matches CSC-101."), where TYPE is CORE/ELECTIVE/LAB/GENERAL and
+    // DECISION is ACCEPT/REJECT. Long remarks commonly wrap onto one or
+    // more following lines with no course code of their own — those get
+    // appended to the previous row's remark rather than treated as new rows.
     const courses = [];
     const seen = new Set();
 
     if (rawText.length > 50) {
-      const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 3);
+      const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean);
       let currentSemester = 1;
+      let inTable = false;
+      const rowPattern = /^([A-Z]{2,4}-\d{3}[A-Z]?)\s+(.+?)\s+(CORE|ELECTIVE|LAB|GENERAL)\s+(ACCEPT(?:ED)?|REJECT(?:ED)?)\b\s*(.*)$/i;
+      const tableEndPattern = /^(Summary:|Credit transfer cap|Signed:)/i;
+
       for (const line of lines) {
-        // Detect semester header from PDF (e.g. "Semester 1", "Semester 2")
-        const semMatch = line.match(/Semester\s+(\d)/i);
+        const semMatch = line.match(/^Semester\s+(\d)/i);
         if (semMatch) {
           currentSemester = parseInt(semMatch[1]);
+          continue;
         }
 
-        // Pattern: CODE TITLE CREDITS GRADE [GRADEPOINTS] [REMARKS]
-        const p = line.match(/([A-Z]{2,4}-\d{3}[A-Z]?)\s+(.+?)\s+(\d)\s+([A-F][+-]?|IP)/);
-        if (p) {
-          const key = p[1];
-          if (!seen.has(key)) {
-            seen.add(key);
-            courses.push({
-              courseName: `${p[1]} ${p[2].replace(/\s+\d\s+[A-F][+-]?.*$/, '').trim()}`,
-              credits: parseInt(p[3]),
-              grade: p[4],
-              semester: currentSemester,
-              equivalencyStatus: 'pending',
-              mappedCourseName: ''
-            });
-          }
+        if (/^CODE\s+TITLE\s+TYPE\s+DECISION/i.test(line)) {
+          inTable = true;
+          continue;
+        }
+        if (tableEndPattern.test(line)) {
+          inTable = false;
+          continue;
+        }
+
+        const m = line.match(rowPattern);
+        if (m) {
+          inTable = true;
+          const code = m[1].toUpperCase();
+          if (seen.has(code)) continue;
+          seen.add(code);
+          courses.push({
+            courseName: `${code} ${m[2].trim()}`,
+            courseCodeOnly: code,
+            courseType: m[3].toUpperCase(),
+            credits: 0, // backfilled below from the transcript, curriculum mapping, or a type-based default
+            grade: '',
+            semester: currentSemester,
+            equivalencyStatus: /^ACCEPT/i.test(m[4]) ? 'accepted' : 'rejected',
+            decisionRemark: (m[5] || '').trim(),
+            mappedCourseName: ''
+          });
+        } else if (inTable && courses.length > 0) {
+          // Wrapped continuation of the previous row's remark
+          courses[courses.length - 1].decisionRemark = `${courses[courses.length - 1].decisionRemark} ${line}`.trim();
         }
       }
     }
 
-
-
     if (courses.length === 0) {
       return res.status(200).json({
         status: 'success',
-        message: 'Could not extract courses from the transcript PDF. The PDF may contain scanned images. Please add courses manually using the form below.',
+        message: 'Could not extract courses from the decision sheet PDF. The PDF may contain scanned images. Please add courses manually using the form below.',
         data: { courses: [], totalExtracted: 0 }
       });
+    }
+
+    // Backfill real credit hours (and grade) per course from the transcript,
+    // since the decision sheet itself doesn't carry a credit-hours column.
+    if (migration.transcriptUrl) {
+      try {
+        const transcriptBuffer = await fetchMigrationDocBuffer(migration.transcriptUrl);
+        const transcriptText = await extractPdfLines(transcriptBuffer);
+        const creditLookup = parseTranscriptCreditLookup(transcriptText);
+        for (const c of courses) {
+          const found = creditLookup.get(c.courseCodeOnly);
+          if (found) {
+            c.credits = found.credits;
+            c.grade = found.grade;
+            c.semester = found.semester;
+          }
+        }
+      } catch (err) {
+        console.warn('[parseDecisionSheet] Transcript credit backfill failed:', err.message);
+      }
+    }
+
+    // Any course still without a credit value (transcript missing, unparsable,
+    // or the course wasn't found in it) falls back to a sensible default by
+    // type so the record is still valid (credits is required) — the admin
+    // can correct it by hand before deciding/approving.
+    for (const c of courses) {
+      if (!c.credits) {
+        c.credits = c.courseType === 'LAB' ? 1 : 3;
+      }
+      delete c.courseCodeOnly;
     }
 
     // Auto-map courses using curriculum data
@@ -728,21 +916,32 @@ export const parseTranscript = async (req, res) => {
             // Remove typical course codes (e.g. CS-101) to get clean title
             const cleanSourceTitle = c.courseName.replace(/^[A-Z]{2,4}-\d{3}[A-Z]?\s+/, '').trim().toLowerCase();
 
-            for (const tc of allTargetCourses) {
-              const targetTitle = tc.title.toLowerCase();
-              // Check for strong title overlap
-              if (cleanSourceTitle.includes(targetTitle) || targetTitle.includes(cleanSourceTitle)) {
-                c.mappedCourseName = tc.code;
-                c.credits = tc.creditHours; // Auto-update credits to match the curriculum
-                c.courseType = tc.courseType || 'CORE'; // Carry over ELECTIVE/LAB/GENERAL so downstream elective-alignment checks actually see it
-                break;
-              }
+            // Exact title match first: a substring-only pass (below) would
+            // match "Programming Fundamentals Lab" onto "Programming
+            // Fundamentals" (the lecture) before ever reaching the actual
+            // "Programming Fundamentals Lab" entry, since the lecture course
+            // is a substring of the lab's title and happens to sit earlier
+            // in the array. An exact match — when one exists — is always the
+            // correct course and must win over any substring match.
+            let matchedCourse = allTargetCourses.find(tc => tc.title.toLowerCase() === cleanSourceTitle);
+
+            if (!matchedCourse) {
+              matchedCourse = allTargetCourses.find(tc => {
+                const targetTitle = tc.title.toLowerCase();
+                return cleanSourceTitle.includes(targetTitle) || targetTitle.includes(cleanSourceTitle);
+              });
+            }
+
+            if (matchedCourse) {
+              c.mappedCourseName = matchedCourse.code;
+              c.credits = matchedCourse.creditHours; // Auto-update credits to match the curriculum
+              c.courseType = matchedCourse.courseType || c.courseType || 'CORE'; // Carry over ELECTIVE/LAB/GENERAL so downstream elective-alignment checks actually see it
             }
           }
         }
       }
     } catch (err) {
-      console.error('[parseTranscript] Auto-mapping failed:', err);
+      console.error('[parseDecisionSheet] Auto-mapping failed:', err);
     }
 
     res.status(200).json({
@@ -754,7 +953,7 @@ export const parseTranscript = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('[parseTranscript] Error:', error.message);
-    res.status(500).json({ message: 'Failed to parse transcript: ' + error.message });
+    console.error('[parseDecisionSheet] Error:', error.message);
+    res.status(500).json({ message: 'Failed to parse decision sheet: ' + error.message });
   }
 };

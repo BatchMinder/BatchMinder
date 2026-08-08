@@ -100,7 +100,12 @@ async function seed() {
     advisorAhmed.assignedBatchIds = [bscs22, bscs23];
     await advisorAhmed.save();
 
-    advisorFatima.assignedBatchIds = [bscs23];
+    // BSCS-2024 is intentionally included here (not just bscs23): it's the
+    // department's newest/incoming-cohort batch, and migration requests are
+    // targeted at it (e.g. the "Ali Hassan transfers into BSCS-24" scenario).
+    // Without an advisor assigned to this batch, there is nobody who can log
+    // in as "Ali's Batch Advisor" to review the migration outcome read-only.
+    advisorFatima.assignedBatchIds = [bscs23, bscs24];
     await advisorFatima.save();
 
     advisorUsman.assignedBatchIds = [bsse22];
@@ -108,6 +113,7 @@ async function seed() {
 
     await Batch.updateOne({ _id: bscs22 }, { advisorId: advisorAhmed._id });
     await Batch.updateOne({ _id: bscs23 }, { advisorId: advisorAhmed._id }); // Assign to Ahmed to test multiple batches switcher
+    await Batch.updateOne({ _id: bscs24 }, { advisorId: advisorFatima._id });
     await Batch.updateOne({ _id: bsse22 }, { advisorId: advisorUsman._id });
 
     // ── Students ──

@@ -1298,7 +1298,7 @@ export default function MigrationRecords() {
       {/* 3. Transferred Courses Equivalency Editor Modal */}
       {showCoursesModal && selected && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', padding: '20px' }}>
-          <div style={{ backgroundColor: '#fff', borderRadius: '24px', width: '100%', maxWidth: '850px', maxHeight: '85vh', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: '24px', width: '100%', maxWidth: '1100px', maxHeight: '85vh', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', display: 'flex', flexDirection: 'column' }}>
             <div style={{ padding: '24px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F8FAFC' }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>Transferred Courses & Equivalency Mapping</h3>
@@ -1321,13 +1321,13 @@ export default function MigrationRecords() {
                     No decision sheet on file
                   </span>
                 )}
-                {selected.transcriptUrl && selected.status === 'pending' && (
+                {selected.decisionSheetUrl && selected.status === 'pending' && (
                   <button
                     onClick={async () => {
                       setIsParsingTranscript(true);
                       setParseError('');
                       try {
-                        const res = await fetch(`/api/migrations/${selected._id}/parse-transcript`);
+                        const res = await fetch(`/api/migrations/${selected._id}/parse-decision-sheet`);
                         const data = await res.json();
                         if (data.status === 'success' && data.data.courses.length > 0) {
                           setTempCourses(prev => {
@@ -1336,7 +1336,7 @@ export default function MigrationRecords() {
                             return [...prev, ...newOnes];
                           });
                         } else {
-                          setParseError(data.message || 'No courses could be extracted from the transcript.');
+                          setParseError(data.message || 'No courses could be extracted from the decision sheet.');
                         }
                       } catch (e) {
                         setParseError('Parse failed: ' + e.message);
@@ -1348,7 +1348,7 @@ export default function MigrationRecords() {
                     style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', border: 'none', backgroundColor: '#10B981', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: isParsingTranscript ? 'not-allowed' : 'pointer', opacity: isParsingTranscript ? 0.7 : 1 }}
                   >
                     <FileText size={14} />
-                    {isParsingTranscript ? 'Parsing...' : 'Import from Transcript'}
+                    {isParsingTranscript ? 'Parsing...' : 'Import from Decision Sheet'}
                   </button>
                 )}
                 <button onClick={() => setShowCoursesModal(false)} style={{ background: '#E2E8F0', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748B' }}>
@@ -1366,187 +1366,208 @@ export default function MigrationRecords() {
                 </div>
               )}
 
-              {/* Transcript import hint */}
-              {selected.transcriptUrl && tempCourses.length === 0 && !parseError && selected.status === 'pending' && (
+              {/* Decision Sheet import hint */}
+              {selected.decisionSheetUrl && tempCourses.length === 0 && !parseError && selected.status === 'pending' && (
                 <div style={{ padding: '12px 16px', backgroundColor: '#ECFDF5', border: '1px solid #6EE7B7', borderRadius: '10px', fontSize: '13px', color: '#065F46', display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <FileText size={16} color="#059669" />
-                  <span>A transcript is attached. Click <strong>Import from Transcript</strong> above to auto-fill courses from the uploaded PDF.</span>
+                  <span>A decision sheet is attached. Click <strong>Import from Decision Sheet</strong> above to auto-fill courses from the uploaded PDF.</span>
                 </div>
               )}
 
-              <div style={{ border: '1px solid #E2E8F0', borderRadius: '16px', flexShrink: 0 }}>
-                <table style={{ width: '100%', minWidth: '700px', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
-                  <thead>
-                    <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#64748B', fontWeight: 700 }}>
-                      <th style={{ padding: '12px 16px', width: '35%' }}>SOURCE COURSE NAME</th>
-                      <th style={{ padding: '12px 16px', width: '40%', minWidth: '240px' }}>TARGET EQUIVALENT COURSE</th>
-                      <th style={{ padding: '12px 16px', textAlign: 'center', width: '10%' }}>CREDITS</th>
-                      <th style={{ padding: '12px 16px', textAlign: 'center', width: '10%' }}>TYPE</th>
-                      <th style={{ padding: '12px 16px', width: '10%' }}>STATUS</th>
-                      {selected.status === 'pending' && <th style={{ padding: '12px 16px', textAlign: 'right', width: '5%' }}>ACTION</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tempCourses.map((c, idx) => (
-                      <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                        <td style={{ padding: '12px 16px', fontWeight: 600, color: '#0F172A' }}>{c.courseName}</td>
-                        <td style={{ padding: '12px 16px', color: '#475569' }}>
-                          {selected.status === 'pending' ? (
-                            (() => {
-                              const deptCodes = new Set(curriculum?.courses?.map(course => course.code) || []);
-                              const uniqueHec = (hecCurriculum?.courses || []).filter(course => !deptCodes.has(course.code));
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flexShrink: 0 }}>
+                {/* Header row — hidden on narrow screens, shown on wider ones */}
+                <div className="hidden md:grid" style={{
+                  gridTemplateColumns: '1.6fr 1.6fr 0.6fr 0.9fr 1fr 32px',
+                  gap: '12px', padding: '0 16px', fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase'
+                }}>
+                  <span>Source Course</span>
+                  <span>Target Equivalent Course</span>
+                  <span style={{ textAlign: 'center' }}>Credits</span>
+                  <span>Type</span>
+                  <span>Status</span>
+                  <span></span>
+                </div>
 
-                              const options = [];
-                              if (uniqueHec.length > 0) {
-                                options.push({
-                                  label: "HEC Standard Curriculum (2025)",
-                                  options: uniqueHec.map(c => ({ value: c.code, label: `${c.code} - ${c.title} (${c.creditHours} CH)`, credits: c.creditHours }))
-                                });
-                              }
-                              if (curriculum?.courses?.length > 0) {
-                                options.push({
-                                  label: "Department Curriculum",
-                                  options: curriculum.courses.map(c => ({ value: c.code, label: `${c.code} - ${c.title} (${c.creditHours} CH)`, credits: c.creditHours }))
-                                });
-                              }
+                {tempCourses.map((c, idx) => (
+                  <div key={idx} style={{ border: '1px solid #E2E8F0', borderRadius: '12px', padding: '14px 16px', backgroundColor: c.equivalencyStatus === 'rejected' ? '#FFFBFB' : '#fff' }}>
+                    <div className="grid grid-cols-1 md:grid-cols-[1.6fr_1.6fr_0.6fr_0.9fr_1fr_32px]" style={{ gap: '12px', alignItems: 'center' }}>
 
-                              const allOpts = options.flatMap(g => g.options);
-                              const selectedOption = allOpts.find(o => o.value === c.mappedCourseName) || null;
+                      <div style={{ fontWeight: 600, color: '#0F172A', fontSize: '13px' }}>{c.courseName}</div>
 
-                              return (
-                                <Select
-                                  options={options}
-                                  value={selectedOption}
-                                  onChange={(selectedOpt) => {
-                                    const selectedCode = selectedOpt ? selectedOpt.value : '';
-                                    setTempCourses(prev => {
-                                      const updated = [...prev];
-                                      updated[idx] = {
-                                        ...updated[idx],
-                                        mappedCourseName: selectedCode,
-                                        credits: selectedOpt ? selectedOpt.credits : updated[idx].credits
-                                      };
-                                      return updated;
-                                    });
-                                  }}
-                                  isClearable
-                                  placeholder="Select target course..."
-                                  closeMenuOnScroll={false}
-                                  menuPlacement="auto"
-                                  maxMenuHeight={220}
-                                  styles={{
-                                    control: (base, state) => ({
-                                      ...base,
-                                      borderRadius: '8px',
-                                      borderColor: state.isFocused ? '#3B82F6' : '#CBD5E1',
-                                      boxShadow: state.isFocused ? '0 0 0 1px #3B82F6' : '0 1px 2px 0 rgba(0,0,0,0.05)',
-                                      fontSize: '13px',
-                                      minHeight: '36px',
-                                      minWidth: '220px',
-                                      cursor: 'pointer'
-                                    }),
-                                    menu: base => ({
-                                      ...base,
-                                      fontSize: '13px',
-                                      zIndex: 9999
-                                    }),
-                                    option: (base, state) => ({ ...base, cursor: 'pointer' })
-                                  }}
-                                />
-                              );
-                            })()
-                          ) : (
-                            c.mappedCourseName || <span style={{ color: '#94A3B8', fontStyle: 'italic' }}>Unmapped</span>
-                          )}
-                        </td>
-                        <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 600, color: '#64748B' }}>{c.credits}</td>
-                        <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                          {selected.status === 'pending' ? (
-                            <ResponsiveSelect
-                              value={c.courseType || 'CORE'}
+                      <div style={{ color: '#475569', minWidth: 0 }}>
+                        {selected.status === 'pending' ? (
+                          (() => {
+                            const deptCodes = new Set(curriculum?.courses?.map(course => course.code) || []);
+                            const uniqueHec = (hecCurriculum?.courses || []).filter(course => !deptCodes.has(course.code));
+
+                            const options = [];
+                            if (uniqueHec.length > 0) {
+                              options.push({
+                                label: "HEC Standard Curriculum (2025)",
+                                options: uniqueHec.map(c => ({ value: c.code, label: `${c.code} - ${c.title} (${c.creditHours} CH)`, credits: c.creditHours }))
+                              });
+                            }
+                            if (curriculum?.courses?.length > 0) {
+                              options.push({
+                                label: "Department Curriculum",
+                                options: curriculum.courses.map(c => ({ value: c.code, label: `${c.code} - ${c.title} (${c.creditHours} CH)`, credits: c.creditHours }))
+                              });
+                            }
+
+                            const allOpts = options.flatMap(g => g.options);
+                            const selectedOption = allOpts.find(o => o.value === c.mappedCourseName) || null;
+
+                            return (
+                              <Select
+                                options={options}
+                                value={selectedOption}
+                                onChange={(selectedOpt) => {
+                                  const selectedCode = selectedOpt ? selectedOpt.value : '';
+                                  setTempCourses(prev => {
+                                    const updated = [...prev];
+                                    updated[idx] = {
+                                      ...updated[idx],
+                                      mappedCourseName: selectedCode,
+                                      credits: selectedOpt ? selectedOpt.credits : updated[idx].credits
+                                    };
+                                    return updated;
+                                  });
+                                }}
+                                isClearable
+                                placeholder="Select target course..."
+                                closeMenuOnScroll={false}
+                                menuPlacement="auto"
+                                maxMenuHeight={220}
+                                styles={{
+                                  control: (base, state) => ({
+                                    ...base,
+                                    borderRadius: '8px',
+                                    borderColor: state.isFocused ? '#3B82F6' : '#CBD5E1',
+                                    boxShadow: state.isFocused ? '0 0 0 1px #3B82F6' : '0 1px 2px 0 rgba(0,0,0,0.05)',
+                                    fontSize: '13px',
+                                    minHeight: '36px',
+                                    cursor: 'pointer'
+                                  }),
+                                  menu: base => ({
+                                    ...base,
+                                    fontSize: '13px',
+                                    zIndex: 9999
+                                  }),
+                                  option: (base, state) => ({ ...base, cursor: 'pointer' })
+                                }}
+                              />
+                            );
+                          })()
+                        ) : (
+                          c.mappedCourseName || <span style={{ color: '#94A3B8', fontStyle: 'italic' }}>Unmapped</span>
+                        )}
+                      </div>
+
+                      <div style={{ textAlign: 'center', fontWeight: 600, color: '#64748B', fontSize: '13px' }}>{c.credits}</div>
+
+                      <div>
+                        {selected.status === 'pending' ? (
+                          <ResponsiveSelect
+                            value={c.courseType || 'CORE'}
+                            onChange={e => {
+                              const updated = [...tempCourses];
+                              updated[idx].courseType = e.target.value;
+                              setTempCourses(updated);
+                            }}
+                            options={[
+                              { value: 'CORE', label: 'Core' },
+                              { value: 'ELECTIVE', label: 'Elective' },
+                              { value: 'LAB', label: 'Lab' },
+                              { value: 'GENERAL', label: 'General' }
+                            ]}
+                          />
+                        ) : (
+                          <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748B' }}>{(c.courseType || 'CORE')}</span>
+                        )}
+                      </div>
+
+                      <div>
+                        {selected.status === 'pending' ? (
+                          <ResponsiveSelect
+                            value={c.equivalencyStatus}
+                            onChange={e => {
+                              const updated = [...tempCourses];
+                              updated[idx].equivalencyStatus = e.target.value;
+                              setTempCourses(updated);
+                            }}
+                            options={[
+                              { value: 'pending', label: 'Pending' },
+                              { value: 'accepted', label: 'Accepted' },
+                              { value: 'rejected', label: 'Credit Loss' }
+                            ]}
+                          />
+                        ) : (
+                          <span style={{
+                            display: 'inline-block',
+                            padding: '4px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 600,
+                            backgroundColor: c.equivalencyStatus === 'accepted' ? '#D1FAE5' : (c.equivalencyStatus === 'rejected' ? '#FEE2E2' : '#FFFBEB'),
+                            color: c.equivalencyStatus === 'accepted' ? '#059669' : (c.equivalencyStatus === 'rejected' ? '#DC2626' : '#D97706')
+                          }}>
+                            {c.equivalencyStatus === 'rejected' ? 'CREDIT LOSS' : c.equivalencyStatus.toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+
+                      {selected.status === 'pending' ? (
+                        <button
+                          type="button"
+                          onClick={() => setTempCourses(tempCourses.filter((_, i) => i !== idx))}
+                          style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '4px', justifySelf: 'end' }}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      ) : <span />}
+                    </div>
+
+                    {/* Remark / reason — full-width line below the row, never clipped or scrolled */}
+                    {c.equivalencyStatus === 'rejected' && (
+                      <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #F1D9D9' }}>
+                        {selected.status === 'pending' ? (
+                          <>
+                            <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#DC2626', textTransform: 'uppercase', marginBottom: '4px' }}>
+                              Committee's reason for rejection (required)
+                            </label>
+                            <textarea
+                              value={c.decisionRemark || ''}
                               onChange={e => {
                                 const updated = [...tempCourses];
-                                updated[idx].courseType = e.target.value;
+                                updated[idx].decisionRemark = e.target.value;
                                 setTempCourses(updated);
                               }}
-                              options={[
-                                { value: 'CORE', label: 'Core' },
-                                { value: 'ELECTIVE', label: 'Elective' },
-                                { value: 'LAB', label: 'Lab' },
-                                { value: 'GENERAL', label: 'General' }
-                              ]}
+                              placeholder="e.g. No equivalent elective slot in target curriculum; does not align with CS degree electives offered."
+                              rows={2}
+                              style={{
+                                display: 'block', width: '100%', padding: '8px 10px',
+                                borderRadius: '8px', border: `1px solid ${c.decisionRemark ? '#CBD5E1' : '#FCA5A5'}`,
+                                fontSize: '12.5px', outline: 'none', fontFamily: 'inherit', color: '#334155',
+                                resize: 'vertical', lineHeight: 1.5, boxSizing: 'border-box', backgroundColor: '#fff'
+                              }}
                             />
+                          </>
+                        ) : (
+                          c.decisionRemark ? (
+                            <p style={{ margin: 0, fontSize: '12.5px', color: '#7F1D1D', fontStyle: 'italic', lineHeight: 1.5 }}>
+                              <strong style={{ fontStyle: 'normal', fontWeight: 700 }}>Reason: </strong>"{c.decisionRemark}"
+                            </p>
                           ) : (
-                            <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748B' }}>{(c.courseType || 'CORE')}</span>
-                          )}
-                        </td>
-                        <td style={{ padding: '12px 16px' }}>
-                          {selected.status === 'pending' ? (
-                            <>
-                              <ResponsiveSelect
-                                value={c.equivalencyStatus}
-                                onChange={e => {
-                                  const updated = [...tempCourses];
-                                  updated[idx].equivalencyStatus = e.target.value;
-                                  setTempCourses(updated);
-                                }}
-                                options={[
-                                  { value: 'pending', label: 'Pending' },
-                                  { value: 'accepted', label: 'Accepted' },
-                                  { value: 'rejected', label: 'Credit Loss' }
-                                ]}
-                              />
-                              {c.equivalencyStatus === 'rejected' && (
-                                <input
-                                  type="text"
-                                  value={c.decisionRemark || ''}
-                                  onChange={e => {
-                                    const updated = [...tempCourses];
-                                    updated[idx].decisionRemark = e.target.value;
-                                    setTempCourses(updated);
-                                  }}
-                                  placeholder="Committee's reason (required)"
-                                  style={{
-                                    display: 'block', marginTop: '6px', width: '160px', padding: '5px 8px',
-                                    borderRadius: '6px', border: `1px solid ${c.decisionRemark ? '#CBD5E1' : '#FCA5A5'}`,
-                                    fontSize: '11px', outline: 'none', fontFamily: 'inherit', color: '#475569'
-                                  }}
-                                />
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              <span style={{
-                                padding: '4px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 600,
-                                backgroundColor: c.equivalencyStatus === 'accepted' ? '#D1FAE5' : (c.equivalencyStatus === 'rejected' ? '#FEE2E2' : '#FFFBEB'),
-                                color: c.equivalencyStatus === 'accepted' ? '#059669' : (c.equivalencyStatus === 'rejected' ? '#DC2626' : '#D97706')
-                              }}>
-                                {c.equivalencyStatus === 'rejected' ? 'CREDIT LOSS' : c.equivalencyStatus.toUpperCase()}
-                              </span>
-                              {c.equivalencyStatus === 'rejected' && c.decisionRemark && (
-                                <p style={{ margin: '4px 0 0', fontSize: '10px', color: '#94A3B8', maxWidth: '160px', fontStyle: 'italic' }}>"{c.decisionRemark}"</p>
-                              )}
-                            </>
-                          )}
-                        </td>
-                        {selected.status === 'pending' && (
-                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                            <button
-                              type="button"
-                              onClick={() => setTempCourses(tempCourses.filter((_, i) => i !== idx))}
-                              style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '4px' }}
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </td>
+                            <p style={{ margin: 0, fontSize: '12px', color: '#EF4444', fontWeight: 600 }}>No reason recorded.</p>
+                          )
                         )}
-                      </tr>
-                    ))}
-                    {tempCourses.length === 0 && (
-                      <tr><td colSpan="6" style={{ padding: '24px', textAlign: 'center', color: '#94A3B8' }}>No transferred courses attached yet. Add a course below.</td></tr>
+                      </div>
                     )}
-                  </tbody>
-                </table>
+                  </div>
+                ))}
+
+                {tempCourses.length === 0 && (
+                  <div style={{ padding: '24px', textAlign: 'center', color: '#94A3B8', border: '1px solid #E2E8F0', borderRadius: '12px' }}>
+                    No transferred courses attached yet. Add a course below.
+                  </div>
+                )}
               </div>
 
               {/* HEC Curriculum Reference Panel */}
